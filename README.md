@@ -36,8 +36,47 @@ following phases. Not yet released to any registry.
 | Crate | Role |
 |-------|------|
 | `wickra-backtest-core` | feed-agnostic engine: strategy spec, rules, sizing, execution, portfolio, report |
-| `wickra-backtest-data` | data loaders (CSV / Parquet / JSONL) |
+| `wickra-backtest-data` | data loaders (CSV / JSON Lines / JSON) |
 | `wickra-backtest` | facade: re-exports the engine + the historical backtest runner |
+| `wickra-backtest-cli` | the `wkbt` command-line backtester |
+
+## Quickstart
+
+A strategy is **data** — a JSON spec. Run one over a candle file with the `wkbt` CLI:
+
+```bash
+cargo run --bin wkbt -- run --data examples/sample.csv --spec examples/ema-cross.json
+```
+
+```text
+bars       80
+trades     4
+return     -2.68%
+pnl        -268.21
+sharpe     -0.186
+max dd     2.68%
+win rate   0.0%
+fees       37.50
+```
+
+A spec declares named indicators and entry/exit rules over them:
+
+```json
+{
+  "symbol": "BTCUSDT", "timeframe": "1h",
+  "indicators": { "ema_fast": { "type": "Ema", "params": [5] },
+                  "ema_slow": { "type": "Ema", "params": [15] } },
+  "entry": { "cross_above": ["ema_fast", "ema_slow"] },
+  "exit":  { "cross_below": ["ema_fast", "ema_slow"] },
+  "sizing": { "type": "fixed_fraction", "fraction": 0.95 },
+  "risk": { "trailing_stop_pct": 5.0 }
+}
+```
+
+See [`examples/`](examples/) for the full files and how to write the report and
+trade/equity streams.
+
+From Rust, the same thing is `wickra_backtest::run(&spec, &candles)`.
 
 ## License
 

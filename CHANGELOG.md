@@ -34,6 +34,10 @@ to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
   `Stochastic`) whose named fields are referenced in the spec as `"name.field"`
   (e.g. `macd.signal`, `bb.upper`). `EvalIndicator` now exposes named fields.
 
+- Trailing stop (`trailing_stop_pct`): exits intrabar when price retraces past
+  the trailed favourable extreme since entry (side-aware).
+- `examples/` (an EMA-crossover spec + a sample CSV) and a README quickstart.
+
 ### Changed
 
 - Execution depth: the portfolio is now signed (long **and** short positions),
