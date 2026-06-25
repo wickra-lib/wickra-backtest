@@ -1,0 +1,56 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<project xmlns="http://maven.apache.org/POM/4.0.0"
+         xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+         xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xsd/maven-4.0.0.xsd">
+  <modelVersion>4.0.0</modelVersion>
+
+  <groupId>org.wickra</groupId>
+  <artifactId>wickra-backtest</artifactId>
+  <version>0.1.0</version>
+  <packaging>jar</packaging>
+
+  <name>wickra-backtest (Java)</name>
+  <description>Java binding for the wickra-backtest engine over the C ABI (Foreign Function and Memory API).</description>
+
+  <properties>
+    <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
+    <maven.compiler.release>25</maven.compiler.release>
+    <!-- The native C-ABI library lives in the Cargo target dir. Build it with:
+         cargo build -p wickra-backtest-c -->
+    <native.lib.dir>${project.basedir}/../../target/debug</native.lib.dir>
+  </properties>
+
+  <dependencies>
+    <dependency>
+      <groupId>org.junit.jupiter</groupId>
+      <artifactId>junit-jupiter</artifactId>
+      <version>5.11.3</version>
+      <scope>test</scope>
+    </dependency>
+    <dependency>
+      <groupId>org.json</groupId>
+      <artifactId>json</artifactId>
+      <version>20240303</version>
+      <scope>test</scope>
+    </dependency>
+  </dependencies>
+
+  <build>
+    <plugins>
+      <plugin>
+        <groupId>org.apache.maven.plugins</groupId>
+        <artifactId>maven-compiler-plugin</artifactId>
+        <version>3.13.0</version>
+      </plugin>
+      <plugin>
+        <groupId>org.apache.maven.plugins</groupId>
+        <artifactId>maven-surefire-plugin</artifactId>
+        <version>3.5.2</version>
+        <configuration>
+          <!-- FFM is stable since Java 22; native access still needs opting in. -->
+          <argLine>--enable-native-access=ALL-UNNAMED "-Djava.library.path=${native.lib.dir}"</argLine>
+        </configuration>
+      </plugin>
+    </plugins>
+  </build>
+</project>

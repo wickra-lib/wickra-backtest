@@ -26,3 +26,6 @@ pkg/
 # .NET build artifacts
 bin/
 obj/
+
+# Java / Maven build artifacts
+bindings/java/target/
