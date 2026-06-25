@@ -283,6 +283,33 @@ mod tests {
         }
     }
 
+    /// A generated indicator — one that was never in the original hand-written
+    /// registry — drives a full backtest, proving the expanded registry
+    /// integrates end to end through the engine.
+    #[test]
+    fn generated_indicator_drives_backtest() {
+        // `Alma` is one of the generated scalar (`Input = f64`) indicators.
+        let spec = StrategySpec::parse(
+            r#"{"symbol":"x","timeframe":"1h",
+                "indicators":{"a":{"type":"Alma","params":[9,0.85,6.0]}},
+                "entry":{"cross_above":[{"price":"close"},"a"]},
+                "exit":{"cross_below":[{"price":"close"},"a"]},
+                "sizing":{"type":"fixed_qty","qty":1}}"#,
+        )
+        .unwrap();
+        let candles: Vec<Candle> = (0..60)
+            .map(|i| {
+                let px = 100.0 + ((i as f64) * 0.4).sin() * 6.0;
+                bar(i, px, px + 0.5, px - 0.5, px)
+            })
+            .collect();
+        let r = run(&spec, &candles).unwrap();
+        // It ran over every bar and produced a full equity curve.
+        assert_eq!(r.equity.len(), candles.len());
+        // The oscillating series crosses the moving average, so it trades.
+        assert!(r.metrics.num_trades >= 1);
+    }
+
     /// A price-threshold long strategy with no costs, hand-computed end to end.
     #[test]
     fn hand_computed_round_trip() {
