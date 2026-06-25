@@ -74,6 +74,14 @@ to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 - `examples/` (an EMA-crossover spec + a sample CSV) and a README quickstart.
 - A criterion throughput benchmark (`wickra-backtest-bench`) and `BENCHMARKS.md`
   documenting ~1.7M bars/second on one core.
+- Golden parity corpus (`golden/`): shared strategy cases (price threshold, EMA
+  crossover, RSI mean reversion, MACD long/short) and the canonical report each
+  must produce. The Rust integration test (`tests/golden.rs`) is the anchor
+  (`WICKRA_BLESS=1` regenerates the expected reports); the Go, Node.js and
+  Python bindings assert their output against the same reports — byte-for-byte
+  for the JSON-returning bindings, value-for-value for Python. This pins
+  cross-language equality and is regression-proof. The remaining bindings (C, C++,
+  C#, Java, R, WASM) plug into the same corpus with the documented pattern.
 
 ### Changed
 
