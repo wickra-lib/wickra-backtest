@@ -71,6 +71,9 @@ pub fn run_with_capital(
     let mut equity: Vec<EquityPoint> = Vec::with_capacity(candles.len());
     let mut pending: Option<Action> = None;
     let mut entry_bar: Option<usize> = None;
+    // Most favourable price reached since entry (peak for a long, trough for a
+    // short) — the reference for the trailing stop.
+    let mut extreme = 0.0f64;
 
     for (t, candle) in candles.iter().enumerate() {
         // 1. Fill the pending signal order at this bar's open (look-ahead-free).
@@ -86,6 +89,7 @@ pub fn run_with_capital(
                         let fee = base * fill * taker;
                         pf.enter(dir * base, fill, candle.time, fee);
                         entry_bar = Some(t);
+                        extreme = fill;
                     }
                 }
             }
@@ -116,10 +120,16 @@ pub fn run_with_capital(
         });
         let idx = history.len() - 1;
 
-        // 3. Intrabar stop-loss / take-profit against this bar's OHLC.
+        // 3. Intrabar stop-loss / take-profit / trailing-stop against this bar's OHLC.
         if pf.in_position() {
+            // Extend the favourable extreme with this bar before checking the trail.
+            extreme = if pf.is_long() {
+                extreme.max(candle.high)
+            } else {
+                extreme.min(candle.low)
+            };
             if let Some((price, reason)) =
-                intrabar_exit(candle, &spec.risk, pf.entry_price, pf.is_long())
+                intrabar_exit(candle, &spec.risk, pf.entry_price, extreme, pf.is_long())
             {
                 let fee = pf.qty.abs() * price * taker;
                 pf.exit(price, candle.time, fee, reason);
@@ -198,15 +208,18 @@ fn size(sizing: Sizing, cash: f64, price: f64) -> Result<Option<f64>> {
     Ok(Some(qty))
 }
 
-/// Intrabar stop-loss / take-profit fill against the bar's OHLC.
+/// Intrabar stop-loss / trailing-stop / take-profit fill against the bar's OHLC.
 ///
-/// Conservative: when a bar's range brackets both the stop and the target, the
-/// stop is assumed to fill first. Levels are side-aware (a short's stop is above
+/// `extreme` is the most favourable price reached since entry (peak for a long,
+/// trough for a short), the trailing-stop reference. Conservative: when a bar's
+/// range brackets several levels, the stop (then the trailing stop) is assumed
+/// to fill before the target. Levels are side-aware (a short's stop is above
 /// entry, its target below).
 fn intrabar_exit(
     candle: &Candle,
     risk: &Risk,
     entry: f64,
+    extreme: f64,
     is_long: bool,
 ) -> Option<(f64, &'static str)> {
     if entry <= 0.0 {
@@ -217,6 +230,12 @@ fn intrabar_exit(
             let level = entry * (1.0 - p / 100.0);
             if candle.low <= level {
                 return Some((level, "stop_loss"));
+            }
+        }
+        if let Some(p) = risk.trailing_stop_pct {
+            let level = extreme * (1.0 - p / 100.0);
+            if candle.low <= level {
+                return Some((level, "trailing_stop"));
             }
         }
         if let Some(p) = risk.take_profit_pct {
@@ -230,6 +249,12 @@ fn intrabar_exit(
             let level = entry * (1.0 + p / 100.0);
             if candle.high >= level {
                 return Some((level, "stop_loss"));
+            }
+        }
+        if let Some(p) = risk.trailing_stop_pct {
+            let level = extreme * (1.0 + p / 100.0);
+            if candle.high >= level {
+                return Some((level, "trailing_stop"));
             }
         }
         if let Some(p) = risk.take_profit_pct {
@@ -357,6 +382,31 @@ mod tests {
         assert!((t.exit_price - 110.0).abs() < 1e-9);
         assert_eq!(t.reason, "take_profit");
         assert!((t.pnl - 10.0).abs() < 1e-9);
+    }
+
+    /// A long trailing stop exits when price retraces past the trailed peak.
+    #[test]
+    fn trailing_stop() {
+        let spec = StrategySpec::parse(
+            r#"{"symbol":"x","timeframe":"1h","indicators":{},
+                "entry":{"gt":[{"price":"close"},0]},
+                "exit":{"lt":[{"price":"close"},0]},
+                "sizing":{"type":"fixed_qty","qty":1},
+                "risk":{"trailing_stop_pct":10.0}}"#,
+        )
+        .unwrap();
+        let candles = [
+            bar(0, 100.0, 100.0, 100.0, 100.0), // enter signal
+            bar(1, 100.0, 100.0, 100.0, 100.0), // fill enter @ 100
+            bar(2, 100.0, 120.0, 119.0, 120.0), // peak 120 (trail 108, low 119 -> no exit)
+            bar(3, 118.0, 118.0, 105.0, 106.0), // low 105 <= 108 -> trailing fills @ 108
+        ];
+        let r = run_with_capital(&spec, &candles, 1000.0).unwrap();
+        assert_eq!(r.trades.len(), 1);
+        let t = &r.trades[0];
+        assert_eq!(t.reason, "trailing_stop");
+        assert!((t.exit_price - 108.0).abs() < 1e-9);
+        assert!((t.pnl - 8.0).abs() < 1e-9);
     }
 
     #[test]
