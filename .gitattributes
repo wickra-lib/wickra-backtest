@@ -1,0 +1,4 @@
+# Normalise line endings to LF in the repo (Windows checkouts may use CRLF).
+* text=auto eol=lf
+*.webp binary
+*.png binary
