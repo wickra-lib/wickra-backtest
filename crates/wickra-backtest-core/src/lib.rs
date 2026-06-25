@@ -20,11 +20,22 @@
 #![forbid(unsafe_code)]
 
 pub mod data;
+pub mod engine;
 pub mod error;
+pub mod metrics;
+pub mod portfolio;
+pub mod registry;
+pub mod report;
+pub mod rules;
 pub mod spec;
 
 pub use data::Candle;
+pub use engine::{run, run_with_capital, DEFAULT_CAPITAL};
 pub use error::{BacktestError, Result};
+pub use metrics::Metrics;
+pub use portfolio::Trade;
+pub use registry::EvalIndicator;
+pub use report::{BacktestReport, EquityPoint, REPORT_SCHEMA_VERSION};
 pub use spec::{
     Condition, Costs, Execution, Feed, FillTiming, IndicatorSpec, IntPredicate, Operand,
     OperandExpr, OrderType, PriceField, Risk, Sizing, Slippage, StrategySpec, SPEC_VERSION,
