@@ -1,0 +1,23 @@
+[package]
+name = "wickra-backtest-python"
+description = "Python bindings for the wickra-backtest streaming backtester."
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+authors.workspace = true
+repository.workspace = true
+homepage.workspace = true
+publish = false
+
+[lib]
+name = "_wickra_backtest"
+crate-type = ["cdylib"]
+
+[dependencies]
+wickra-backtest-core.workspace = true
+serde_json.workspace = true
+pyo3.workspace = true
+
+[lints]
+workspace = true

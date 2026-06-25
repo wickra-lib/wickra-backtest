@@ -5,3 +5,13 @@ Cargo.lock.bak
 .idea/
 .vscode/
 *.pdb
+
+# Python build artifacts
+__pycache__/
+*.py[cod]
+*.so
+*.pyd
+*.egg-info/
+dist/
+.venv/
+build/

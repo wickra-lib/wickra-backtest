@@ -11,6 +11,7 @@ members = [
     "crates/wickra-backtest",
     "crates/wickra-backtest-cli",
     "crates/wickra-backtest-bench",
+    "bindings/python",
 ]
 
 [workspace.package]
@@ -33,6 +34,7 @@ serde = { version = "1", features = ["derive"] }
 serde_json = "1"
 thiserror = "2"
 clap = { version = "4", features = ["derive"] }
+pyo3 = { version = "0.29", features = ["extension-module", "abi3-py39"] }
 
 [workspace.lints.clippy]
 all = { level = "warn", priority = -1 }

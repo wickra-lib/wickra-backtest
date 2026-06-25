@@ -24,6 +24,9 @@ to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
   (signal-on-close, fill-on-next-open); fixed fee + fixed-bps slippage and
   close-based stop/target are modelled.
 
+- Python binding (`wickra-backtest`, PyO3 + maturin, abi3-py39): `wickra_backtest.run(open, high, low, close, …, spec=…)`
+  runs a strategy spec over OHLCV arrays (lists or NumPy) and returns the report
+  as a dict. A CI job builds and tests it on Linux/macOS/Windows.
 - Data loaders (`wickra-backtest-data`): CSV (`time,open,high,low,close[,volume]`,
   optional header), JSON Lines and JSON-array candle files, dispatched by extension.
 - `wkbt` command-line backtester (`wickra-backtest-cli`): `wkbt run --data … --spec …
