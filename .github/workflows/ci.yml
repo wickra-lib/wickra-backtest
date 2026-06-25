@@ -26,8 +26,10 @@ jobs:
           persist-credentials: false
       - uses: dtolnay/rust-toolchain@stable
       - uses: Swatinem/rust-cache@v2
-      - run: cargo build --workspace --all-features
-      - run: cargo test --workspace --all-features
+      # The PyO3 extension cdylib is built and tested by the `python` job via
+      # maturin (which supplies the platform link flags); exclude it here.
+      - run: cargo build --workspace --all-features --exclude wickra-backtest-python
+      - run: cargo test --workspace --all-features --exclude wickra-backtest-python
 
   lint:
     name: Format & Clippy
@@ -52,7 +54,7 @@ jobs:
           persist-credentials: false
       - uses: dtolnay/rust-toolchain@1.86
       - uses: Swatinem/rust-cache@v2
-      - run: cargo build --workspace
+      - run: cargo build --workspace --exclude wickra-backtest-python
 
   supply-chain:
     name: cargo-deny
@@ -65,3 +67,25 @@ jobs:
         with:
           tool: cargo-deny
       - run: cargo deny check
+
+  python:
+    name: Python binding (${{ matrix.os }})
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, windows-latest, macos-latest]
+    runs-on: ${{ matrix.os }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - uses: dtolnay/rust-toolchain@stable
+      - uses: Swatinem/rust-cache@v2
+      - run: pip install maturin pytest
+      - run: maturin build --out dist
+        working-directory: bindings/python
+      - run: pip install --no-index --find-links bindings/python/dist wickra-backtest
+      - run: pytest bindings/python/tests -q
