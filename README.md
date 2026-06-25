@@ -78,6 +78,11 @@ trade/equity streams.
 
 From Rust, the same thing is `wickra_backtest::run(&spec, &candles)`.
 
+## Performance
+
+O(1) per bar — about **1.7M bars/second** on one core (a year of 1-minute bars in
+~0.3 s). See [BENCHMARKS.md](BENCHMARKS.md) for the methodology and caveats.
+
 ## License
 
 Licensed under either of [MIT](LICENSE-MIT) or [Apache-2.0](LICENSE-APACHE) at your option.

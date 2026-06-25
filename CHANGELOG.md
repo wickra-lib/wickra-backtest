@@ -39,6 +39,8 @@ to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 - Trailing stop (`trailing_stop_pct`): exits intrabar when price retraces past
   the trailed favourable extreme since entry (side-aware).
 - `examples/` (an EMA-crossover spec + a sample CSV) and a README quickstart.
+- A criterion throughput benchmark (`wickra-backtest-bench`) and `BENCHMARKS.md`
+  documenting ~1.7M bars/second on one core.
 
 ### Changed
 
