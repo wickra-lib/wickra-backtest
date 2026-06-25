@@ -1,7 +1,10 @@
-//! Long-only cash/position accounting for the engine MVP.
+//! Cash/position accounting for one signed position (long `qty > 0` or short
+//! `qty < 0`).
 //!
 //! Fills are charged a taker fee on notional and slippage is applied to the fill
 //! price by the engine before it calls [`Portfolio::enter`] / [`Portfolio::exit`].
+//! The signed-quantity convention makes the same `enter`/`exit` cash maths work
+//! for both sides: `PnL` is always `qty * (exit − entry) − fees`.
 
 use serde::Serialize;
 
@@ -59,8 +62,13 @@ impl Portfolio {
         }
     }
 
-    /// Whether a position is open.
+    /// Whether a position is open (long `qty > 0` or short `qty < 0`).
     pub fn in_position(&self) -> bool {
+        self.qty.abs() > f64::EPSILON
+    }
+
+    /// `true` for a long position, `false` for a short.
+    pub fn is_long(&self) -> bool {
         self.qty > 0.0
     }
 
@@ -84,7 +92,7 @@ impl Portfolio {
         let qty = self.qty;
         self.cash += qty * price - fee;
         self.fees_paid += fee;
-        let notional = qty * self.entry_price;
+        let notional = qty.abs() * self.entry_price;
         let pnl = qty * (price - self.entry_price) - self.entry_fee - fee;
         let return_pct = if notional.abs() < f64::EPSILON {
             0.0
@@ -123,5 +131,20 @@ mod tests {
         // pnl = 10*(12-10) - 1 - 1 = 18
         assert!((t.pnl - 18.0).abs() < 1e-9);
         assert!((pf.fees_paid - 2.0).abs() < 1e-9);
+    }
+
+    #[test]
+    fn short_round_trip_profits_when_price_falls() {
+        let mut pf = Portfolio::new(1000.0);
+        pf.enter(-10.0, 10.0, 1, 0.0); // short 10 @ 10 -> receive 100 -> cash 1100
+        assert!(pf.in_position());
+        assert!(!pf.is_long());
+        assert!((pf.cash - 1100.0).abs() < 1e-9);
+        pf.exit(8.0, 2, 0.0, "signal"); // buy back 10 @ 8 -> pay 80 -> cash 1020
+        assert!((pf.cash - 1020.0).abs() < 1e-9);
+        let t = &pf.trades[0];
+        // pnl = -10*(8-10) = 20
+        assert!((t.pnl - 20.0).abs() < 1e-9);
+        assert!((t.return_pct - 20.0).abs() < 1e-9); // 20 / (10*10) * 100
     }
 }
