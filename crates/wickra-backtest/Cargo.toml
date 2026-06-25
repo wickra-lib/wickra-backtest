@@ -1,0 +1,19 @@
+[package]
+name = "wickra-backtest"
+description = "Streaming-native backtester for the Wickra technical-indicator library — backtest == live, in 10 languages."
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+authors.workspace = true
+repository.workspace = true
+homepage.workspace = true
+keywords.workspace = true
+categories.workspace = true
+
+[dependencies]
+wickra-backtest-core.workspace = true
+wickra-backtest-data.workspace = true
+
+[lints]
+workspace = true

@@ -1,0 +1,43 @@
+# Wickra Backtest — workspace.
+# Streaming-native, event-driven backtester built on the Wickra indicator core.
+# The engine consumes the exact same `wickra_core` O(1) indicator kernels that
+# power live Wickra, so backtest values are identical to live, across languages.
+
+[workspace]
+resolver = "2"
+members = [
+    "crates/wickra-backtest-core",
+    "crates/wickra-backtest-data",
+    "crates/wickra-backtest",
+]
+
+[workspace.package]
+version = "0.1.0"
+edition = "2021"
+rust-version = "1.86"
+license = "MIT OR Apache-2.0"
+authors = ["kingchenc"]
+repository = "https://github.com/wickra-lib/wickra-backtest"
+homepage = "https://wickra.org"
+readme = "README.md"
+keywords = ["backtesting", "trading", "technical-analysis", "quant", "streaming"]
+categories = ["finance", "simulation"]
+
+[workspace.dependencies]
+wickra-core = "0.9"
+wickra-backtest-core = { version = "0.1.0", path = "crates/wickra-backtest-core" }
+wickra-backtest-data = { version = "0.1.0", path = "crates/wickra-backtest-data" }
+serde = { version = "1", features = ["derive"] }
+serde_json = "1"
+thiserror = "2"
+
+[workspace.lints.clippy]
+all = { level = "warn", priority = -1 }
+pedantic = { level = "warn", priority = -1 }
+# Allowed pedantic lints (same precedent as the wickra core).
+cast_precision_loss = "allow"
+cast_sign_loss = "allow"
+cast_possible_truncation = "allow"
+module_name_repetitions = "allow"
+missing_errors_doc = "allow"
+missing_panics_doc = "allow"

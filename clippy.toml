@@ -1,0 +1,3 @@
+# Clippy thresholds. Lint levels (clippy::all / pedantic) live in the workspace
+# Cargo.toml under [workspace.lints]; this file holds configurable thresholds.
+too-many-arguments-threshold = 8

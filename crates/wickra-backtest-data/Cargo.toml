@@ -1,0 +1,21 @@
+[package]
+name = "wickra-backtest-data"
+description = "Data loaders (CSV / Parquet / JSONL) feeding the wickra-backtest engine."
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+authors.workspace = true
+repository.workspace = true
+homepage.workspace = true
+keywords.workspace = true
+categories.workspace = true
+
+[dependencies]
+wickra-backtest-core.workspace = true
+serde.workspace = true
+serde_json.workspace = true
+thiserror.workspace = true
+
+[lints]
+workspace = true
