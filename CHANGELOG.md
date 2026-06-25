@@ -46,6 +46,10 @@ to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
   the C ABI): `Backtester.run(open, high, low, close, …, spec, capital)` returns
   the report JSON. JUnit round-trip test is byte-identical to the other bindings
   (six-language parity). FFM is stable since Java 22 — no preview flags.
+- Go binding (`github.com/wickra-lib/wickra-backtest-go`, cgo over the C ABI):
+  `wickrabacktest.Run(open, high, low, close, …, spec, capital)` returns the
+  report JSON. The `go test` round-trip is byte-identical to the other bindings
+  (seven-language parity); cgo links directly against the shared library.
 - Data loaders (`wickra-backtest-data`): CSV (`time,open,high,low,close[,volume]`,
   optional header), JSON Lines and JSON-array candle files, dispatched by extension.
 - `wkbt` command-line backtester (`wickra-backtest-cli`): `wkbt run --data … --spec …
