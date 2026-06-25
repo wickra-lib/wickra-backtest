@@ -1,22 +1,22 @@
 #!/usr/bin/env python3
 """Generate crates/wickra-backtest-core/src/registry.rs.
 
-Single source of truth: the wickra repo's wasm binding macros
-(bindings/wasm/src/lib.rs), which already compile against wickra-core and so
-carry the exact Rust constructor signatures:
+Single source of truth: the wickra-core indicator sources themselves
+(crates/wickra-core/src/indicators/*.rs). For every type that implements the
+`Indicator` trait we read, directly from the source:
 
-    wasm_scalar_indicator!(WasmX, "ALIAS", wc::Type, p1: usize, p2: f64)
-        -> Input = f64 single-output indicators (fed the bar close)
-    wasm_candle_pattern!(WasmX, wc::Type, Js)
-        -> Input = Candle, param-less new(), +-1 / scalar output
+  - the associated `type Input` (f64 / Candle / ... ) and `type Output`
+  - the `pub [const] fn new(...) -> Result<Self> | Self` constructor signature
+  - for multi-output indicators, the `f64` field names of the Output struct
+
+Every indicator whose input is a single instrument's price (`f64`, fed the
+close) or candle (`Candle`) and whose output is a scalar `f64` or a struct of
+`f64` fields is emitted. Pairwise `(f64, f64)`, cross-section, derivatives,
+trade, order-book and quote inputs are structurally out of scope for a
+single-instrument bar backtester and are skipped (and reported).
 
 Default constructor parameters for the build-all test come from the wickra
-golden manifest (testdata/golden/scalar_manifest.json), joined by canonical
-name.
-
-A small set of candle-input scalar indicators and the multi-output indicators
-are kept hand-written (they have no uniform wasm macro); they are emitted
-verbatim from the templates below.
+golden manifests, joined by canonical name.
 
 Usage (with a sibling wickra checkout):
     python tools/gen_registry.py --wickra ../wickra \
@@ -25,64 +25,71 @@ Usage (with a sibling wickra checkout):
 from __future__ import annotations
 
 import argparse
+import glob
 import json
 import re
+from collections import Counter
 from pathlib import Path
 
-# Candle-input scalar indicators kept hand-written (no uniform wasm macro).
-HAND_CANDLE_SCALAR = {
-    "Atr": ("p(0)?", [14.0]),
-    "Cci": ("p(0)?", [20.0]),
-    "WilliamsR": ("p(0)?", [14.0]),
-    "Mfi": ("p(0)?", [14.0]),
-}
-# Candle-input scalar with a param-less, non-Result constructor.
-HAND_CANDLE_SCALAR_NOARG = {
-    "Vwap": [],
-    "Obv": [],
+# Friendly aliases kept for ergonomics / backward compatibility. Each maps a
+# short name to the canonical wickra-core type name.
+ALIASES = {
+    "Macd": "MacdIndicator",
+    "Bollinger": "BollingerBands",
 }
 
+# usize/f64/u32/i32 are read with the helpers below; anything else is skipped.
 ARG_READER = {
     "usize": "p({i})?",
     "f64": "float_param(params, {i}, kind)?",
     "u32": "u32_param(params, {i}, kind)?",
+    "i32": "i32_param(params, {i}, kind)?",
 }
 
 
-def parse_scalar(src: str):
-    """Return [(type, [(argname, argtype), ...]), ...] for wasm_scalar_indicator!."""
-    out = []
-    for body in re.findall(r"wasm_scalar_indicator!\s*\((.*?)\)\s*;", src, re.S):
-        parts = [p.strip() for p in body.split(",")]
-        ty = None
-        args = []
-        for p in parts:
-            if p.startswith("wc::"):
-                ty = p[4:]
-            elif ":" in p and not p.startswith('"'):
-                name, t = p.split(":", 1)
-                args.append((name.strip(), t.strip()))
-        if ty:
-            out.append((ty, args))
-    return out
+def assoc_types(text: str, ty: str):
+    m = re.search(r"impl\s+Indicator\s+for\s+" + re.escape(ty) + r"\b", text)
+    if not m:
+        return None, None
+    seg = text[m.end(): m.end() + 2000]
+    mi = re.search(r"type\s+Input\s*=\s*([^;]+);", seg)
+    mo = re.search(r"type\s+Output\s*=\s*([^;]+);", seg)
+    inp = re.sub(r"\s+", "", mi.group(1)) if mi else None
+    out = mo.group(1).strip() if mo else None
+    return inp, out
 
 
-def parse_candle_patterns(src: str):
-    """Return [type, ...] for wasm_candle_pattern! (the 2nd, wc:: argument)."""
-    out = []
-    for body in re.findall(r"wasm_candle_pattern!\s*\((.*?)\)\s*;", src, re.S):
-        for p in (x.strip() for x in body.split(",")):
-            if p.startswith("wc::"):
-                out.append(p[4:])
-                break
-    return out
+def find_new(text: str, ty: str):
+    """Return (arg_types, returns_result) for `pub [const] fn new`, or None."""
+    for m in re.finditer(r"impl\s+" + re.escape(ty) + r"\s*\{", text):
+        seg = text[m.end(): m.end() + 3000]
+        mn = re.search(
+            r"pub\s+(?:const\s+)?fn\s+new\s*\(([^)]*)\)\s*->\s*(Result<Self>|Self)\s*\{",
+            seg,
+            re.S,
+        )
+        if mn:
+            argstr = mn.group(1).strip()
+            argtypes = [
+                p.split(":", 1)[1].strip() for p in argstr.split(",") if ":" in p
+            ]
+            return argtypes, mn.group(2).strip() == "Result<Self>"
+    return None
 
 
-def reader(argtype: str, i: int) -> str:
-    tmpl = ARG_READER.get(argtype)
-    if tmpl is None:
-        raise SystemExit(f"unsupported ctor arg type: {argtype}")
-    return tmpl.format(i=i)
+def out_fields(bigtext: str, out: str):
+    m = re.search(r"pub\s+struct\s+" + re.escape(out) + r"\s*\{(.*?)\n\}", bigtext, re.S)
+    if not m:
+        return None
+    return re.findall(r"pub\s+(\w+)\s*:\s*f64\b", m.group(1))
+
+
+def readers(argtypes):
+    return ", ".join(ARG_READER[t].format(i=i) for i, t in enumerate(argtypes))
+
+
+def fmt_params(vals):
+    return ", ".join(f"{float(v)}" for v in vals)
 
 
 HEAD = r'''//! Indicator registry: constructs `wickra-core` indicators by name and wraps
@@ -93,13 +100,14 @@ HEAD = r'''//! Indicator registry: constructs `wickra-core` indicators by name a
 //!
 //! ```text
 //! python tools/gen_registry.py --wickra ../wickra --out crates/wickra-backtest-core/src/registry.rs
+//! cargo fmt --all
 //! ```
 //!
-//! Source of truth: the wickra wasm binding macros (exact Rust constructor
-//! signatures) joined with the golden manifest (default parameters). Scalar
-//! (`Input = f64`) and candlestick-pattern (`Input = Candle`, param-less)
-//! indicators are generated; a few candle-input scalar indicators and the
-//! multi-output indicators are kept hand-written.
+//! Source of truth: the wickra-core indicator sources (the `Indicator` impls,
+//! `new` signatures and Output structs). Every single-instrument indicator
+//! (`Input = f64` fed the close, or `Input = Candle`) with a scalar `f64` or
+//! all-`f64`-field struct output is registered. Multi-output indicators expose
+//! named fields, referenced in the spec as `"name.field"`.
 
 use wickra_core::{self as wc, Candle as CoreCandle, Indicator};
 
@@ -152,166 +160,68 @@ where
     }
 }
 
-/// MACD (`{macd, signal, histogram}`); primary value is the MACD line.
-struct MacdWrap {
-    inner: wc::MacdIndicator,
-    last: Vec<(&'static str, f64)>,
+/// Define a multi-output wrapper over an `Input = f64` indicator. The primary
+/// value (bare `"name"` reference) is the first field; all fields are exposed
+/// for `"name.field"` references.
+macro_rules! multi_close {
+    ($wrap:ident, $ty:ident, $first:ident, [$($f:ident),+]) => {
+        struct $wrap {
+            inner: wc::$ty,
+            last: Vec<(&'static str, f64)>,
+        }
+        impl $wrap {
+            fn wrap(inner: wc::$ty) -> Self {
+                Self { inner, last: Vec::new() }
+            }
+        }
+        impl EvalIndicator for $wrap {
+            fn update(&mut self, candle: &Candle) -> Option<f64> {
+                let out = self.inner.update(candle.close)?;
+                self.last = vec![$((stringify!($f), out.$f)),+];
+                Some(out.$first)
+            }
+            fn fields(&self) -> Vec<(&'static str, f64)> {
+                self.last.clone()
+            }
+            fn warmup(&self) -> usize {
+                self.inner.warmup_period()
+            }
+        }
+    };
 }
 
-impl EvalIndicator for MacdWrap {
-    fn update(&mut self, candle: &Candle) -> Option<f64> {
-        let out = self.inner.update(candle.close)?;
-        self.last = vec![
-            ("macd", out.macd),
-            ("signal", out.signal),
-            ("histogram", out.histogram),
-        ];
-        Some(out.macd)
-    }
-    fn fields(&self) -> Vec<(&'static str, f64)> {
-        self.last.clone()
-    }
-    fn warmup(&self) -> usize {
-        self.inner.warmup_period()
-    }
+/// Define a multi-output wrapper over an `Input = Candle` indicator.
+macro_rules! multi_candle {
+    ($wrap:ident, $ty:ident, $first:ident, [$($f:ident),+]) => {
+        struct $wrap {
+            inner: wc::$ty,
+            last: Vec<(&'static str, f64)>,
+        }
+        impl $wrap {
+            fn wrap(inner: wc::$ty) -> Self {
+                Self { inner, last: Vec::new() }
+            }
+        }
+        impl EvalIndicator for $wrap {
+            fn update(&mut self, candle: &Candle) -> Option<f64> {
+                let c = candle.to_core().ok()?;
+                let out = self.inner.update(c)?;
+                self.last = vec![$((stringify!($f), out.$f)),+];
+                Some(out.$first)
+            }
+            fn fields(&self) -> Vec<(&'static str, f64)> {
+                self.last.clone()
+            }
+            fn warmup(&self) -> usize {
+                self.inner.warmup_period()
+            }
+        }
+    };
 }
 
-/// Bollinger Bands (`{upper, middle, lower}`); primary value is the middle band.
-struct BollingerWrap {
-    inner: wc::BollingerBands,
-    last: Vec<(&'static str, f64)>,
-}
+'''
 
-impl EvalIndicator for BollingerWrap {
-    fn update(&mut self, candle: &Candle) -> Option<f64> {
-        let out = self.inner.update(candle.close)?;
-        self.last = vec![
-            ("upper", out.upper),
-            ("middle", out.middle),
-            ("lower", out.lower),
-        ];
-        Some(out.middle)
-    }
-    fn fields(&self) -> Vec<(&'static str, f64)> {
-        self.last.clone()
-    }
-    fn warmup(&self) -> usize {
-        self.inner.warmup_period()
-    }
-}
-
-/// Stochastic oscillator (`{k, d}`); primary value is `%K`.
-struct StochasticWrap {
-    inner: wc::Stochastic,
-    last: Vec<(&'static str, f64)>,
-}
-
-impl EvalIndicator for StochasticWrap {
-    fn update(&mut self, candle: &Candle) -> Option<f64> {
-        let out = candle.to_core().ok().and_then(|c| self.inner.update(c))?;
-        self.last = vec![("k", out.k), ("d", out.d)];
-        Some(out.k)
-    }
-    fn fields(&self) -> Vec<(&'static str, f64)> {
-        self.last.clone()
-    }
-    fn warmup(&self) -> usize {
-        self.inner.warmup_period()
-    }
-}
-
-/// ADX (`{adx, plus_di, minus_di}`); primary value is the ADX line.
-struct AdxWrap {
-    inner: wc::Adx,
-    last: Vec<(&'static str, f64)>,
-}
-
-impl EvalIndicator for AdxWrap {
-    fn update(&mut self, candle: &Candle) -> Option<f64> {
-        let out = candle.to_core().ok().and_then(|c| self.inner.update(c))?;
-        self.last = vec![
-            ("adx", out.adx),
-            ("plus_di", out.plus_di),
-            ("minus_di", out.minus_di),
-        ];
-        Some(out.adx)
-    }
-    fn fields(&self) -> Vec<(&'static str, f64)> {
-        self.last.clone()
-    }
-    fn warmup(&self) -> usize {
-        self.inner.warmup_period()
-    }
-}
-
-/// Aroon (`{up, down}`); primary value is Aroon-Up.
-struct AroonWrap {
-    inner: wc::Aroon,
-    last: Vec<(&'static str, f64)>,
-}
-
-impl EvalIndicator for AroonWrap {
-    fn update(&mut self, candle: &Candle) -> Option<f64> {
-        let out = candle.to_core().ok().and_then(|c| self.inner.update(c))?;
-        self.last = vec![("up", out.up), ("down", out.down)];
-        Some(out.up)
-    }
-    fn fields(&self) -> Vec<(&'static str, f64)> {
-        self.last.clone()
-    }
-    fn warmup(&self) -> usize {
-        self.inner.warmup_period()
-    }
-}
-
-/// Keltner Channels (`{upper, middle, lower}`); primary value is the middle line.
-struct KeltnerWrap {
-    inner: wc::Keltner,
-    last: Vec<(&'static str, f64)>,
-}
-
-impl EvalIndicator for KeltnerWrap {
-    fn update(&mut self, candle: &Candle) -> Option<f64> {
-        let out = candle.to_core().ok().and_then(|c| self.inner.update(c))?;
-        self.last = vec![
-            ("upper", out.upper),
-            ("middle", out.middle),
-            ("lower", out.lower),
-        ];
-        Some(out.middle)
-    }
-    fn fields(&self) -> Vec<(&'static str, f64)> {
-        self.last.clone()
-    }
-    fn warmup(&self) -> usize {
-        self.inner.warmup_period()
-    }
-}
-
-/// Donchian Channels (`{upper, middle, lower}`); primary value is the middle line.
-struct DonchianWrap {
-    inner: wc::Donchian,
-    last: Vec<(&'static str, f64)>,
-}
-
-impl EvalIndicator for DonchianWrap {
-    fn update(&mut self, candle: &Candle) -> Option<f64> {
-        let out = candle.to_core().ok().and_then(|c| self.inner.update(c))?;
-        self.last = vec![
-            ("upper", out.upper),
-            ("middle", out.middle),
-            ("lower", out.lower),
-        ];
-        Some(out.middle)
-    }
-    fn fields(&self) -> Vec<(&'static str, f64)> {
-        self.last.clone()
-    }
-    fn warmup(&self) -> usize {
-        self.inner.warmup_period()
-    }
-}
-
+HELPERS = r'''
 /// Read parameter `idx` as a positive-integer period.
 fn period(params: &[f64], idx: usize, kind: &str) -> Result<usize> {
     let v = float_param(params, idx, kind)?;
@@ -334,6 +244,21 @@ fn u32_param(params: &[f64], idx: usize, kind: &str) -> Result<u32> {
         });
     }
     Ok(v as u32)
+}
+
+/// Read parameter `idx` as an `i32`.
+fn i32_param(params: &[f64], idx: usize, kind: &str) -> Result<i32> {
+    let v = float_param(params, idx, kind)?;
+    if v.fract().abs() > f64::EPSILON
+        || v > f64::from(i32::MAX)
+        || v < f64::from(i32::MIN)
+    {
+        return Err(BacktestError::InvalidParams {
+            indicator: kind.to_string(),
+            reason: format!("parameter #{idx} must be an i32, got {v}"),
+        });
+    }
+    Ok(v as i32)
 }
 
 /// Read parameter `idx` as a finite `f64`.
@@ -366,7 +291,6 @@ fn map_new<T>(kind: &str, r: wc::Result<T>) -> Result<T> {
 #[allow(clippy::too_many_lines)]
 pub fn build(kind: &str, params: &[f64]) -> Result<Box<dyn EvalIndicator>> {
     let p = |i| period(params, i, kind);
-    let _ = &p;
     match kind {
 '''
 
@@ -395,8 +319,11 @@ mod tests {
 
     #[test]
     fn registry_has_full_catalog() {
-        // Generated scalar + candlestick families plus the hand-written set.
-        assert!(ALL_SPECS.len() >= 200, "catalog too small: {}", ALL_SPECS.len());
+        assert!(
+            ALL_SPECS.len() >= 400,
+            "catalog too small: {}",
+            ALL_SPECS.len()
+        );
     }
 
     #[test]
@@ -412,13 +339,19 @@ mod tests {
         assert!(build("Sma", &[]).is_err());
         assert!(build("Sma", &[0.0]).is_err());
         assert!(build("Sma", &[2.5]).is_err());
-        assert!(build("Macd", &[12.0, 26.0]).is_err()); // missing signal
-        assert!(build("Bollinger", &[20.0]).is_err()); // missing multiplier
+        assert!(build("MacdIndicator", &[12.0, 26.0]).is_err()); // missing signal
+        assert!(build("BollingerBands", &[20.0]).is_err()); // missing multiplier
+    }
+
+    #[test]
+    fn aliases_resolve() {
+        assert!(build("Macd", &[12.0, 26.0, 9.0]).is_ok());
+        assert!(build("Bollinger", &[20.0, 2.0]).is_ok());
     }
 
     #[test]
     fn macd_exposes_fields() {
-        let mut macd = build("Macd", &[2.0, 3.0, 2.0]).unwrap();
+        let mut macd = build("MacdIndicator", &[2.0, 3.0, 2.0]).unwrap();
         let mut last_fields = Vec::new();
         for px in [10.0, 11.0, 12.0, 13.0, 14.0, 15.0, 16.0, 17.0] {
             if macd.update(&candle(px, px, px)).is_some() {
@@ -442,100 +375,141 @@ mod tests {
 '''
 
 
-def fmt_params(vals):
-    return ", ".join(f"{float(v)}" for v in vals)
-
-
 def main():
     ap = argparse.ArgumentParser()
-    ap.add_argument("--wickra", required=True, help="path to a wickra checkout")
-    ap.add_argument("--out", required=True, help="output registry.rs path")
+    ap.add_argument("--wickra", required=True)
+    ap.add_argument("--out", required=True)
     args = ap.parse_args()
 
     wroot = Path(args.wickra)
-    wasm = (wroot / "bindings/wasm/src/lib.rs").read_text("utf-8")
-    manifest = json.loads(
-        (wroot / "testdata/golden/scalar_manifest.json").read_text("utf-8")
-    )
-    default_params = {e["canonical"]: e["params"] for e in manifest}
-
-    scalars = parse_scalar(wasm)
-    candles = parse_candle_patterns(wasm)
-
-    # Multi-output hand arms (kind -> (ctor expr, default params)).
-    multi = {
-        "Macd": ("MacdWrap { inner: map_new(kind, wc::MacdIndicator::new(p(0)?, p(1)?, p(2)?))?, last: Vec::new() }", [12.0, 26.0, 9.0]),
-        "Bollinger": ("BollingerWrap { inner: map_new(kind, wc::BollingerBands::new(p(0)?, float_param(params, 1, kind)?))?, last: Vec::new() }", [20.0, 2.0]),
-        "Stochastic": ("StochasticWrap { inner: map_new(kind, wc::Stochastic::new(p(0)?, p(1)?))?, last: Vec::new() }", [14.0, 3.0]),
-        "Adx": ("AdxWrap { inner: map_new(kind, wc::Adx::new(p(0)?))?, last: Vec::new() }", [14.0]),
-        "Aroon": ("AroonWrap { inner: map_new(kind, wc::Aroon::new(p(0)?))?, last: Vec::new() }", [14.0]),
-        "Keltner": ("KeltnerWrap { inner: map_new(kind, wc::Keltner::new(p(0)?, p(1)?, float_param(params, 2, kind)?))?, last: Vec::new() }", [20.0, 10.0, 2.0]),
-        "Donchian": ("DonchianWrap { inner: map_new(kind, wc::Donchian::new(p(0)?))?, last: Vec::new() }", [20.0]),
+    ind_dir = wroot / "crates/wickra-core/src/indicators"
+    files = {
+        Path(f).name: Path(f).read_text("utf-8")
+        for f in glob.glob(str(ind_dir / "*.rs"))
+        if Path(f).name != "mod.rs"
     }
+    bigtext = "\n".join(files.values())
+
+    default_params = {}
+    for man in ("scalar_manifest.json", "multi_manifest.json"):
+        for e in json.loads((wroot / "testdata/golden" / man).read_text("utf-8")):
+            default_params[e["canonical"]] = e["params"]
+
+    scalars = []  # (ty, input, args, is_result)
+    multis = []   # (ty, input, args, is_result, fields)
+    skip = Counter()
+
+    for text in files.values():
+        for m in re.finditer(r"\nimpl\s+Indicator\s+for\s+(\w+)\b", text):
+            ty = m.group(1)
+            inp, out = assoc_types(text, ty)
+            if inp not in ("f64", "Candle"):
+                if inp:
+                    skip[f"input {inp}"] += 1
+                continue
+            nr = find_new(text, ty)
+            if nr is None:
+                skip["no new()"] += 1
+                continue
+            argtypes, is_result = nr
+            bad = [a for a in argtypes if a not in ARG_READER]
+            if bad:
+                skip[f"arg {','.join(bad)}"] += 1
+                continue
+            if out == "f64":
+                scalars.append((ty, inp, argtypes, is_result))
+            else:
+                fields = out_fields(bigtext, out)
+                if not fields:
+                    skip[f"no f64 fields ({out})"] += 1
+                    continue
+                multis.append((ty, inp, argtypes, is_result, fields))
+
+    scalars.sort()
+    multis.sort()
+
+    # Emit multi-wrapper macro invocations.
+    wraps = []
+    for ty, inp, _args, _res, fields in multis:
+        mac = "multi_close" if inp == "f64" else "multi_candle"
+        flist = ", ".join(fields)
+        wraps.append(f"{mac}!({ty}Wrap, {ty}, {fields[0]}, [{flist}]);")
 
     arms = []
-    specs = []  # (kind, [params]) for the build-all test
+    specs = []
     seen = set()
 
-    def add(kind, arm, test_params):
-        if kind in seen:
-            return
-        seen.add(kind)
-        arms.append(arm)
-        specs.append((kind, test_params))
-
-    # Generated scalar (f64-input) indicators.
-    arms.append("        // --- generated scalar (Input = f64), fed the close ---")
-    for ty, cargs in scalars:
-        readers = ", ".join(reader(t, i) for i, (_, t) in enumerate(cargs))
-        ctor = f"wc::{ty}::new({readers})" if readers else f"wc::{ty}::new()"
-        arm = f'        "{ty}" => Ok(Box::new(ScalarClose(map_new(kind, {ctor})?))),'
+    def default_for(ty, argtypes):
         tp = default_params.get(ty)
-        if tp is None:
-            tp = [14.0 if t == "usize" else (2 if t == "u32" else 2.0) for _, t in cargs]
-        add(ty, arm, tp)
+        if tp is not None:
+            return tp
+        synth = {"usize": 14.0, "f64": 2.0, "u32": 2.0, "i32": 1.0}
+        return [synth[a] for a in argtypes]
 
-    # Generated candlestick patterns (Input = Candle, param-less new()).
-    arms.append("        // --- generated candlestick patterns (Input = Candle) ---")
-    for ty in candles:
-        arm = f'        "{ty}" => Ok(Box::new(CandleIn(wc::{ty}::new()))),'
-        add(ty, arm, [])
+    def ctor_expr(ty, argtypes, is_result):
+        rd = readers(argtypes)
+        call = f"wc::{ty}::new({rd})"
+        return f"map_new(kind, {call})?" if is_result else call
 
-    # Hand-written candle-input scalar indicators.
-    arms.append("        // --- hand-written candle-input scalar indicators ---")
-    for ty, (rd, tp) in HAND_CANDLE_SCALAR.items():
-        arm = f'        "{ty}" => Ok(Box::new(CandleIn(map_new(kind, wc::{ty}::new({rd}))?))),'
-        add(ty, arm, tp)
-    for ty, tp in HAND_CANDLE_SCALAR_NOARG.items():
-        arm = f'        "{ty}" => Ok(Box::new(CandleIn(wc::{ty}::new()))),'
-        add(ty, arm, tp)
+    arms.append("        // --- scalar single-output (Input = f64), fed the close ---")
+    for ty, inp, argtypes, is_result in scalars:
+        if inp != "f64":
+            continue
+        arm = f'        "{ty}" => Ok(Box::new(ScalarClose({ctor_expr(ty, argtypes, is_result)}))),'
+        arms.append(arm)
+        seen.add(ty)
+        specs.append((ty, default_for(ty, argtypes)))
 
-    # Hand-written multi-output indicators.
-    arms.append("        // --- hand-written multi-output indicators ---")
-    for kind, (expr, tp) in multi.items():
-        arm = f'        "{kind}" => Ok(Box::new({expr})),'
-        add(kind, arm, tp)
+    arms.append("        // --- scalar single-output (Input = Candle) ---")
+    for ty, inp, argtypes, is_result in scalars:
+        if inp != "Candle":
+            continue
+        arm = f'        "{ty}" => Ok(Box::new(CandleIn({ctor_expr(ty, argtypes, is_result)}))),'
+        arms.append(arm)
+        seen.add(ty)
+        specs.append((ty, default_for(ty, argtypes)))
+
+    arms.append("        // --- multi-output indicators (named fields) ---")
+    for ty, inp, argtypes, is_result, _fields in multis:
+        arm = f'        "{ty}" => Ok(Box::new({ty}Wrap::wrap({ctor_expr(ty, argtypes, is_result)}))),'
+        arms.append(arm)
+        seen.add(ty)
+        specs.append((ty, default_for(ty, argtypes)))
+
+    arms.append("        // --- friendly aliases ---")
+    for alias, canon in ALIASES.items():
+        if canon in seen:
+            arms.append(f'        "{alias}" => build("{canon}", params),')
 
     arms.append("        other => Err(BacktestError::UnknownIndicator(other.to_string())),")
 
-    # Emit ALL_SPECS const for the build-all test.
-    spec_lines = "\n".join(
-        f'    ("{k}", &[{fmt_params(pp)}]),' for k, pp in specs
-    )
-    n_real = len(seen)
+    spec_lines = "\n".join(f'    ("{k}", &[{fmt_params(pp)}]),' for k, pp in specs)
     specs_const = (
         f"\n/// Every registered indicator with valid default parameters "
-        f"({n_real} indicators).\n"
+        f"({len(seen)} indicators).\n"
         f"#[cfg(test)]\n"
         f"const ALL_SPECS: &[(&str, &[f64])] = &[\n{spec_lines}\n];\n"
     )
 
-    body = HEAD + "\n".join(arms) + "\n    }\n}\n" + specs_const + FOOT_TESTS
+    body = (
+        HEAD
+        + "\n".join(wraps)
+        + "\n"
+        + HELPERS
+        + "\n".join(arms)
+        + "\n    }\n}\n"
+        + specs_const
+        + FOOT_TESTS
+    )
     Path(args.out).write_text(body, encoding="utf-8")
-    print(f"registry: {n_real} indicators "
-          f"({len(scalars)} scalar + {len(candles)} candlestick + "
-          f"{len(HAND_CANDLE_SCALAR) + len(HAND_CANDLE_SCALAR_NOARG)} hand candle-scalar + "
-          f"{len(multi)} multi) -> {args.out}")
+
+    n_scalar = len(scalars)
+    n_multi = len(multis)
+    print(f"registry: {len(seen)} indicators ({n_scalar} scalar + {n_multi} multi) "
+          f"+ {len(ALIASES)} aliases -> {args.out}")
+    print("skipped (structurally out of scope):")
+    for k, v in skip.most_common():
+        print(f"  {v:3} {k}")
 
 
 if __name__ == "__main__":

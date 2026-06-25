@@ -18,10 +18,11 @@ backtest and a live run over the same spec produce identical signals, across
 every Wickra language binding. The same engine, fed live instead of historical
 bars, becomes the live bot: **backtest ≡ live, by construction.**
 
-The strategy spec can reference **235+ `wickra-core` indicators** by name — every
-scalar and candlestick-pattern indicator, plus the multi-output families
-(`macd.signal`, `bb.upper`, `adx.plus_di`, …). The registry is generated from the
-same source the language bindings use, so it stays in lock-step with the kernel.
+The strategy spec can reference **421 `wickra-core` indicators** by name — every
+single-instrument scalar and candle indicator, plus the multi-output families
+whose fields are addressed as `"name.field"` (`macd.signal`, `bb.upper`,
+`adx.plus_di`, …). The registry is generated directly from the wickra-core
+sources, so it stays in lock-step with the kernel.
 
 Why it is different from vectorbt / backtrader:
 
