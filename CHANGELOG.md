@@ -50,6 +50,11 @@ to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
   `wickrabacktest.Run(open, high, low, close, …, spec, capital)` returns the
   report JSON. The `go test` round-trip is byte-identical to the other bindings
   (seven-language parity); cgo links directly against the shared library.
+- R binding (`wickrabacktest`, compiled C glue calling the C ABI via `.Call`):
+  `backtest_run(open, high, low, close, …, spec, capital)` returns the report
+  JSON. A base-R round-trip test is byte-identical to the other bindings
+  (eight-language parity). The header and library paths are supplied through the
+  `WKBT_INC` / `WKBT_LIB` environment variables.
 - Data loaders (`wickra-backtest-data`): CSV (`time,open,high,low,close[,volume]`,
   optional header), JSON Lines and JSON-array candle files, dispatched by extension.
 - `wkbt` command-line backtester (`wickra-backtest-cli`): `wkbt run --data … --spec …

@@ -29,3 +29,10 @@ obj/
 
 # Java / Maven build artifacts
 bindings/java/target/
+
+# R build artifacts
+bindings/r/.rlib/
+bindings/r/src/*.o
+bindings/r/src/*.so
+bindings/r/src/*.dll
+bindings/r/..Rcheck/

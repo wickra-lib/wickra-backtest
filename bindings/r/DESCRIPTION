@@ -1,0 +1,13 @@
+Package: wickrabacktest
+Type: Package
+Title: Wickra Backtest Engine (R Binding)
+Version: 0.1.0
+Authors@R: person("Wickra", role = c("aut", "cre"), email = "support@wickra.org")
+Description: R binding for the wickra-backtest engine. It calls the engine's
+    stable C ABI from compiled C glue via .Call, returning the backtest report
+    as a JSON string that is byte-identical to the Rust, Python, Node.js, WASM,
+    C#, Java and Go bindings.
+License: MIT + file LICENSE
+Encoding: UTF-8
+NeedsCompilation: yes
+RoxygenNote: 7.3.2

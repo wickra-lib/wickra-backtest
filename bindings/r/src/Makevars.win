@@ -1,0 +1,6 @@
+# The header and native library locations are passed in via environment
+# variables so the package can find the Cargo build outputs:
+#   WKBT_INC = path to bindings/c/include   (wickra_backtest.h)
+#   WKBT_LIB = path to target/debug|release (wickra_backtest.dll)
+PKG_CPPFLAGS = -I"$(WKBT_INC)"
+PKG_LIBS = -L"$(WKBT_LIB)" -l:wickra_backtest.dll
