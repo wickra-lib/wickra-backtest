@@ -12,6 +12,7 @@ members = [
     "crates/wickra-backtest-cli",
     "crates/wickra-backtest-bench",
     "bindings/python",
+    "bindings/node",
 ]
 
 [workspace.package]

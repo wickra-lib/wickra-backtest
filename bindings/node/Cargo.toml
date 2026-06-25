@@ -1,0 +1,27 @@
+[package]
+name = "wickra-backtest-node"
+description = "Node.js bindings for the wickra-backtest streaming backtester."
+version.workspace = true
+edition.workspace = true
+# napi-build requires a newer Rust than the workspace MSRV.
+rust-version = "1.88"
+license.workspace = true
+authors.workspace = true
+repository.workspace = true
+homepage.workspace = true
+publish = false
+
+[lib]
+crate-type = ["cdylib"]
+
+[dependencies]
+wickra-backtest-core.workspace = true
+serde_json.workspace = true
+napi = { version = "2.16", default-features = false, features = ["napi8"] }
+napi-derive = "2.16"
+
+[build-dependencies]
+napi-build = "2"
+
+[lints]
+workspace = true

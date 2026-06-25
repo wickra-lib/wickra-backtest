@@ -1,0 +1,53 @@
+{
+  "name": "wickra-backtest",
+  "version": "0.1.0",
+  "description": "Streaming-native backtester for the Wickra technical-indicator library. Node bindings powered by Rust.",
+  "author": "kingchenc <support@wickra.org>",
+  "main": "index.js",
+  "types": "index.d.ts",
+  "license": "MIT OR Apache-2.0",
+  "keywords": [
+    "backtesting",
+    "trading",
+    "technical-analysis",
+    "quant",
+    "streaming",
+    "rust"
+  ],
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/wickra-lib/wickra-backtest"
+  },
+  "homepage": "https://github.com/wickra-lib/wickra-backtest",
+  "engines": {
+    "node": ">= 20"
+  },
+  "files": [
+    "index.js",
+    "index.d.ts",
+    "npm",
+    "*.node"
+  ],
+  "napi": {
+    "name": "wickra-backtest",
+    "triples": {
+      "defaults": false,
+      "additional": [
+        "x86_64-unknown-linux-gnu",
+        "aarch64-unknown-linux-gnu",
+        "x86_64-apple-darwin",
+        "aarch64-apple-darwin",
+        "x86_64-pc-windows-msvc",
+        "aarch64-pc-windows-msvc"
+      ]
+    }
+  },
+  "scripts": {
+    "build": "napi build --platform --release",
+    "build:debug": "napi build --platform",
+    "test": "node --test"
+  },
+  "devDependencies": {
+    "@napi-rs/cli": "^2.18.0"
+  }
+}
