@@ -29,10 +29,12 @@ to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 - `wkbt` command-line backtester (`wickra-backtest-cli`): `wkbt run --data … --spec …
   [--capital N] [--report …] [--trades …] [--equity …]` prints a metrics summary
   and optionally writes the report (JSON) and trade/equity streams (JSON Lines).
-- Registry expansion: more single-output indicators (`Wma`, `Dema`, `Tema`,
-  `Hma`, `Roc`, `Mom`) and multi-output indicators (`Macd`, `Bollinger`,
-  `Stochastic`) whose named fields are referenced in the spec as `"name.field"`
-  (e.g. `macd.signal`, `bb.upper`). `EvalIndicator` now exposes named fields.
+- Registry expansion to ~26 indicators: single-output (`Wma`, `Dema`, `Tema`,
+  `Hma`, `Roc`, `Mom`, `Cmo`, `Trix`, `Trima`, `Kama`, `Cci`, `WilliamsR`,
+  `Mfi`, `Vwap`, `Obv`) and multi-output (`Macd`, `Bollinger`, `Stochastic`,
+  `Adx`, `Aroon`, `Keltner`, `Donchian`) whose named fields are referenced in
+  the spec as `"name.field"` (e.g. `macd.signal`, `bb.upper`, `adx.plus_di`).
+  `EvalIndicator` now exposes named fields.
 
 - Trailing stop (`trailing_stop_pct`): exits intrabar when price retraces past
   the trailed favourable extreme since entry (side-aware).

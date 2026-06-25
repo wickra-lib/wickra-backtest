@@ -11,8 +11,9 @@
 //! generator); this file is the seam it replaces.
 
 use wickra_core::{
-    Atr, BollingerBands, Candle as CoreCandle, Dema, Ema, Hma, Indicator, MacdIndicator, Mom, Roc,
-    Rsi, Sma, Stochastic, Tema, Wma,
+    Adx, Aroon, Atr, BollingerBands, Candle as CoreCandle, Cci, Cmo, Dema, Donchian, Ema, Hma,
+    Indicator, Kama, Keltner, MacdIndicator, Mfi, Mom, Obv, Roc, Rsi, Sma, Stochastic, Tema, Trima,
+    Trix, Vwap, WilliamsR, Wma,
 };
 
 use crate::data::Candle;
@@ -132,6 +133,98 @@ impl EvalIndicator for StochasticWrap {
     }
 }
 
+/// ADX (`{adx, plus_di, minus_di}`); primary value is the ADX line.
+struct AdxWrap {
+    inner: Adx,
+    last: Vec<(&'static str, f64)>,
+}
+
+impl EvalIndicator for AdxWrap {
+    fn update(&mut self, candle: &Candle) -> Option<f64> {
+        let out = candle.to_core().ok().and_then(|c| self.inner.update(c))?;
+        self.last = vec![
+            ("adx", out.adx),
+            ("plus_di", out.plus_di),
+            ("minus_di", out.minus_di),
+        ];
+        Some(out.adx)
+    }
+    fn fields(&self) -> Vec<(&'static str, f64)> {
+        self.last.clone()
+    }
+    fn warmup(&self) -> usize {
+        self.inner.warmup_period()
+    }
+}
+
+/// Aroon (`{up, down}`); primary value is Aroon-Up.
+struct AroonWrap {
+    inner: Aroon,
+    last: Vec<(&'static str, f64)>,
+}
+
+impl EvalIndicator for AroonWrap {
+    fn update(&mut self, candle: &Candle) -> Option<f64> {
+        let out = candle.to_core().ok().and_then(|c| self.inner.update(c))?;
+        self.last = vec![("up", out.up), ("down", out.down)];
+        Some(out.up)
+    }
+    fn fields(&self) -> Vec<(&'static str, f64)> {
+        self.last.clone()
+    }
+    fn warmup(&self) -> usize {
+        self.inner.warmup_period()
+    }
+}
+
+/// Keltner Channels (`{upper, middle, lower}`); primary value is the middle line.
+struct KeltnerWrap {
+    inner: Keltner,
+    last: Vec<(&'static str, f64)>,
+}
+
+impl EvalIndicator for KeltnerWrap {
+    fn update(&mut self, candle: &Candle) -> Option<f64> {
+        let out = candle.to_core().ok().and_then(|c| self.inner.update(c))?;
+        self.last = vec![
+            ("upper", out.upper),
+            ("middle", out.middle),
+            ("lower", out.lower),
+        ];
+        Some(out.middle)
+    }
+    fn fields(&self) -> Vec<(&'static str, f64)> {
+        self.last.clone()
+    }
+    fn warmup(&self) -> usize {
+        self.inner.warmup_period()
+    }
+}
+
+/// Donchian Channels (`{upper, middle, lower}`); primary value is the middle line.
+struct DonchianWrap {
+    inner: Donchian,
+    last: Vec<(&'static str, f64)>,
+}
+
+impl EvalIndicator for DonchianWrap {
+    fn update(&mut self, candle: &Candle) -> Option<f64> {
+        let out = candle.to_core().ok().and_then(|c| self.inner.update(c))?;
+        self.last = vec![
+            ("upper", out.upper),
+            ("middle", out.middle),
+            ("lower", out.lower),
+        ];
+        Some(out.middle)
+    }
+    fn fields(&self) -> Vec<(&'static str, f64)> {
+        self.last.clone()
+    }
+    fn warmup(&self) -> usize {
+        self.inner.warmup_period()
+    }
+}
+
 /// Read parameter `idx` as a positive-integer period.
 fn period(params: &[f64], idx: usize, kind: &str) -> Result<usize> {
     let v = float_param(params, idx, kind)?;
@@ -202,6 +295,40 @@ pub fn build(kind: &str, params: &[f64]) -> Result<Box<dyn EvalIndicator>> {
             inner: map_new(kind, Stochastic::new(p(0)?, p(1)?))?,
             last: Vec::new(),
         })),
+        // More scalar single-output.
+        "Cmo" => Ok(Box::new(ScalarClose(map_new(kind, Cmo::new(p(0)?))?))),
+        "Trix" => Ok(Box::new(ScalarClose(map_new(kind, Trix::new(p(0)?))?))),
+        "Trima" => Ok(Box::new(ScalarClose(map_new(kind, Trima::new(p(0)?))?))),
+        "Kama" => Ok(Box::new(ScalarClose(map_new(
+            kind,
+            Kama::new(p(0)?, p(1)?, p(2)?),
+        )?))),
+        // More candle single-output.
+        "Cci" => Ok(Box::new(CandleIn(map_new(kind, Cci::new(p(0)?))?))),
+        "WilliamsR" => Ok(Box::new(CandleIn(map_new(kind, WilliamsR::new(p(0)?))?))),
+        "Mfi" => Ok(Box::new(CandleIn(map_new(kind, Mfi::new(p(0)?))?))),
+        "Vwap" => Ok(Box::new(CandleIn(Vwap::new()))),
+        "Obv" => Ok(Box::new(CandleIn(Obv::new()))),
+        // More multi-output (candle).
+        "Adx" => Ok(Box::new(AdxWrap {
+            inner: map_new(kind, Adx::new(p(0)?))?,
+            last: Vec::new(),
+        })),
+        "Aroon" => Ok(Box::new(AroonWrap {
+            inner: map_new(kind, Aroon::new(p(0)?))?,
+            last: Vec::new(),
+        })),
+        "Keltner" => Ok(Box::new(KeltnerWrap {
+            inner: map_new(
+                kind,
+                Keltner::new(p(0)?, p(1)?, float_param(params, 2, kind)?),
+            )?,
+            last: Vec::new(),
+        })),
+        "Donchian" => Ok(Box::new(DonchianWrap {
+            inner: map_new(kind, Donchian::new(p(0)?))?,
+            last: Vec::new(),
+        })),
         other => Err(BacktestError::UnknownIndicator(other.to_string())),
     }
 }
@@ -237,6 +364,19 @@ mod tests {
             ("Macd", &[12.0, 26.0, 9.0]),
             ("Bollinger", &[20.0, 2.0]),
             ("Stochastic", &[14.0, 3.0]),
+            ("Cmo", &[14.0]),
+            ("Trix", &[14.0]),
+            ("Trima", &[14.0]),
+            ("Kama", &[10.0, 2.0, 30.0]),
+            ("Cci", &[20.0]),
+            ("WilliamsR", &[14.0]),
+            ("Mfi", &[14.0]),
+            ("Vwap", &[]),
+            ("Obv", &[]),
+            ("Adx", &[14.0]),
+            ("Aroon", &[14.0]),
+            ("Keltner", &[20.0, 10.0, 2.0]),
+            ("Donchian", &[20.0]),
         ];
         for (kind, params) in specs {
             assert!(build(kind, params).is_ok(), "{kind} should build");
