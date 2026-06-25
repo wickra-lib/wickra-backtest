@@ -1,0 +1,23 @@
+[package]
+name = "wickra-backtest-bench"
+description = "Criterion benchmarks for the wickra-backtest engine (not published)."
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+authors.workspace = true
+repository.workspace = true
+publish = false
+
+[dependencies]
+wickra-backtest-core.workspace = true
+
+[dev-dependencies]
+criterion = { version = "0.5", default-features = false, features = ["cargo_bench_support"] }
+
+[[bench]]
+name = "backtest"
+harness = false
+
+[lints]
+workspace = true
