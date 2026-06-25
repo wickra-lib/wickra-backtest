@@ -1,6 +1,6 @@
 [package]
-name = "wickra-backtest-data"
-description = "Data loaders (CSV / Parquet / JSONL) feeding the wickra-backtest engine."
+name = "wickra-backtest-cli"
+description = "Command-line backtester (wkbt) for the Wickra technical-indicator library."
 version.workspace = true
 edition.workspace = true
 rust-version.workspace = true
@@ -11,9 +11,16 @@ homepage.workspace = true
 keywords.workspace = true
 categories.workspace = true
 
+[[bin]]
+name = "wkbt"
+path = "src/main.rs"
+
 [dependencies]
 wickra-backtest-core.workspace = true
+wickra-backtest-data.workspace = true
+serde.workspace = true
 serde_json.workspace = true
+clap.workspace = true
 
 [lints]
 workspace = true

@@ -24,6 +24,11 @@ to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
   (signal-on-close, fill-on-next-open); fixed fee + fixed-bps slippage and
   close-based stop/target are modelled.
 
+- Data loaders (`wickra-backtest-data`): CSV (`time,open,high,low,close[,volume]`,
+  optional header), JSON Lines and JSON-array candle files, dispatched by extension.
+- `wkbt` command-line backtester (`wickra-backtest-cli`): `wkbt run --data … --spec …
+  [--capital N] [--report …] [--trades …] [--equity …]` prints a metrics summary
+  and optionally writes the report (JSON) and trade/equity streams (JSON Lines).
 - Registry expansion: more single-output indicators (`Wma`, `Dema`, `Tema`,
   `Hma`, `Roc`, `Mom`) and multi-output indicators (`Macd`, `Bollinger`,
   `Stochastic`) whose named fields are referenced in the spec as `"name.field"`

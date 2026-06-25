@@ -9,6 +9,7 @@ members = [
     "crates/wickra-backtest-core",
     "crates/wickra-backtest-data",
     "crates/wickra-backtest",
+    "crates/wickra-backtest-cli",
 ]
 
 [workspace.package]
@@ -30,6 +31,7 @@ wickra-backtest-data = { version = "0.1.0", path = "crates/wickra-backtest-data"
 serde = { version = "1", features = ["derive"] }
 serde_json = "1"
 thiserror = "2"
+clap = { version = "4", features = ["derive"] }
 
 [workspace.lints.clippy]
 all = { level = "warn", priority = -1 }
