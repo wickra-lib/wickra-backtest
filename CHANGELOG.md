@@ -36,9 +36,11 @@ to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 - C ABI (`wickra-backtest-c`): a cdylib/staticlib exposing
   `wickra_backtest_run(...) -> int` (report written to `*out_json`, freed with
   `wickra_backtest_free_string`), `wickra_backtest_version()`, with a
-  cbindgen-generated `wickra_backtest.h` and a C example. This is the hub for the
-  Go / C# / Java / R bindings. No panic crosses the boundary; the FFI round-trip
-  is byte-identical to the other bindings.
+  cbindgen-generated `wickra_backtest.h` and a C example that also compiles as
+  C++ (the header is `extern "C"`). This is the hub for the Go / C# / Java / R
+  bindings. No panic crosses the boundary; the FFI round-trip is byte-identical
+  to the other bindings — this is the C and C++ language reach, giving
+  ten-language parity (Rust, Python, Node.js, WASM, C, C++, C#, Go, Java, R).
 - C# binding (`Wickra.Backtest`, P/Invoke over the C ABI): `Backtester.Run(open,
   high, low, close, …, spec, capital)` returns the report JSON. xUnit round-trip
   test is byte-identical to the other bindings (five-language parity).

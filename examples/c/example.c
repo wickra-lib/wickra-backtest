@@ -4,6 +4,12 @@
  *   gcc example.c -I ../../bindings/c/include \
  *       -L ../../target/debug -lwickra_backtest -o example
  * then run with the shared library on the loader path.
+ *
+ * On Windows the Cargo build produces an MSVC import library; to link it from
+ * MinGW/GCC, reference the DLL by its exact name instead:
+ *   gcc example.c -I ../../bindings/c/include \
+ *       -L ../../target/debug -l:wickra_backtest.dll -o example
+ * The same source compiles as C++ (g++ -x c++ ...) — the header is extern "C".
  */
 #include <stdint.h>
 #include <stdio.h>
