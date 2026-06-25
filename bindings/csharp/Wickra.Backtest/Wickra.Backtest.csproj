@@ -1,0 +1,16 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <TargetFramework>net8.0</TargetFramework>
+    <LangVersion>latest</LangVersion>
+    <Nullable>enable</Nullable>
+    <AllowUnsafeBlocks>false</AllowUnsafeBlocks>
+    <PackageId>Wickra.Backtest</PackageId>
+    <Version>0.1.0</Version>
+    <Authors>kingchenc</Authors>
+    <Description>Streaming-native backtester for the Wickra indicator library — C# bindings over the C ABI.</Description>
+    <PackageLicenseExpression>MIT OR Apache-2.0</PackageLicenseExpression>
+    <RepositoryUrl>https://github.com/wickra-lib/wickra-backtest</RepositoryUrl>
+  </PropertyGroup>
+
+</Project>

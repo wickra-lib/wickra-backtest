@@ -39,6 +39,9 @@ to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
   cbindgen-generated `wickra_backtest.h` and a C example. This is the hub for the
   Go / C# / Java / R bindings. No panic crosses the boundary; the FFI round-trip
   is byte-identical to the other bindings.
+- C# binding (`Wickra.Backtest`, P/Invoke over the C ABI): `Backtester.Run(open,
+  high, low, close, …, spec, capital)` returns the report JSON. xUnit round-trip
+  test is byte-identical to the other bindings (five-language parity).
 - Data loaders (`wickra-backtest-data`): CSV (`time,open,high,low,close[,volume]`,
   optional header), JSON Lines and JSON-array candle files, dispatched by extension.
 - `wkbt` command-line backtester (`wickra-backtest-cli`): `wkbt run --data … --spec …
