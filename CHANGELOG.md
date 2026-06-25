@@ -30,6 +30,9 @@ to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 - Node.js binding (`wickra-backtest`, napi-rs): `run(open, high, low, close, volume, time, specJson, capital?)`
   returns the report as a JSON string. The same strategy is byte-identical to the
   Rust and Python results.
+- WebAssembly binding (`wickra-backtest-wasm`, wasm-bindgen): `run(...)` over
+  `Float64Array`s returns the report JSON — **backtest in the browser**, with the
+  same kernel and values as the Rust/Python/Node bindings (four-language parity).
 - Data loaders (`wickra-backtest-data`): CSV (`time,open,high,low,close[,volume]`,
   optional header), JSON Lines and JSON-array candle files, dispatched by extension.
 - `wkbt` command-line backtester (`wickra-backtest-cli`): `wkbt run --data … --spec …
