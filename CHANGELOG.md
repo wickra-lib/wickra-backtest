@@ -16,5 +16,12 @@ to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
   conditions, the `Operand`/`Condition` expression trees, sizing, costs,
   slippage, risk and execution models, with `parse`/`validate` and structural
   reference checking.
+- Engine MVP: a minimal hand-written indicator registry (`Sma`/`Ema`/`Rsi`/`Atr`)
+  behind a uniform `EvalIndicator`, rule evaluation (`rules.rs`), long-only
+  portfolio accounting (`portfolio.rs`), performance metrics (`metrics.rs`), the
+  `BacktestReport` (`report.rs`) and the event-driven loop (`engine.rs`) with
+  `run`/`run_with_capital`. Look-ahead bias is structurally prevented
+  (signal-on-close, fill-on-next-open); fixed fee + fixed-bps slippage and
+  close-based stop/target are modelled.
 
 [Unreleased]: https://github.com/wickra-lib/wickra-backtest/commits/main
