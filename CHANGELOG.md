@@ -33,6 +33,12 @@ to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 - WebAssembly binding (`wickra-backtest-wasm`, wasm-bindgen): `run(...)` over
   `Float64Array`s returns the report JSON — **backtest in the browser**, with the
   same kernel and values as the Rust/Python/Node bindings (four-language parity).
+- C ABI (`wickra-backtest-c`): a cdylib/staticlib exposing
+  `wickra_backtest_run(...) -> int` (report written to `*out_json`, freed with
+  `wickra_backtest_free_string`), `wickra_backtest_version()`, with a
+  cbindgen-generated `wickra_backtest.h` and a C example. This is the hub for the
+  Go / C# / Java / R bindings. No panic crosses the boundary; the FFI round-trip
+  is byte-identical to the other bindings.
 - Data loaders (`wickra-backtest-data`): CSV (`time,open,high,low,close[,volume]`,
   optional header), JSON Lines and JSON-array candle files, dispatched by extension.
 - `wkbt` command-line backtester (`wickra-backtest-cli`): `wkbt run --data … --spec …

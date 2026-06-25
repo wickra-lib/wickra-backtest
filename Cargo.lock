@@ -758,6 +758,14 @@ dependencies = [
 ]
 
 [[package]]
+name = "wickra-backtest-c"
+version = "0.1.0"
+dependencies = [
+ "serde_json",
+ "wickra-backtest-core",
+]
+
+[[package]]
 name = "wickra-backtest-cli"
 version = "0.1.0"
 dependencies = [
