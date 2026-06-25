@@ -19,9 +19,16 @@
 
 #![forbid(unsafe_code)]
 
+pub mod data;
 pub mod error;
+pub mod spec;
 
+pub use data::Candle;
 pub use error::{BacktestError, Result};
+pub use spec::{
+    Condition, Costs, Execution, Feed, FillTiming, IndicatorSpec, IntPredicate, Operand,
+    OperandExpr, OrderType, PriceField, Risk, Sizing, Slippage, StrategySpec, SPEC_VERSION,
+};
 
 /// The crate version, surfaced for diagnostics and binding parity checks.
 #[must_use]
