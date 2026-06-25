@@ -24,4 +24,11 @@ to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
   (signal-on-close, fill-on-next-open); fixed fee + fixed-bps slippage and
   close-based stop/target are modelled.
 
+### Changed
+
+- Execution depth: the portfolio is now signed (long **and** short positions),
+  and stop-loss / take-profit are checked **intrabar** against each bar's OHLC and
+  fill at the level (conservative stop-before-target ordering) instead of at the
+  next close. Short entries/exits use `short_entry` / `short_exit`.
+
 [Unreleased]: https://github.com/wickra-lib/wickra-backtest/commits/main
