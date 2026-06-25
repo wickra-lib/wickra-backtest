@@ -24,6 +24,11 @@ to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
   (signal-on-close, fill-on-next-open); fixed fee + fixed-bps slippage and
   close-based stop/target are modelled.
 
+- Registry expansion: more single-output indicators (`Wma`, `Dema`, `Tema`,
+  `Hma`, `Roc`, `Mom`) and multi-output indicators (`Macd`, `Bollinger`,
+  `Stochastic`) whose named fields are referenced in the spec as `"name.field"`
+  (e.g. `macd.signal`, `bb.upper`). `EvalIndicator` now exposes named fields.
+
 ### Changed
 
 - Execution depth: the portfolio is now signed (long **and** short positions),

@@ -44,10 +44,9 @@ pub fn eval_operand(op: &Operand, history: &[BarRow], idx: usize) -> Option<f64>
     let row = history.get(idx)?;
     match op {
         Operand::Const(v) => Some(*v),
-        Operand::Ref(name) => {
-            let base = name.split('.').next().unwrap_or(name.as_str());
-            row.values.get(base).copied()
-        }
+        // The engine inserts the primary value under the indicator name and each
+        // field under "name.field", so a full-name lookup resolves both.
+        Operand::Ref(name) => row.values.get(name.as_str()).copied(),
         Operand::Expr(expr) => match expr.as_ref() {
             OperandExpr::Price(field) => Some(price(&row.candle, *field)),
             OperandExpr::Prev((inner, n)) => {
