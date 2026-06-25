@@ -105,6 +105,9 @@ pub fn run_with_capital(
         for (name, ind) in &mut indicators {
             if let Some(v) = ind.update(candle) {
                 values.insert(name.clone(), v);
+                for (field, fv) in ind.fields() {
+                    values.insert(format!("{name}.{field}"), fv);
+                }
             }
         }
         history.push(BarRow {
@@ -415,6 +418,28 @@ mod tests {
         let r = run(&spec, &candles).unwrap();
         assert_eq!(r.equity.len(), 20);
         assert_eq!(r.schema_version, REPORT_SCHEMA_VERSION);
+    }
+
+    /// A multi-output indicator referenced by field (`bb.upper` / `bb.lower`)
+    /// resolves end to end through the engine.
+    #[test]
+    fn multi_output_field_ref_runs() {
+        let spec = StrategySpec::parse(
+            r#"{"symbol":"x","timeframe":"1h",
+                "indicators":{"bb":{"type":"Bollinger","params":[5,2]}},
+                "entry":{"gt":[{"price":"close"},"bb.upper"]},
+                "exit":{"lt":[{"price":"close"},"bb.lower"]},
+                "sizing":{"type":"fixed_fraction","fraction":0.5}}"#,
+        )
+        .unwrap();
+        let candles: Vec<Candle> = (0..30)
+            .map(|i| {
+                let p = 100.0 + (i as f64 * 0.5).sin() * 5.0;
+                bar(i, p, p + 1.0, p - 1.0, p)
+            })
+            .collect();
+        let r = run(&spec, &candles).unwrap();
+        assert_eq!(r.equity.len(), 30);
     }
 
     #[test]
