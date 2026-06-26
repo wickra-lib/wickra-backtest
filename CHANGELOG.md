@@ -79,6 +79,10 @@ to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 - `examples/` (an EMA-crossover spec + a sample CSV) and a README quickstart.
 - A criterion throughput benchmark (`wickra-backtest-bench`) and `BENCHMARKS.md`
   documenting ~1.7M bars/second on one core.
+- JSON Schema for the strategy spec: `strategy_spec_schema()` emits a draft-07
+  schema (generated from the spec types with schemars), committed as
+  `schema/strategy_spec.schema.json` for editor/tooling validation. A test pins
+  the committed file to the generated schema.
 - Streaming API (`StreamingBacktest`): feed bars one at a time with `step` and
   finalize with `finish`. The historical `run` / `run_with_capital` is exactly
   this fed from a slice, so backtest and live share one code path — pointing

@@ -22,7 +22,7 @@ fn default_spec_version() -> u32 {
 }
 
 /// A complete strategy specification.
-#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, schemars::JsonSchema)]
 pub struct StrategySpec {
     /// Spec format version (defaults to [`SPEC_VERSION`]).
     #[serde(default = "default_spec_version")]
@@ -125,7 +125,7 @@ impl StrategySpec {
 }
 
 /// One indicator instance: a `wickra-core` type name plus its parameters.
-#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, schemars::JsonSchema)]
 pub struct IndicatorSpec {
     /// The `wickra-core` indicator type name (e.g. `"Ema"`).
     #[serde(rename = "type")]
@@ -139,7 +139,9 @@ pub struct IndicatorSpec {
 }
 
 /// The data feed an indicator is driven by.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Default, Serialize, Deserialize)]
+#[derive(
+    Debug, Clone, Copy, PartialEq, Eq, Default, Serialize, Deserialize, schemars::JsonSchema,
+)]
 #[serde(rename_all = "snake_case")]
 pub enum Feed {
     /// OHLCV candles (default).
@@ -152,7 +154,7 @@ pub enum Feed {
 }
 
 /// A price field of the current bar.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, schemars::JsonSchema)]
 #[serde(rename_all = "snake_case")]
 pub enum PriceField {
     /// Open.
@@ -172,7 +174,7 @@ pub enum PriceField {
 }
 
 /// A value node — evaluates to a number each bar.
-#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, schemars::JsonSchema)]
 #[serde(untagged)]
 pub enum Operand {
     /// Indicator reference by name, optionally `"name.field"` for multi-output.
@@ -184,7 +186,7 @@ pub enum Operand {
 }
 
 /// The object-shaped operand forms.
-#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, schemars::JsonSchema)]
 #[serde(rename_all = "snake_case")]
 pub enum OperandExpr {
     /// A price field of the current bar.
@@ -202,7 +204,7 @@ pub enum OperandExpr {
 }
 
 /// A boolean node — evaluates to true/false each bar.
-#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, schemars::JsonSchema)]
 #[serde(rename_all = "snake_case")]
 pub enum Condition {
     /// `a > b`.
@@ -240,7 +242,7 @@ pub enum Condition {
 }
 
 /// An integer comparison predicate (used by stateful conditions).
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, schemars::JsonSchema)]
 #[serde(rename_all = "snake_case")]
 pub enum IntPredicate {
     /// `> n`.
@@ -256,7 +258,7 @@ pub enum IntPredicate {
 }
 
 /// Position sizing model.
-#[derive(Debug, Clone, Copy, PartialEq, Serialize, Deserialize)]
+#[derive(Debug, Clone, Copy, PartialEq, Serialize, Deserialize, schemars::JsonSchema)]
 #[serde(tag = "type", rename_all = "snake_case")]
 pub enum Sizing {
     /// A fraction of current equity.
@@ -293,7 +295,7 @@ pub enum Sizing {
 }
 
 /// Trading costs.
-#[derive(Debug, Clone, Copy, PartialEq, Default, Serialize, Deserialize)]
+#[derive(Debug, Clone, Copy, PartialEq, Default, Serialize, Deserialize, schemars::JsonSchema)]
 pub struct Costs {
     /// Maker fee in basis points.
     #[serde(default)]
@@ -307,7 +309,7 @@ pub struct Costs {
 }
 
 /// Slippage model.
-#[derive(Debug, Clone, Copy, PartialEq, Serialize, Deserialize)]
+#[derive(Debug, Clone, Copy, PartialEq, Serialize, Deserialize, schemars::JsonSchema)]
 #[serde(tag = "type", rename_all = "snake_case")]
 pub enum Slippage {
     /// A fixed number of basis points.
@@ -331,7 +333,7 @@ impl Default for Slippage {
 }
 
 /// Risk controls (all optional).
-#[derive(Debug, Clone, Copy, PartialEq, Default, Serialize, Deserialize)]
+#[derive(Debug, Clone, Copy, PartialEq, Default, Serialize, Deserialize, schemars::JsonSchema)]
 pub struct Risk {
     /// Stop-loss as a percent move against the position.
     #[serde(default)]
@@ -351,7 +353,7 @@ pub struct Risk {
 }
 
 /// Execution model.
-#[derive(Debug, Clone, Copy, PartialEq, Default, Serialize, Deserialize)]
+#[derive(Debug, Clone, Copy, PartialEq, Default, Serialize, Deserialize, schemars::JsonSchema)]
 pub struct Execution {
     /// Order type.
     #[serde(default)]
@@ -383,7 +385,9 @@ pub struct Execution {
 }
 
 /// Order type.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Default, Serialize, Deserialize)]
+#[derive(
+    Debug, Clone, Copy, PartialEq, Eq, Default, Serialize, Deserialize, schemars::JsonSchema,
+)]
 #[serde(rename_all = "snake_case")]
 pub enum OrderType {
     /// Market order (default).
@@ -398,7 +402,9 @@ pub enum OrderType {
 }
 
 /// When a signalled order fills.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Default, Serialize, Deserialize)]
+#[derive(
+    Debug, Clone, Copy, PartialEq, Eq, Default, Serialize, Deserialize, schemars::JsonSchema,
+)]
 #[serde(rename_all = "snake_case")]
 pub enum FillTiming {
     /// On the next bar's open — the look-ahead-bias-free default.

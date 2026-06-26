@@ -1,0 +1,1213 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "title": "StrategySpec",
+  "description": "A complete strategy specification.",
+  "type": "object",
+  "required": [
+    "entry",
+    "exit",
+    "indicators",
+    "sizing",
+    "symbol",
+    "timeframe"
+  ],
+  "properties": {
+    "costs": {
+      "description": "Trading costs.",
+      "default": {
+        "maker_bps": 0.0,
+        "slippage": {
+          "bps": 0.0,
+          "type": "fixed_bps"
+        },
+        "taker_bps": 0.0
+      },
+      "allOf": [
+        {
+          "$ref": "#/definitions/Costs"
+        }
+      ]
+    },
+    "entry": {
+      "description": "Long-entry condition.",
+      "allOf": [
+        {
+          "$ref": "#/definitions/Condition"
+        }
+      ]
+    },
+    "execution": {
+      "description": "Execution model.",
+      "default": {
+        "fill_timing": "next_open",
+        "latency_bars": 0,
+        "limit_offset_pct": null,
+        "max_participation": null,
+        "order_type": "market",
+        "partial_fills": false,
+        "stop_offset_pct": null
+      },
+      "allOf": [
+        {
+          "$ref": "#/definitions/Execution"
+        }
+      ]
+    },
+    "exit": {
+      "description": "Long-exit condition.",
+      "allOf": [
+        {
+          "$ref": "#/definitions/Condition"
+        }
+      ]
+    },
+    "indicators": {
+      "description": "Named indicators available to the rules.",
+      "type": "object",
+      "additionalProperties": {
+        "$ref": "#/definitions/IndicatorSpec"
+      }
+    },
+    "ref_symbol": {
+      "description": "Optional reference symbol for pair indicators.",
+      "default": null,
+      "type": [
+        "string",
+        "null"
+      ]
+    },
+    "risk": {
+      "description": "Risk controls.",
+      "default": {
+        "max_leverage": null,
+        "max_position_pct": null,
+        "stop_loss_pct": null,
+        "take_profit_pct": null,
+        "trailing_stop_pct": null
+      },
+      "allOf": [
+        {
+          "$ref": "#/definitions/Risk"
+        }
+      ]
+    },
+    "short_entry": {
+      "description": "Optional short-entry condition.",
+      "default": null,
+      "anyOf": [
+        {
+          "$ref": "#/definitions/Condition"
+        },
+        {
+          "type": "null"
+        }
+      ]
+    },
+    "short_exit": {
+      "description": "Optional short-exit condition.",
+      "default": null,
+      "anyOf": [
+        {
+          "$ref": "#/definitions/Condition"
+        },
+        {
+          "type": "null"
+        }
+      ]
+    },
+    "sizing": {
+      "description": "Position sizing.",
+      "allOf": [
+        {
+          "$ref": "#/definitions/Sizing"
+        }
+      ]
+    },
+    "spec_version": {
+      "description": "Spec format version (defaults to [`SPEC_VERSION`]).",
+      "default": 1,
+      "type": "integer",
+      "format": "uint32",
+      "minimum": 0.0
+    },
+    "symbol": {
+      "description": "Primary trading symbol.",
+      "type": "string"
+    },
+    "timeframe": {
+      "description": "Bar timeframe (e.g. `\"1h\"`).",
+      "type": "string"
+    },
+    "warmup": {
+      "description": "Explicit warmup bars (defaults to the max indicator warmup).",
+      "default": null,
+      "type": [
+        "integer",
+        "null"
+      ],
+      "format": "uint32",
+      "minimum": 0.0
+    }
+  },
+  "definitions": {
+    "Condition": {
+      "description": "A boolean node — evaluates to true/false each bar.",
+      "oneOf": [
+        {
+          "description": "`a > b`.",
+          "type": "object",
+          "required": [
+            "gt"
+          ],
+          "properties": {
+            "gt": {
+              "type": "array",
+              "items": [
+                {
+                  "$ref": "#/definitions/Operand"
+                },
+                {
+                  "$ref": "#/definitions/Operand"
+                }
+              ],
+              "maxItems": 2,
+              "minItems": 2
+            }
+          },
+          "additionalProperties": false
+        },
+        {
+          "description": "`a < b`.",
+          "type": "object",
+          "required": [
+            "lt"
+          ],
+          "properties": {
+            "lt": {
+              "type": "array",
+              "items": [
+                {
+                  "$ref": "#/definitions/Operand"
+                },
+                {
+                  "$ref": "#/definitions/Operand"
+                }
+              ],
+              "maxItems": 2,
+              "minItems": 2
+            }
+          },
+          "additionalProperties": false
+        },
+        {
+          "description": "`a >= b`.",
+          "type": "object",
+          "required": [
+            "ge"
+          ],
+          "properties": {
+            "ge": {
+              "type": "array",
+              "items": [
+                {
+                  "$ref": "#/definitions/Operand"
+                },
+                {
+                  "$ref": "#/definitions/Operand"
+                }
+              ],
+              "maxItems": 2,
+              "minItems": 2
+            }
+          },
+          "additionalProperties": false
+        },
+        {
+          "description": "`a <= b`.",
+          "type": "object",
+          "required": [
+            "le"
+          ],
+          "properties": {
+            "le": {
+              "type": "array",
+              "items": [
+                {
+                  "$ref": "#/definitions/Operand"
+                },
+                {
+                  "$ref": "#/definitions/Operand"
+                }
+              ],
+              "maxItems": 2,
+              "minItems": 2
+            }
+          },
+          "additionalProperties": false
+        },
+        {
+          "description": "`a == b`.",
+          "type": "object",
+          "required": [
+            "eq"
+          ],
+          "properties": {
+            "eq": {
+              "type": "array",
+              "items": [
+                {
+                  "$ref": "#/definitions/Operand"
+                },
+                {
+                  "$ref": "#/definitions/Operand"
+                }
+              ],
+              "maxItems": 2,
+              "minItems": 2
+            }
+          },
+          "additionalProperties": false
+        },
+        {
+          "description": "`a != b`.",
+          "type": "object",
+          "required": [
+            "ne"
+          ],
+          "properties": {
+            "ne": {
+              "type": "array",
+              "items": [
+                {
+                  "$ref": "#/definitions/Operand"
+                },
+                {
+                  "$ref": "#/definitions/Operand"
+                }
+              ],
+              "maxItems": 2,
+              "minItems": 2
+            }
+          },
+          "additionalProperties": false
+        },
+        {
+          "description": "`a` crosses above `b` this bar.",
+          "type": "object",
+          "required": [
+            "cross_above"
+          ],
+          "properties": {
+            "cross_above": {
+              "type": "array",
+              "items": [
+                {
+                  "$ref": "#/definitions/Operand"
+                },
+                {
+                  "$ref": "#/definitions/Operand"
+                }
+              ],
+              "maxItems": 2,
+              "minItems": 2
+            }
+          },
+          "additionalProperties": false
+        },
+        {
+          "description": "`a` crosses below `b` this bar.",
+          "type": "object",
+          "required": [
+            "cross_below"
+          ],
+          "properties": {
+            "cross_below": {
+              "type": "array",
+              "items": [
+                {
+                  "$ref": "#/definitions/Operand"
+                },
+                {
+                  "$ref": "#/definitions/Operand"
+                }
+              ],
+              "maxItems": 2,
+              "minItems": 2
+            }
+          },
+          "additionalProperties": false
+        },
+        {
+          "description": "`lo <= a <= hi`: `[a, lo, hi]`.",
+          "type": "object",
+          "required": [
+            "between"
+          ],
+          "properties": {
+            "between": {
+              "type": "array",
+              "items": [
+                {
+                  "$ref": "#/definitions/Operand"
+                },
+                {
+                  "$ref": "#/definitions/Operand"
+                },
+                {
+                  "$ref": "#/definitions/Operand"
+                }
+              ],
+              "maxItems": 3,
+              "minItems": 3
+            }
+          },
+          "additionalProperties": false
+        },
+        {
+          "description": "`a` is greater than its value `n` bars ago: `[a, n]`.",
+          "type": "object",
+          "required": [
+            "rising"
+          ],
+          "properties": {
+            "rising": {
+              "type": "array",
+              "items": [
+                {
+                  "$ref": "#/definitions/Operand"
+                },
+                {
+                  "type": "integer",
+                  "format": "uint32",
+                  "minimum": 0.0
+                }
+              ],
+              "maxItems": 2,
+              "minItems": 2
+            }
+          },
+          "additionalProperties": false
+        },
+        {
+          "description": "`a` is less than its value `n` bars ago: `[a, n]`.",
+          "type": "object",
+          "required": [
+            "falling"
+          ],
+          "properties": {
+            "falling": {
+              "type": "array",
+              "items": [
+                {
+                  "$ref": "#/definitions/Operand"
+                },
+                {
+                  "type": "integer",
+                  "format": "uint32",
+                  "minimum": 0.0
+                }
+              ],
+              "maxItems": 2,
+              "minItems": 2
+            }
+          },
+          "additionalProperties": false
+        },
+        {
+          "description": "All sub-conditions true (AND).",
+          "type": "object",
+          "required": [
+            "all"
+          ],
+          "properties": {
+            "all": {
+              "type": "array",
+              "items": {
+                "$ref": "#/definitions/Condition"
+              }
+            }
+          },
+          "additionalProperties": false
+        },
+        {
+          "description": "Any sub-condition true (OR).",
+          "type": "object",
+          "required": [
+            "any"
+          ],
+          "properties": {
+            "any": {
+              "type": "array",
+              "items": {
+                "$ref": "#/definitions/Condition"
+              }
+            }
+          },
+          "additionalProperties": false
+        },
+        {
+          "description": "Negation.",
+          "type": "object",
+          "required": [
+            "not"
+          ],
+          "properties": {
+            "not": {
+              "$ref": "#/definitions/Condition"
+            }
+          },
+          "additionalProperties": false
+        },
+        {
+          "description": "True iff a position is currently open.",
+          "type": "object",
+          "required": [
+            "in_position"
+          ],
+          "properties": {
+            "in_position": {
+              "type": "boolean"
+            }
+          },
+          "additionalProperties": false
+        },
+        {
+          "description": "Predicate on the number of bars since entry.",
+          "type": "object",
+          "required": [
+            "bars_since_entry"
+          ],
+          "properties": {
+            "bars_since_entry": {
+              "$ref": "#/definitions/IntPredicate"
+            }
+          },
+          "additionalProperties": false
+        }
+      ]
+    },
+    "Costs": {
+      "description": "Trading costs.",
+      "type": "object",
+      "properties": {
+        "maker_bps": {
+          "description": "Maker fee in basis points.",
+          "default": 0.0,
+          "type": "number",
+          "format": "double"
+        },
+        "slippage": {
+          "description": "Slippage model.",
+          "default": {
+            "bps": 0.0,
+            "type": "fixed_bps"
+          },
+          "allOf": [
+            {
+              "$ref": "#/definitions/Slippage"
+            }
+          ]
+        },
+        "taker_bps": {
+          "description": "Taker fee in basis points.",
+          "default": 0.0,
+          "type": "number",
+          "format": "double"
+        }
+      }
+    },
+    "Execution": {
+      "description": "Execution model.",
+      "type": "object",
+      "properties": {
+        "fill_timing": {
+          "description": "When a signalled order fills.",
+          "default": "next_open",
+          "allOf": [
+            {
+              "$ref": "#/definitions/FillTiming"
+            }
+          ]
+        },
+        "latency_bars": {
+          "description": "Simulated latency in bars before a fill.",
+          "default": 0,
+          "type": "integer",
+          "format": "uint32",
+          "minimum": 0.0
+        },
+        "limit_offset_pct": {
+          "description": "Limit-order trigger as a percent offset from the signal bar's close (required for `order_type = \"limit\"`). Negative places a long limit below the market (buy the dip); positive places a short limit above it.",
+          "default": null,
+          "type": [
+            "number",
+            "null"
+          ],
+          "format": "double"
+        },
+        "max_participation": {
+          "description": "Maximum fraction of a bar's volume a single entry may consume (required when `partial_fills` is set).",
+          "default": null,
+          "type": [
+            "number",
+            "null"
+          ],
+          "format": "double"
+        },
+        "order_type": {
+          "description": "Order type.",
+          "default": "market",
+          "allOf": [
+            {
+              "$ref": "#/definitions/OrderType"
+            }
+          ]
+        },
+        "partial_fills": {
+          "description": "Whether partial fills are modelled. When set, an entry fills at most `max_participation * bar_volume` and the unfilled remainder is cancelled.",
+          "default": false,
+          "type": "boolean"
+        },
+        "stop_offset_pct": {
+          "description": "Stop-order trigger as a percent offset from the signal bar's close (required for `order_type = \"stop\"`). Positive places a long stop above the market (breakout); negative places a short stop below it.",
+          "default": null,
+          "type": [
+            "number",
+            "null"
+          ],
+          "format": "double"
+        }
+      }
+    },
+    "Feed": {
+      "description": "The data feed an indicator is driven by.",
+      "oneOf": [
+        {
+          "description": "OHLCV candles (default).",
+          "type": "string",
+          "enum": [
+            "kline"
+          ]
+        },
+        {
+          "description": "Trade prints.",
+          "type": "string",
+          "enum": [
+            "trade"
+          ]
+        },
+        {
+          "description": "Order-book snapshots.",
+          "type": "string",
+          "enum": [
+            "orderbook"
+          ]
+        }
+      ]
+    },
+    "FillTiming": {
+      "description": "When a signalled order fills.",
+      "oneOf": [
+        {
+          "description": "On the next bar's open — the look-ahead-bias-free default.",
+          "type": "string",
+          "enum": [
+            "next_open"
+          ]
+        },
+        {
+          "description": "On the signalling bar's own close (close-to-close execution). An opt-in, deliberately optimistic mode: the fill uses the very close that produced the signal, which is not actually tradeable in live execution. Market orders only, and incompatible with `latency_bars`.",
+          "type": "string",
+          "enum": [
+            "close"
+          ]
+        }
+      ]
+    },
+    "IndicatorSpec": {
+      "description": "One indicator instance: a `wickra-core` type name plus its parameters.",
+      "type": "object",
+      "required": [
+        "type"
+      ],
+      "properties": {
+        "feed": {
+          "description": "Which feed drives it.",
+          "default": "kline",
+          "allOf": [
+            {
+              "$ref": "#/definitions/Feed"
+            }
+          ]
+        },
+        "params": {
+          "description": "Constructor parameters.",
+          "default": [],
+          "type": "array",
+          "items": {
+            "type": "number",
+            "format": "double"
+          }
+        },
+        "type": {
+          "description": "The `wickra-core` indicator type name (e.g. `\"Ema\"`).",
+          "type": "string"
+        }
+      }
+    },
+    "IntPredicate": {
+      "description": "An integer comparison predicate (used by stateful conditions).",
+      "oneOf": [
+        {
+          "description": "`> n`.",
+          "type": "object",
+          "required": [
+            "gt"
+          ],
+          "properties": {
+            "gt": {
+              "type": "integer",
+              "format": "uint32",
+              "minimum": 0.0
+            }
+          },
+          "additionalProperties": false
+        },
+        {
+          "description": "`< n`.",
+          "type": "object",
+          "required": [
+            "lt"
+          ],
+          "properties": {
+            "lt": {
+              "type": "integer",
+              "format": "uint32",
+              "minimum": 0.0
+            }
+          },
+          "additionalProperties": false
+        },
+        {
+          "description": "`>= n`.",
+          "type": "object",
+          "required": [
+            "ge"
+          ],
+          "properties": {
+            "ge": {
+              "type": "integer",
+              "format": "uint32",
+              "minimum": 0.0
+            }
+          },
+          "additionalProperties": false
+        },
+        {
+          "description": "`<= n`.",
+          "type": "object",
+          "required": [
+            "le"
+          ],
+          "properties": {
+            "le": {
+              "type": "integer",
+              "format": "uint32",
+              "minimum": 0.0
+            }
+          },
+          "additionalProperties": false
+        },
+        {
+          "description": "`== n`.",
+          "type": "object",
+          "required": [
+            "eq"
+          ],
+          "properties": {
+            "eq": {
+              "type": "integer",
+              "format": "uint32",
+              "minimum": 0.0
+            }
+          },
+          "additionalProperties": false
+        }
+      ]
+    },
+    "Operand": {
+      "description": "A value node — evaluates to a number each bar.",
+      "anyOf": [
+        {
+          "description": "Indicator reference by name, optionally `\"name.field\"` for multi-output.",
+          "type": "string"
+        },
+        {
+          "description": "A literal constant.",
+          "type": "number",
+          "format": "double"
+        },
+        {
+          "description": "A compound expression.",
+          "allOf": [
+            {
+              "$ref": "#/definitions/OperandExpr"
+            }
+          ]
+        }
+      ]
+    },
+    "OperandExpr": {
+      "description": "The object-shaped operand forms.",
+      "oneOf": [
+        {
+          "description": "A price field of the current bar.",
+          "type": "object",
+          "required": [
+            "price"
+          ],
+          "properties": {
+            "price": {
+              "$ref": "#/definitions/PriceField"
+            }
+          },
+          "additionalProperties": false
+        },
+        {
+          "description": "The value of an operand `n` bars ago: `[\"operand\", n]`.",
+          "type": "object",
+          "required": [
+            "prev"
+          ],
+          "properties": {
+            "prev": {
+              "type": "array",
+              "items": [
+                {
+                  "$ref": "#/definitions/Operand"
+                },
+                {
+                  "type": "integer",
+                  "format": "uint32",
+                  "minimum": 0.0
+                }
+              ],
+              "maxItems": 2,
+              "minItems": 2
+            }
+          },
+          "additionalProperties": false
+        },
+        {
+          "description": "`a + b`.",
+          "type": "object",
+          "required": [
+            "add"
+          ],
+          "properties": {
+            "add": {
+              "type": "array",
+              "items": [
+                {
+                  "$ref": "#/definitions/Operand"
+                },
+                {
+                  "$ref": "#/definitions/Operand"
+                }
+              ],
+              "maxItems": 2,
+              "minItems": 2
+            }
+          },
+          "additionalProperties": false
+        },
+        {
+          "description": "`a - b`.",
+          "type": "object",
+          "required": [
+            "sub"
+          ],
+          "properties": {
+            "sub": {
+              "type": "array",
+              "items": [
+                {
+                  "$ref": "#/definitions/Operand"
+                },
+                {
+                  "$ref": "#/definitions/Operand"
+                }
+              ],
+              "maxItems": 2,
+              "minItems": 2
+            }
+          },
+          "additionalProperties": false
+        },
+        {
+          "description": "`a * b`.",
+          "type": "object",
+          "required": [
+            "mul"
+          ],
+          "properties": {
+            "mul": {
+              "type": "array",
+              "items": [
+                {
+                  "$ref": "#/definitions/Operand"
+                },
+                {
+                  "$ref": "#/definitions/Operand"
+                }
+              ],
+              "maxItems": 2,
+              "minItems": 2
+            }
+          },
+          "additionalProperties": false
+        },
+        {
+          "description": "`a / b`.",
+          "type": "object",
+          "required": [
+            "div"
+          ],
+          "properties": {
+            "div": {
+              "type": "array",
+              "items": [
+                {
+                  "$ref": "#/definitions/Operand"
+                },
+                {
+                  "$ref": "#/definitions/Operand"
+                }
+              ],
+              "maxItems": 2,
+              "minItems": 2
+            }
+          },
+          "additionalProperties": false
+        }
+      ]
+    },
+    "OrderType": {
+      "description": "Order type.",
+      "oneOf": [
+        {
+          "description": "Market order (default).",
+          "type": "string",
+          "enum": [
+            "market"
+          ]
+        },
+        {
+          "description": "Limit order.",
+          "type": "string",
+          "enum": [
+            "limit"
+          ]
+        },
+        {
+          "description": "Stop order.",
+          "type": "string",
+          "enum": [
+            "stop"
+          ]
+        },
+        {
+          "description": "Stop-limit order.",
+          "type": "string",
+          "enum": [
+            "stop_limit"
+          ]
+        }
+      ]
+    },
+    "PriceField": {
+      "description": "A price field of the current bar.",
+      "oneOf": [
+        {
+          "description": "Open.",
+          "type": "string",
+          "enum": [
+            "open"
+          ]
+        },
+        {
+          "description": "High.",
+          "type": "string",
+          "enum": [
+            "high"
+          ]
+        },
+        {
+          "description": "Low.",
+          "type": "string",
+          "enum": [
+            "low"
+          ]
+        },
+        {
+          "description": "Close.",
+          "type": "string",
+          "enum": [
+            "close"
+          ]
+        },
+        {
+          "description": "Volume.",
+          "type": "string",
+          "enum": [
+            "volume"
+          ]
+        },
+        {
+          "description": "`(high + low + close) / 3`.",
+          "type": "string",
+          "enum": [
+            "hlc3"
+          ]
+        },
+        {
+          "description": "`(open + high + low + close) / 4`.",
+          "type": "string",
+          "enum": [
+            "ohlc4"
+          ]
+        }
+      ]
+    },
+    "Risk": {
+      "description": "Risk controls (all optional).",
+      "type": "object",
+      "properties": {
+        "max_leverage": {
+          "description": "Maximum leverage.",
+          "default": null,
+          "type": [
+            "number",
+            "null"
+          ],
+          "format": "double"
+        },
+        "max_position_pct": {
+          "description": "Maximum position as a percent of equity.",
+          "default": null,
+          "type": [
+            "number",
+            "null"
+          ],
+          "format": "double"
+        },
+        "stop_loss_pct": {
+          "description": "Stop-loss as a percent move against the position.",
+          "default": null,
+          "type": [
+            "number",
+            "null"
+          ],
+          "format": "double"
+        },
+        "take_profit_pct": {
+          "description": "Take-profit as a percent move in favour.",
+          "default": null,
+          "type": [
+            "number",
+            "null"
+          ],
+          "format": "double"
+        },
+        "trailing_stop_pct": {
+          "description": "Trailing-stop as a percent retrace from the peak.",
+          "default": null,
+          "type": [
+            "number",
+            "null"
+          ],
+          "format": "double"
+        }
+      }
+    },
+    "Sizing": {
+      "description": "Position sizing model.",
+      "oneOf": [
+        {
+          "description": "A fraction of current equity.",
+          "type": "object",
+          "required": [
+            "fraction",
+            "type"
+          ],
+          "properties": {
+            "fraction": {
+              "description": "Fraction in `[0, 1]`.",
+              "type": "number",
+              "format": "double"
+            },
+            "type": {
+              "type": "string",
+              "enum": [
+                "fixed_fraction"
+              ]
+            }
+          }
+        },
+        {
+          "description": "A fixed quantity of the base asset.",
+          "type": "object",
+          "required": [
+            "qty",
+            "type"
+          ],
+          "properties": {
+            "qty": {
+              "description": "Quantity.",
+              "type": "number",
+              "format": "double"
+            },
+            "type": {
+              "type": "string",
+              "enum": [
+                "fixed_qty"
+              ]
+            }
+          }
+        },
+        {
+          "description": "A fixed cash notional.",
+          "type": "object",
+          "required": [
+            "cash",
+            "type"
+          ],
+          "properties": {
+            "cash": {
+              "description": "Cash amount.",
+              "type": "number",
+              "format": "double"
+            },
+            "type": {
+              "type": "string",
+              "enum": [
+                "fixed_cash"
+              ]
+            }
+          }
+        },
+        {
+          "description": "Size to a target volatility: the position notional is scaled so the position's per-bar return volatility approximates `target_vol`. With realized per-bar volatility `rv` over `lookback` bars, the notional is `equity * target_vol / rv` (then capped by the leverage limits). No position is taken until `lookback` bars of history exist.",
+          "type": "object",
+          "required": [
+            "lookback",
+            "target_vol",
+            "type"
+          ],
+          "properties": {
+            "lookback": {
+              "description": "Lookback bars for the realized-volatility estimate.",
+              "type": "integer",
+              "format": "uint32",
+              "minimum": 0.0
+            },
+            "target_vol": {
+              "description": "Target per-bar return volatility, as a fraction (e.g. `0.02` = 2%).",
+              "type": "number",
+              "format": "double"
+            },
+            "type": {
+              "type": "string",
+              "enum": [
+                "vol_target"
+              ]
+            }
+          }
+        },
+        {
+          "description": "Size from the stop-loss distance and a per-trade risk budget.",
+          "type": "object",
+          "required": [
+            "risk_pct",
+            "type"
+          ],
+          "properties": {
+            "risk_pct": {
+              "description": "Risk per trade in percent of equity.",
+              "type": "number",
+              "format": "double"
+            },
+            "type": {
+              "type": "string",
+              "enum": [
+                "risk_per_trade"
+              ]
+            }
+          }
+        }
+      ]
+    },
+    "Slippage": {
+      "description": "Slippage model.",
+      "oneOf": [
+        {
+          "description": "A fixed number of basis points.",
+          "type": "object",
+          "required": [
+            "bps",
+            "type"
+          ],
+          "properties": {
+            "bps": {
+              "description": "Basis points.",
+              "type": "number",
+              "format": "double"
+            },
+            "type": {
+              "type": "string",
+              "enum": [
+                "fixed_bps"
+              ]
+            }
+          }
+        },
+        {
+          "description": "Slippage equal to the bid/ask spread (needs an order-book feed).",
+          "type": "object",
+          "required": [
+            "type"
+          ],
+          "properties": {
+            "type": {
+              "type": "string",
+              "enum": [
+                "spread"
+              ]
+            }
+          }
+        },
+        {
+          "description": "Linear price impact in the traded volume.",
+          "type": "object",
+          "required": [
+            "coef",
+            "type"
+          ],
+          "properties": {
+            "coef": {
+              "description": "Impact coefficient.",
+              "type": "number",
+              "format": "double"
+            },
+            "type": {
+              "type": "string",
+              "enum": [
+                "volume_impact"
+              ]
+            }
+          }
+        }
+      ]
+    }
+  }
+}

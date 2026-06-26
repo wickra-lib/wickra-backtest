@@ -47,6 +47,15 @@ pub fn version() -> &'static str {
     env!("CARGO_PKG_VERSION")
 }
 
+/// The JSON Schema for [`StrategySpec`], pretty-printed. Editors and tooling can
+/// validate strategy specs against it; the committed
+/// `schema/strategy_spec.schema.json` is generated from this.
+#[must_use]
+pub fn strategy_spec_schema() -> String {
+    let schema = schemars::schema_for!(StrategySpec);
+    serde_json::to_string_pretty(&schema).unwrap_or_default()
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -54,6 +63,24 @@ mod tests {
     #[test]
     fn version_is_reported() {
         assert!(!version().is_empty());
+    }
+
+    #[test]
+    fn strategy_spec_schema_is_committed() {
+        // The committed schema must match what schemars generates. Regenerate with
+        //   WICKRA_BLESS=1 cargo test -p wickra-backtest-core strategy_spec_schema
+        let schema = strategy_spec_schema();
+        assert!(schema.contains("StrategySpec"));
+        let path = std::path::Path::new(env!("CARGO_MANIFEST_DIR"))
+            .join("../../schema/strategy_spec.schema.json");
+        if std::env::var("WICKRA_BLESS").is_ok() {
+            std::fs::create_dir_all(path.parent().unwrap()).unwrap();
+            std::fs::write(&path, format!("{schema}\n")).unwrap();
+            return;
+        }
+        let committed =
+            std::fs::read_to_string(&path).expect("schema file missing (run WICKRA_BLESS=1)");
+        assert_eq!(schema, committed.trim_end(), "schema drift");
     }
 
     #[test]
