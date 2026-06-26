@@ -20,3 +20,32 @@ print(report["metrics"])
 ```
 
 Lists, `array.array` and NumPy arrays all work as inputs (NumPy is not required).
+
+## Documentation
+
+- **Repository:** <https://github.com/wickra-lib/wickra-backtest>
+- **Strategy spec reference:** [STRATEGY_SPEC.md](../../docs/STRATEGY_SPEC.md)
+- **Cookbook:** [COOKBOOK.md](../../docs/COOKBOOK.md)
+- **Built on Wickra:** <https://github.com/wickra-lib/wickra> · <https://docs.wickra.org>
+
+The same `StrategySpec` runs identically across Rust, Python, Node.js, WASM, C,
+C++, C#, Go, Java and R — one engine kernel, byte-identical reports.
+
+## Security
+
+Found a security issue? **Please don't open a public issue.** Report it privately
+via the repository's *Security* tab (*"Report a vulnerability"*) or email
+**support@wickra.org**. Full policy:
+<https://github.com/wickra-lib/wickra-backtest/blob/main/SECURITY.md>.
+
+## Disclaimer
+
+Not a trading system. Backtest results are deterministic transforms of the input
+data — they are not financial advice and are not indicative of future
+performance. Any use in a live trading context is at your own risk. Provided
+**as is**, without warranty of any kind.
+
+## License
+
+Licensed under either of [MIT](../../LICENSE-MIT) or
+[Apache-2.0](../../LICENSE-APACHE) at your option.
