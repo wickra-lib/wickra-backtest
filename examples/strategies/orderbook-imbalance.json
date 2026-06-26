@@ -1,0 +1,10 @@
+{
+  "spec_version": 1,
+  "symbol": "BTCUSDT",
+  "timeframe": "1m",
+  "indicators": { "imb": { "type": "OrderBookImbalanceTop1", "params": [], "feed": "orderbook" } },
+  "entry": { "gt": ["imb", 0.5] },
+  "exit": { "lt": ["imb", 0.0] },
+  "sizing": { "type": "fixed_qty", "qty": 0.1 },
+  "costs": { "taker_bps": 5, "slippage": { "type": "spread" } }
+}

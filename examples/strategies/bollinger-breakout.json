@@ -1,0 +1,10 @@
+{
+  "spec_version": 1,
+  "symbol": "ETHUSDT",
+  "timeframe": "1h",
+  "indicators": { "bb": { "type": "Bollinger", "params": [20, 2] } },
+  "entry": { "gt": [{ "price": "close" }, "bb.upper"] },
+  "exit": { "lt": [{ "price": "close" }, "bb.middle"] },
+  "sizing": { "type": "vol_target", "target_vol": 0.02, "lookback": 20 },
+  "risk": { "trailing_stop_pct": 4.0, "max_leverage": 3.0 }
+}

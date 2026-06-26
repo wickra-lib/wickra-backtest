@@ -82,7 +82,10 @@ A spec declares named indicators and entry/exit rules over them:
 ```
 
 See [`examples/`](examples/) for the full files and how to write the report and
-trade/equity streams.
+trade/equity streams. The [strategy spec reference](docs/STRATEGY_SPEC.md)
+documents the full DSL and the [cookbook](docs/COOKBOOK.md) walks through ready
+-to-run strategies (mean reversion, MACD trend, Bollinger breakout, Donchian
+breakout, funding carry, order-book imbalance).
 
 From Rust, the same thing is `wickra_backtest::run(&spec, &candles)`. For live
 use, `StreamingBacktest::new(&spec, capital)` then `step(candle)` per bar feeds

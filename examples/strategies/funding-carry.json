@@ -1,0 +1,10 @@
+{
+  "spec_version": 1,
+  "symbol": "BTCUSDT",
+  "timeframe": "1h",
+  "indicators": { "fr": { "type": "FundingRate", "params": [] } },
+  "entry": { "lt": ["fr", 0.0] },
+  "exit": { "gt": ["fr", 0.0] },
+  "sizing": { "type": "fixed_fraction", "fraction": 0.5 },
+  "costs": { "taker_bps": 5, "funding": true }
+}

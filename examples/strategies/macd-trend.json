@@ -1,0 +1,12 @@
+{
+  "spec_version": 1,
+  "symbol": "BTCUSDT",
+  "timeframe": "4h",
+  "indicators": { "macd": { "type": "Macd", "params": [12, 26, 9] } },
+  "entry": { "cross_above": ["macd.macd", "macd.signal"] },
+  "exit": { "cross_below": ["macd.macd", "macd.signal"] },
+  "short_entry": { "cross_below": ["macd.macd", "macd.signal"] },
+  "short_exit": { "cross_above": ["macd.macd", "macd.signal"] },
+  "sizing": { "type": "fixed_fraction", "fraction": 0.95 },
+  "costs": { "maker_bps": 2, "taker_bps": 5 }
+}

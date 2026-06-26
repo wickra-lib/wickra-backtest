@@ -64,6 +64,13 @@ to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
   `WKBT_INC` / `WKBT_LIB` environment variables.
 - Data loaders (`wickra-backtest-data`): CSV (`time,open,high,low,close[,volume]`,
   optional header), JSON Lines and JSON-array candle files, dispatched by extension.
+- Documentation: a strategy spec reference (`docs/STRATEGY_SPEC.md`) covering the
+  full DSL — operands, conditions, sizing, costs, slippage, risk and execution —
+  and a cookbook (`docs/COOKBOOK.md`) of six ready-to-run strategies (RSI mean
+  reversion, MACD trend long/short, Bollinger breakout, Donchian breakout,
+  funding carry and order-book imbalance). The strategies live under
+  `examples/strategies/` and an `example_specs` test parses and validates every
+  one, so the documented examples can never drift from the engine.
 - Property tests (`tests/properties.rs`, proptest): the parser and engine never
   panic on any input — `StrategySpec::parse` and `run_json` always return a
   `Result` for arbitrary text, and the engine runs any sequence of valid candles

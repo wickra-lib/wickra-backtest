@@ -1,0 +1,10 @@
+{
+  "spec_version": 1,
+  "symbol": "BTCUSDT",
+  "timeframe": "1d",
+  "indicators": { "dc": { "type": "Donchian", "params": [20] } },
+  "entry": { "ge": [{ "price": "high" }, "dc.upper"] },
+  "exit": { "le": [{ "price": "low" }, "dc.lower"] },
+  "sizing": { "type": "risk_per_trade", "risk_pct": 1.0 },
+  "risk": { "stop_loss_pct": 5.0 }
+}
