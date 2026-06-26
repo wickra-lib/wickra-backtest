@@ -1808,6 +1808,36 @@ mod tests {
     }
 
     #[test]
+    fn trade_quote_indicator_uses_trades_and_mid() {
+        use crate::data::{TradePrint, TradeSide};
+        let spec = StrategySpec::parse(
+            r#"{"symbol":"x","timeframe":"1h",
+                "indicators":{"es":{"type":"EffectiveSpread","params":[]}},
+                "entry":{"gt":["es",0.0]},
+                "exit":{"lt":["es",-1.0]},
+                "sizing":{"type":"fixed_qty","qty":1}}"#,
+        )
+        .unwrap();
+        let candles: Vec<Candle> = (0i64..5)
+            .map(|t| bar(t, 100.0, 100.0, 100.0, 100.0))
+            .collect();
+        // Trades print away from the mid (close 100) -> positive effective spread.
+        let trade = TradePrint {
+            price: 102.0,
+            size: 1.0,
+            side: TradeSide::Buy,
+            timestamp: 0,
+        };
+        let trades: Vec<Vec<TradePrint>> = (0..5).map(|_| vec![trade]).collect();
+
+        let with_feed = run_with_trades(&spec, &candles, &trades, 10_000.0).unwrap();
+        assert!(with_feed.metrics.num_trades >= 1);
+
+        let without_feed = run_with_capital(&spec, &candles, 10_000.0).unwrap();
+        assert_eq!(without_feed.metrics.num_trades, 0);
+    }
+
+    #[test]
     fn run_with_deriv_rejects_length_mismatch() {
         let spec = StrategySpec::parse(
             r#"{"symbol":"x","timeframe":"1h","indicators":{},

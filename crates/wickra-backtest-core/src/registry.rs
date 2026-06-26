@@ -19,7 +19,7 @@
 
 use wickra_core::{
     self as wc, Candle as CoreCandle, DerivativesTick as CoreDerivativesTick, Indicator,
-    OrderBook as CoreOrderBook, Trade as CoreTrade,
+    OrderBook as CoreOrderBook, Trade as CoreTrade, TradeQuote as CoreTradeQuote,
 };
 
 use crate::data::Candle;
@@ -162,6 +162,39 @@ where
         let mut last = None;
         for &t in input.trades {
             last = self.0.update(t);
+        }
+        last
+    }
+    fn fields(&self) -> Vec<(&'static str, f64)> {
+        Vec::new()
+    }
+    fn warmup(&self) -> usize {
+        self.0.warmup_period()
+    }
+}
+
+/// Wraps a trade-quote (`Input = TradeQuote`) single-output indicator: pairs each
+/// bar trade with the prevailing mid (the order book's mid if present, else the
+/// bar close) and replays them. With no trades it yields `None`.
+struct TradeQuoteIn<I>(I);
+
+impl<I> EvalIndicator for TradeQuoteIn<I>
+where
+    I: Indicator<Input = CoreTradeQuote, Output = f64> + Send,
+{
+    fn update(&mut self, input: &BarInput) -> Option<f64> {
+        let mid = input
+            .orderbook
+            .and_then(|ob| match (ob.best_bid(), ob.best_ask()) {
+                (Some(bid), Some(ask)) => Some(f64::midpoint(ask.price, bid.price)),
+                _ => None,
+            })
+            .unwrap_or(input.candle.close);
+        let mut last = None;
+        for &t in input.trades {
+            if let Ok(tq) = CoreTradeQuote::new(t, mid) {
+                last = self.0.update(tq);
+            }
         }
         last
     }
@@ -2057,6 +2090,16 @@ pub fn build(kind: &str, params: &[f64]) -> Result<Box<dyn EvalIndicator>> {
             kind,
             wc::Vpin::new(float_param(params, 0, kind)?, p(1)?),
         )?))),
+        // --- trade-quote indicators, fed trades + the mid ---
+        "EffectiveSpread" => Ok(Box::new(TradeQuoteIn(wc::EffectiveSpread::new()))),
+        "KylesLambda" => Ok(Box::new(TradeQuoteIn(map_new(
+            kind,
+            wc::KylesLambda::new(p(0)?),
+        )?))),
+        "RealizedSpread" => Ok(Box::new(TradeQuoteIn(map_new(
+            kind,
+            wc::RealizedSpread::new(p(0)?),
+        )?))),
         // --- friendly aliases ---
         "Macd" => build("MacdIndicator", params),
         "Bollinger" => build("BollingerBands", params),
@@ -2064,7 +2107,7 @@ pub fn build(kind: &str, params: &[f64]) -> Result<Box<dyn EvalIndicator>> {
     }
 }
 
-/// Every registered indicator with valid default parameters (477 indicators).
+/// Every registered indicator with valid default parameters (480 indicators).
 #[cfg(test)]
 const ALL_SPECS: &[(&str, &[f64])] = &[
     ("AdaptiveCycle", &[]),
@@ -2544,6 +2587,9 @@ const ALL_SPECS: &[(&str, &[f64])] = &[
     ("TradeImbalance", &[14.0]),
     ("TradeSignAutocorrelation", &[14.0]),
     ("Vpin", &[2.0, 14.0]),
+    ("EffectiveSpread", &[]),
+    ("KylesLambda", &[14.0]),
+    ("RealizedSpread", &[14.0]),
 ];
 
 #[cfg(test)]

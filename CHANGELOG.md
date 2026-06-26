@@ -126,6 +126,12 @@ to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
   each bar from the derivatives feed (`payment = qty * mark_price * funding_rate`
   — longs pay when the rate is positive, shorts receive), reflected in `cash`,
   equity and `fees_paid`. Requires a derivatives feed; default off.
+- Trade-quote feed: the registry now includes the 3 trade-quote
+  (`Input = TradeQuote`) indicators (effective spread, realized spread, Kyle's
+  lambda), fed each bar trade paired with the prevailing mid (the order book's
+  mid if an order-book feed is present, else the bar close). Registry: 477 →
+  **480** — every single-instrument, pairwise and microstructure-feed indicator
+  is now registered (only the multi-asset cross-section family remains).
 - Trade feed: the registry now includes the 8 trade-flow (`Input = Trade`)
   indicators (cumulative volume delta, trade imbalance, signed volume, VPIN,
   Amihud illiquidity, Roll measure, PIN, trade-sign autocorrelation), fed the
