@@ -875,6 +875,12 @@ fn size(
 /// range brackets several levels, the stop (then the trailing stop) is assumed
 /// to fill before the target. Levels are side-aware (a short's stop is above
 /// entry, its target below).
+///
+/// Fills are **gap-aware**: a stop fills at its level when price trades through
+/// it intrabar, but if the bar *opens* beyond the level (a gap), the fill is the
+/// open — the worse price for a stop, the better price for a take-profit — never
+/// an unreachable level. A long stop fills at `min(level, open)`, a long target
+/// at `max(level, open)`; a short is the mirror.
 fn intrabar_exit(
     candle: &Candle,
     risk: &Risk,
@@ -889,38 +895,38 @@ fn intrabar_exit(
         if let Some(p) = risk.stop_loss_pct {
             let level = entry * (1.0 - p / 100.0);
             if candle.low <= level {
-                return Some((level, "stop_loss"));
+                return Some((level.min(candle.open), "stop_loss"));
             }
         }
         if let Some(p) = risk.trailing_stop_pct {
             let level = extreme * (1.0 - p / 100.0);
             if candle.low <= level {
-                return Some((level, "trailing_stop"));
+                return Some((level.min(candle.open), "trailing_stop"));
             }
         }
         if let Some(p) = risk.take_profit_pct {
             let level = entry * (1.0 + p / 100.0);
             if candle.high >= level {
-                return Some((level, "take_profit"));
+                return Some((level.max(candle.open), "take_profit"));
             }
         }
     } else {
         if let Some(p) = risk.stop_loss_pct {
             let level = entry * (1.0 + p / 100.0);
             if candle.high >= level {
-                return Some((level, "stop_loss"));
+                return Some((level.max(candle.open), "stop_loss"));
             }
         }
         if let Some(p) = risk.trailing_stop_pct {
             let level = extreme * (1.0 + p / 100.0);
             if candle.high >= level {
-                return Some((level, "trailing_stop"));
+                return Some((level.max(candle.open), "trailing_stop"));
             }
         }
         if let Some(p) = risk.take_profit_pct {
             let level = entry * (1.0 - p / 100.0);
             if candle.low <= level {
-                return Some((level, "take_profit"));
+                return Some((level.min(candle.open), "take_profit"));
             }
         }
     }
@@ -1097,13 +1103,11 @@ mod tests {
         assert!((t.pnl - (-5.0)).abs() < 1e-9);
     }
 
-    /// A bar that gaps entirely below the stop still triggers the stop. The
-    /// current model fills at the stop level; note this is optimistic for a true
-    /// gap (a fill at the gapped-down open would be more conservative) — a
-    /// deliberate, documented simplification, pinned here so any change to it is
-    /// a conscious one.
+    /// A bar that gaps entirely below the stop still triggers it, and fills at
+    /// the gapped-down open (the realistic, conservative price) — not the
+    /// unreachable stop level, which the bar never traded at.
     #[test]
-    fn gap_down_through_stop_triggers_at_level() {
+    fn gap_down_through_stop_fills_at_open() {
         let spec = StrategySpec::parse(
             r#"{"symbol":"x","timeframe":"1h","indicators":{},
                 "entry":{"gt":[{"price":"close"},0]},
@@ -1115,13 +1119,39 @@ mod tests {
         let candles = [
             bar(0, 100.0, 100.0, 100.0, 100.0), // enter signal
             bar(1, 100.0, 100.0, 100.0, 100.0), // fill enter @ 100; stop at 95
-            bar(2, 90.0, 92.0, 88.0, 89.0),     // gaps open 90, already below the 95 stop
+            bar(2, 90.0, 92.0, 88.0, 89.0),     // gaps open 90, below the 95 stop
         ];
         let r = run_with_capital(&spec, &candles, 1000.0).unwrap();
         assert_eq!(r.trades.len(), 1);
         let t = &r.trades[0];
         assert_eq!(t.reason, "stop_loss");
-        assert!((t.exit_price - 95.0).abs() < 1e-9);
+        assert!((t.exit_price - 90.0).abs() < 1e-9); // the gapped open, not 95
+        assert!((t.pnl - (-10.0)).abs() < 1e-9); // 1 * (90 - 100)
+    }
+
+    /// A short whose stop gaps up: fills at the gapped-up open (worse for the
+    /// short), not the lower stop level.
+    #[test]
+    fn gap_up_through_short_stop_fills_at_open() {
+        let spec = StrategySpec::parse(
+            r#"{"symbol":"x","timeframe":"1h","indicators":{},
+                "entry":{"lt":[{"price":"close"},0]},"exit":{"in_position":false},
+                "short_entry":{"gt":[{"price":"close"},0]},
+                "short_exit":{"lt":[{"price":"close"},0]},
+                "sizing":{"type":"fixed_qty","qty":1},
+                "risk":{"stop_loss_pct":5.0}}"#,
+        )
+        .unwrap();
+        let candles = [
+            bar(0, 100.0, 100.0, 100.0, 100.0), // short signal
+            bar(1, 100.0, 100.0, 100.0, 100.0), // fill short @ 100; stop at 105
+            bar(2, 110.0, 112.0, 108.0, 111.0), // gaps open 110, above the 105 stop
+        ];
+        let r = run_with_capital(&spec, &candles, 1000.0).unwrap();
+        assert_eq!(r.trades.len(), 1);
+        let t = &r.trades[0];
+        assert_eq!(t.reason, "stop_loss");
+        assert!((t.exit_price - 110.0).abs() < 1e-9); // the gapped open, not 105
     }
 
     /// A long trailing stop exits when price retraces past the trailed peak.

@@ -170,6 +170,14 @@ to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ### Changed
 
+- Intrabar stop / target fills are now gap-aware: a stop still fills at its level
+  when price trades through it intrabar, but if the bar *opens* beyond the level
+  (a gap), the fill is the open — the worse price for a stop or trailing stop,
+  the better price for a take-profit — instead of the unreachable level the bar
+  never traded at. This makes gapped exits conservative rather than optimistic; a
+  long stop fills at `min(level, open)`, a long target at `max(level, open)`, and
+  a short is the mirror. The golden corpus is unchanged (its cases do not gap
+  through a level).
 - Spread and volume-impact slippage: the `spread` model moves the fill by the
   order book's half-spread relative to the mid (needs an order-book feed), and
   `volume_impact` by `coef * order_qty / bar_volume`. Both are now applied
