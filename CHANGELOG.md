@@ -108,6 +108,9 @@ to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ### Changed
 
+- Maker / taker fees: a resting limit-order fill now pays `costs.maker_bps`
+  (it provides liquidity), while market and stop fills pay `costs.taker_bps`.
+  Previously `maker_bps` was unused and every fill paid the taker fee.
 - Liquidation: with `risk.liquidation` set, a leveraged position is force-closed
   intrabar at its bankruptcy price (where account equity reaches zero,
   `-cash / qty`) — checked against the bar's adverse extreme, after stop-loss /

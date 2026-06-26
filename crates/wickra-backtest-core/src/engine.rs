@@ -10,7 +10,8 @@
 //!
 //! Supports long and short positions; market, limit and stop entry orders (a
 //! limit/stop rests at a percent offset from the signal close and fills when a
-//! later bar reaches it, otherwise it keeps working); a taker fee and fixed-bps
+//! later bar reaches it, otherwise it keeps working); maker/taker fees (resting
+//! limit fills pay maker, market/stop fills pay taker) and fixed-bps
 //! slippage; and leverage / position sizing (fixed fraction / cash / quantity,
 //! risk-per-trade and vol-target, capped by `max_leverage` and
 //! `max_position_pct`; without `max_leverage` the cap is 1x equity — no leverage
@@ -127,16 +128,19 @@ struct FillCtx<'a> {
     spec: &'a StrategySpec,
     candle: &'a Candle,
     history: &'a [BarRow],
+    maker: f64,
     taker: f64,
     slip: f64,
     bar: usize,
 }
 
 /// Open a position at `raw_price` (before slippage), honouring the sizing model,
-/// leverage caps and volume-participation partial fills.
+/// leverage caps and volume-participation partial fills. `maker_fill` charges
+/// the maker fee (resting limit fills) instead of the taker fee.
 fn execute_entry(
     side: Side,
     raw_price: f64,
+    maker_fill: bool,
     ctx: &FillCtx,
     pf: &mut Portfolio,
     entry_bar: &mut Option<usize>,
@@ -161,7 +165,8 @@ fn execute_entry(
             base
         };
         if base > 0.0 {
-            let fee = base * fill * ctx.taker;
+            let rate = if maker_fill { ctx.maker } else { ctx.taker };
+            let fee = base * fill * rate;
             pf.enter(dir * base, fill, ctx.candle.time, fee);
             *entry_bar = Some(ctx.bar);
             *extreme = fill;
@@ -352,6 +357,7 @@ pub fn run_with_trades(
 pub struct StreamingBacktest<'a> {
     spec: &'a StrategySpec,
     capital: f64,
+    maker: f64,
     taker: f64,
     slip: f64,
     warmup: usize,
@@ -380,6 +386,7 @@ impl<'a> StreamingBacktest<'a> {
             indicators.insert(name.clone(), built);
         }
         let warmup = spec.warmup.map_or(max_warmup, |w| w as usize);
+        let maker = spec.costs.maker_bps / 10_000.0;
         let taker = spec.costs.taker_bps / 10_000.0;
         let slip = match spec.costs.slippage {
             Slippage::FixedBps { bps } => bps / 10_000.0,
@@ -389,6 +396,7 @@ impl<'a> StreamingBacktest<'a> {
         Ok(Self {
             spec,
             capital,
+            maker,
             taker,
             slip,
             warmup,
@@ -451,6 +459,7 @@ impl<'a> StreamingBacktest<'a> {
                     spec: self.spec,
                     candle,
                     history: &self.history,
+                    maker: self.maker,
                     taker: self.taker,
                     slip: self.slip,
                     bar: t,
@@ -458,6 +467,8 @@ impl<'a> StreamingBacktest<'a> {
                 let keep_working = match &order.action {
                     Action::Enter { side, trigger } => {
                         let side = *side;
+                        // A resting limit fill provides liquidity → maker fee.
+                        let maker_fill = matches!(trigger, Some((_, LevelKind::Limit)));
                         let level = match trigger {
                             None => Some(candle.open),
                             Some((trig, kind)) => level_fill(side, *trig, *kind, candle),
@@ -467,6 +478,7 @@ impl<'a> StreamingBacktest<'a> {
                                 execute_entry(
                                     side,
                                     px,
+                                    maker_fill,
                                     &ctx,
                                     &mut self.pf,
                                     &mut self.entry_bar,
@@ -585,6 +597,7 @@ impl<'a> StreamingBacktest<'a> {
                         spec: self.spec,
                         candle,
                         history: &self.history,
+                        maker: self.maker,
                         taker: self.taker,
                         slip: self.slip,
                         bar: t,
@@ -626,6 +639,7 @@ impl<'a> StreamingBacktest<'a> {
                         spec: self.spec,
                         candle,
                         history: &self.history,
+                        maker: self.maker,
                         taker: self.taker,
                         slip: self.slip,
                         bar: t,
@@ -633,6 +647,7 @@ impl<'a> StreamingBacktest<'a> {
                     execute_entry(
                         side,
                         candle.close,
+                        false, // close-to-close fills are market (taker)
                         &ctx,
                         &mut self.pf,
                         &mut self.entry_bar,
@@ -1658,6 +1673,38 @@ mod tests {
         assert_eq!(r.trades[0].reason, "liquidation");
         assert!((r.trades[0].exit_price - 80.0).abs() < 1e-9);
         assert!(r.equity.last().unwrap().equity.abs() < 1e-6); // account wiped out
+    }
+
+    #[test]
+    fn limit_entry_pays_maker_fee() {
+        let candles = [
+            bar(0, 100.0, 100.0, 100.0, 100.0),
+            bar(1, 100.0, 100.0, 100.0, 100.0),
+            bar(2, 100.0, 100.0, 100.0, 100.0),
+        ];
+        // A market entry pays the taker fee; a resting limit entry pays maker.
+        let market = StrategySpec::parse(
+            r#"{"symbol":"x","timeframe":"1h","indicators":{},
+                "entry":{"gt":[{"price":"close"},0]},"exit":{"in_position":false},
+                "sizing":{"type":"fixed_qty","qty":1},
+                "costs":{"maker_bps":0,"taker_bps":200}}"#,
+        )
+        .unwrap();
+        let limit = StrategySpec::parse(
+            r#"{"symbol":"x","timeframe":"1h","indicators":{},
+                "entry":{"gt":[{"price":"close"},0]},"exit":{"in_position":false},
+                "sizing":{"type":"fixed_qty","qty":1},
+                "costs":{"maker_bps":0,"taker_bps":200},
+                "execution":{"order_type":"limit","limit_offset_pct":0.0}}"#,
+        )
+        .unwrap();
+        let market_fees = run_with_capital(&market, &candles, 10_000.0)
+            .unwrap()
+            .fees_paid;
+        let limit_fees = run_with_capital(&limit, &candles, 10_000.0)
+            .unwrap()
+            .fees_paid;
+        assert!(limit_fees < market_fees); // maker (0) saved versus taker on entry
     }
 
     #[test]
