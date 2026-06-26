@@ -108,6 +108,14 @@ to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ### Changed
 
+- Derivatives feed: the registry now includes the 17 derivatives
+  (`Input = DerivativesTick`) indicators (funding rate, open-interest delta /
+  momentum, long-short ratio, taker buy/sell ratio, perpetual premium, …), fed
+  the bar's derivatives tick. `EvalIndicator::update` now takes a `BarInput`
+  context (candle + optional reference + optional derivatives tick) instead of
+  loose arguments; `run_with_deriv` (and `StreamingBacktest::step_with_feeds`)
+  drive a backtest with a per-bar derivatives feed. Without a feed the
+  derivatives indicators yield nothing. Registry: 445 → **462**.
 - Pairwise indicators: the registry now includes all 24 pairwise
   (`Input = (f64, f64)`) indicators — 19 scalar-output (correlation, beta, spread
   z-score, variance ratio, …) and 5 multi-output (cointegration, Kalman hedge

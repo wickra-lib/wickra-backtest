@@ -17,16 +17,30 @@
 //! reference series. Multi-output indicators expose named fields, referenced in
 //! the spec as `"name.field"`.
 
-use wickra_core::{self as wc, Candle as CoreCandle, Indicator};
+use wickra_core::{
+    self as wc, Candle as CoreCandle, DerivativesTick as CoreDerivativesTick, Indicator,
+};
 
 use crate::data::Candle;
 use crate::error::{BacktestError, Result};
 
+/// Everything an indicator may consume on one bar. Single-instrument indicators
+/// use `candle`; pairwise indicators also use `reference`; derivatives
+/// indicators use `deriv`. Feeds that are absent are `None`.
+pub struct BarInput<'a> {
+    /// The current bar.
+    pub candle: &'a Candle,
+    /// The reference series' close (for pairwise indicators).
+    pub reference: Option<f64>,
+    /// The derivatives tick for this bar (for derivatives indicators).
+    pub deriv: Option<CoreDerivativesTick>,
+}
+
 /// A uniform, object-safe indicator the engine drives one bar at a time.
 pub trait EvalIndicator: Send {
-    /// Feed one bar (with the optional reference-series close for pairwise
-    /// indicators); returns the primary value, or `None` while warming up.
-    fn update(&mut self, candle: &Candle, reference: Option<f64>) -> Option<f64>;
+    /// Feed one bar's [`BarInput`]; returns the primary value, or `None` while
+    /// warming up or when the required feed is absent.
+    fn update(&mut self, input: &BarInput) -> Option<f64>;
     /// Named output fields of the most recent update (empty for single-output).
     fn fields(&self) -> Vec<(&'static str, f64)>;
     /// Number of bars required before the first value.
@@ -40,8 +54,8 @@ impl<I> EvalIndicator for ScalarClose<I>
 where
     I: Indicator<Input = f64, Output = f64> + Send,
 {
-    fn update(&mut self, candle: &Candle, _reference: Option<f64>) -> Option<f64> {
-        self.0.update(candle.close)
+    fn update(&mut self, input: &BarInput) -> Option<f64> {
+        self.0.update(input.candle.close)
     }
     fn fields(&self) -> Vec<(&'static str, f64)> {
         Vec::new()
@@ -58,8 +72,8 @@ impl<I> EvalIndicator for CandleIn<I>
 where
     I: Indicator<Input = CoreCandle, Output = f64> + Send,
 {
-    fn update(&mut self, candle: &Candle, _reference: Option<f64>) -> Option<f64> {
-        candle.to_core().ok().and_then(|c| self.0.update(c))
+    fn update(&mut self, input: &BarInput) -> Option<f64> {
+        input.candle.to_core().ok().and_then(|c| self.0.update(c))
     }
     fn fields(&self) -> Vec<(&'static str, f64)> {
         Vec::new()
@@ -77,8 +91,29 @@ impl<I> EvalIndicator for PairClose<I>
 where
     I: Indicator<Input = (f64, f64), Output = f64> + Send,
 {
-    fn update(&mut self, candle: &Candle, reference: Option<f64>) -> Option<f64> {
-        reference.and_then(|r| self.0.update((candle.close, r)))
+    fn update(&mut self, input: &BarInput) -> Option<f64> {
+        input
+            .reference
+            .and_then(|r| self.0.update((input.candle.close, r)))
+    }
+    fn fields(&self) -> Vec<(&'static str, f64)> {
+        Vec::new()
+    }
+    fn warmup(&self) -> usize {
+        self.0.warmup_period()
+    }
+}
+
+/// Wraps a derivatives (`Input = DerivativesTick`) single-output indicator.
+/// Without a derivatives feed it yields `None`.
+struct DerivativesIn<I>(I);
+
+impl<I> EvalIndicator for DerivativesIn<I>
+where
+    I: Indicator<Input = CoreDerivativesTick, Output = f64> + Send,
+{
+    fn update(&mut self, input: &BarInput) -> Option<f64> {
+        input.deriv.and_then(|d| self.0.update(d))
     }
     fn fields(&self) -> Vec<(&'static str, f64)> {
         Vec::new()
@@ -103,8 +138,8 @@ macro_rules! multi_close {
             }
         }
         impl EvalIndicator for $wrap {
-            fn update(&mut self, candle: &Candle, _reference: Option<f64>) -> Option<f64> {
-                let out = self.inner.update(candle.close)?;
+            fn update(&mut self, input: &BarInput) -> Option<f64> {
+                let out = self.inner.update(input.candle.close)?;
                 self.last = vec![$((stringify!($f), out.$f)),+];
                 Some(out.$first)
             }
@@ -131,8 +166,8 @@ macro_rules! multi_candle {
             }
         }
         impl EvalIndicator for $wrap {
-            fn update(&mut self, candle: &Candle, _reference: Option<f64>) -> Option<f64> {
-                let c = candle.to_core().ok()?;
+            fn update(&mut self, input: &BarInput) -> Option<f64> {
+                let c = input.candle.to_core().ok()?;
                 let out = self.inner.update(c)?;
                 self.last = vec![$((stringify!($f), out.$f)),+];
                 Some(out.$first)
@@ -161,8 +196,37 @@ macro_rules! multi_pair {
             }
         }
         impl EvalIndicator for $wrap {
-            fn update(&mut self, candle: &Candle, reference: Option<f64>) -> Option<f64> {
-                let out = self.inner.update((candle.close, reference?))?;
+            fn update(&mut self, input: &BarInput) -> Option<f64> {
+                let out = self.inner.update((input.candle.close, input.reference?))?;
+                self.last = vec![$((stringify!($f), out.$f)),+];
+                Some(out.$first)
+            }
+            fn fields(&self) -> Vec<(&'static str, f64)> {
+                self.last.clone()
+            }
+            fn warmup(&self) -> usize {
+                self.inner.warmup_period()
+            }
+        }
+    };
+}
+
+/// Define a multi-output wrapper over a derivatives (`Input = DerivativesTick`)
+/// indicator. Without a derivatives feed it yields none.
+macro_rules! multi_deriv {
+    ($wrap:ident, $ty:ident, $first:ident, [$($f:ident),+]) => {
+        struct $wrap {
+            inner: wc::$ty,
+            last: Vec<(&'static str, f64)>,
+        }
+        impl $wrap {
+            fn wrap(inner: wc::$ty) -> Self {
+                Self { inner, last: Vec::new() }
+            }
+        }
+        impl EvalIndicator for $wrap {
+            fn update(&mut self, input: &BarInput) -> Option<f64> {
+                let out = self.inner.update(input.deriv?)?;
                 self.last = vec![$((stringify!($f), out.$f)),+];
                 Some(out.$first)
             }
@@ -490,6 +554,12 @@ multi_pair!(
     SpreadBollingerBands,
     middle,
     [middle, upper, lower, percent_b]
+);
+multi_deriv!(
+    LiquidationFeaturesWrap,
+    LiquidationFeatures,
+    long,
+    [long, short, net, total, imbalance]
 );
 
 /// Read parameter `idx` as a positive-integer period.
@@ -1864,6 +1934,41 @@ pub fn build(kind: &str, params: &[f64]) -> Result<Box<dyn EvalIndicator>> {
             kind,
             wc::SpreadBollingerBands::new(p(0)?, float_param(params, 1, kind)?),
         )?))),
+        // --- derivatives indicators, fed the bar's DerivativesTick ---
+        "CalendarSpread" => Ok(Box::new(DerivativesIn(wc::CalendarSpread::new()))),
+        "EstimatedLeverageRatio" => Ok(Box::new(DerivativesIn(wc::EstimatedLeverageRatio::new()))),
+        "FundingBasis" => Ok(Box::new(DerivativesIn(wc::FundingBasis::new()))),
+        "FundingImpliedApr" => Ok(Box::new(DerivativesIn(map_new(
+            kind,
+            wc::FundingImpliedApr::new(float_param(params, 0, kind)?),
+        )?))),
+        "FundingRate" => Ok(Box::new(DerivativesIn(wc::FundingRate::new()))),
+        "FundingRateMean" => Ok(Box::new(DerivativesIn(map_new(
+            kind,
+            wc::FundingRateMean::new(p(0)?),
+        )?))),
+        "FundingRateZScore" => Ok(Box::new(DerivativesIn(map_new(
+            kind,
+            wc::FundingRateZScore::new(p(0)?),
+        )?))),
+        "LongShortRatio" => Ok(Box::new(DerivativesIn(wc::LongShortRatio::new()))),
+        "OIPriceDivergence" => Ok(Box::new(DerivativesIn(map_new(
+            kind,
+            wc::OIPriceDivergence::new(p(0)?),
+        )?))),
+        "OIWeighted" => Ok(Box::new(DerivativesIn(wc::OIWeighted::new()))),
+        "OiToVolumeRatio" => Ok(Box::new(DerivativesIn(wc::OiToVolumeRatio::new()))),
+        "OpenInterestDelta" => Ok(Box::new(DerivativesIn(wc::OpenInterestDelta::new()))),
+        "OpenInterestMomentum" => Ok(Box::new(DerivativesIn(map_new(
+            kind,
+            wc::OpenInterestMomentum::new(p(0)?),
+        )?))),
+        "PerpetualPremiumIndex" => Ok(Box::new(DerivativesIn(wc::PerpetualPremiumIndex::new()))),
+        "TakerBuySellRatio" => Ok(Box::new(DerivativesIn(wc::TakerBuySellRatio::new()))),
+        "TermStructureBasis" => Ok(Box::new(DerivativesIn(wc::TermStructureBasis::new()))),
+        "LiquidationFeatures" => Ok(Box::new(LiquidationFeaturesWrap::wrap(
+            wc::LiquidationFeatures::new(),
+        ))),
         // --- friendly aliases ---
         "Macd" => build("MacdIndicator", params),
         "Bollinger" => build("BollingerBands", params),
@@ -1871,7 +1976,7 @@ pub fn build(kind: &str, params: &[f64]) -> Result<Box<dyn EvalIndicator>> {
     }
 }
 
-/// Every registered indicator with valid default parameters (445 indicators).
+/// Every registered indicator with valid default parameters (462 indicators).
 #[cfg(test)]
 const ALL_SPECS: &[(&str, &[f64])] = &[
     ("AdaptiveCycle", &[]),
@@ -2319,6 +2424,23 @@ const ALL_SPECS: &[(&str, &[f64])] = &[
     ("LeadLagCrossCorrelation", &[20.0, 10.0]),
     ("RelativeStrengthAB", &[14.0, 14.0]),
     ("SpreadBollingerBands", &[14.0, 2.0]),
+    ("CalendarSpread", &[]),
+    ("EstimatedLeverageRatio", &[]),
+    ("FundingBasis", &[]),
+    ("FundingImpliedApr", &[2.0]),
+    ("FundingRate", &[]),
+    ("FundingRateMean", &[14.0]),
+    ("FundingRateZScore", &[14.0]),
+    ("LongShortRatio", &[]),
+    ("OIPriceDivergence", &[14.0]),
+    ("OIWeighted", &[]),
+    ("OiToVolumeRatio", &[]),
+    ("OpenInterestDelta", &[]),
+    ("OpenInterestMomentum", &[14.0]),
+    ("PerpetualPremiumIndex", &[]),
+    ("TakerBuySellRatio", &[]),
+    ("TermStructureBasis", &[]),
+    ("LiquidationFeatures", &[]),
 ];
 
 #[cfg(test)]
@@ -2333,6 +2455,14 @@ mod tests {
             low,
             close,
             volume: 1.0,
+        }
+    }
+
+    fn input(c: &Candle) -> BarInput<'_> {
+        BarInput {
+            candle: c,
+            reference: None,
+            deriv: None,
         }
     }
 
@@ -2380,7 +2510,7 @@ mod tests {
         let mut macd = build("MacdIndicator", &[2.0, 3.0, 2.0]).unwrap();
         let mut last_fields = Vec::new();
         for px in [10.0, 11.0, 12.0, 13.0, 14.0, 15.0, 16.0, 17.0] {
-            if macd.update(&candle(px, px, px), None).is_some() {
+            if macd.update(&input(&candle(px, px, px))).is_some() {
                 last_fields = macd.fields();
             }
         }
@@ -2393,8 +2523,8 @@ mod tests {
     #[test]
     fn single_output_has_no_fields() {
         let mut sma = build("Sma", &[2.0]).unwrap();
-        sma.update(&candle(10.0, 10.0, 10.0), None);
-        sma.update(&candle(20.0, 20.0, 20.0), None);
+        sma.update(&input(&candle(10.0, 10.0, 10.0)));
+        sma.update(&input(&candle(20.0, 20.0, 20.0)));
         assert!(sma.fields().is_empty());
     }
 }

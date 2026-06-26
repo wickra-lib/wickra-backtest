@@ -112,16 +112,30 @@ HEAD = r'''//! Indicator registry: constructs `wickra-core` indicators by name a
 //! reference series. Multi-output indicators expose named fields, referenced in
 //! the spec as `"name.field"`.
 
-use wickra_core::{self as wc, Candle as CoreCandle, Indicator};
+use wickra_core::{
+    self as wc, Candle as CoreCandle, DerivativesTick as CoreDerivativesTick, Indicator,
+};
 
 use crate::data::Candle;
 use crate::error::{BacktestError, Result};
 
+/// Everything an indicator may consume on one bar. Single-instrument indicators
+/// use `candle`; pairwise indicators also use `reference`; derivatives
+/// indicators use `deriv`. Feeds that are absent are `None`.
+pub struct BarInput<'a> {
+    /// The current bar.
+    pub candle: &'a Candle,
+    /// The reference series' close (for pairwise indicators).
+    pub reference: Option<f64>,
+    /// The derivatives tick for this bar (for derivatives indicators).
+    pub deriv: Option<CoreDerivativesTick>,
+}
+
 /// A uniform, object-safe indicator the engine drives one bar at a time.
 pub trait EvalIndicator: Send {
-    /// Feed one bar (with the optional reference-series close for pairwise
-    /// indicators); returns the primary value, or `None` while warming up.
-    fn update(&mut self, candle: &Candle, reference: Option<f64>) -> Option<f64>;
+    /// Feed one bar's [`BarInput`]; returns the primary value, or `None` while
+    /// warming up or when the required feed is absent.
+    fn update(&mut self, input: &BarInput) -> Option<f64>;
     /// Named output fields of the most recent update (empty for single-output).
     fn fields(&self) -> Vec<(&'static str, f64)>;
     /// Number of bars required before the first value.
@@ -135,8 +149,8 @@ impl<I> EvalIndicator for ScalarClose<I>
 where
     I: Indicator<Input = f64, Output = f64> + Send,
 {
-    fn update(&mut self, candle: &Candle, _reference: Option<f64>) -> Option<f64> {
-        self.0.update(candle.close)
+    fn update(&mut self, input: &BarInput) -> Option<f64> {
+        self.0.update(input.candle.close)
     }
     fn fields(&self) -> Vec<(&'static str, f64)> {
         Vec::new()
@@ -153,8 +167,8 @@ impl<I> EvalIndicator for CandleIn<I>
 where
     I: Indicator<Input = CoreCandle, Output = f64> + Send,
 {
-    fn update(&mut self, candle: &Candle, _reference: Option<f64>) -> Option<f64> {
-        candle.to_core().ok().and_then(|c| self.0.update(c))
+    fn update(&mut self, input: &BarInput) -> Option<f64> {
+        input.candle.to_core().ok().and_then(|c| self.0.update(c))
     }
     fn fields(&self) -> Vec<(&'static str, f64)> {
         Vec::new()
@@ -172,8 +186,29 @@ impl<I> EvalIndicator for PairClose<I>
 where
     I: Indicator<Input = (f64, f64), Output = f64> + Send,
 {
-    fn update(&mut self, candle: &Candle, reference: Option<f64>) -> Option<f64> {
-        reference.and_then(|r| self.0.update((candle.close, r)))
+    fn update(&mut self, input: &BarInput) -> Option<f64> {
+        input
+            .reference
+            .and_then(|r| self.0.update((input.candle.close, r)))
+    }
+    fn fields(&self) -> Vec<(&'static str, f64)> {
+        Vec::new()
+    }
+    fn warmup(&self) -> usize {
+        self.0.warmup_period()
+    }
+}
+
+/// Wraps a derivatives (`Input = DerivativesTick`) single-output indicator.
+/// Without a derivatives feed it yields `None`.
+struct DerivativesIn<I>(I);
+
+impl<I> EvalIndicator for DerivativesIn<I>
+where
+    I: Indicator<Input = CoreDerivativesTick, Output = f64> + Send,
+{
+    fn update(&mut self, input: &BarInput) -> Option<f64> {
+        input.deriv.and_then(|d| self.0.update(d))
     }
     fn fields(&self) -> Vec<(&'static str, f64)> {
         Vec::new()
@@ -198,8 +233,8 @@ macro_rules! multi_close {
             }
         }
         impl EvalIndicator for $wrap {
-            fn update(&mut self, candle: &Candle, _reference: Option<f64>) -> Option<f64> {
-                let out = self.inner.update(candle.close)?;
+            fn update(&mut self, input: &BarInput) -> Option<f64> {
+                let out = self.inner.update(input.candle.close)?;
                 self.last = vec![$((stringify!($f), out.$f)),+];
                 Some(out.$first)
             }
@@ -226,8 +261,8 @@ macro_rules! multi_candle {
             }
         }
         impl EvalIndicator for $wrap {
-            fn update(&mut self, candle: &Candle, _reference: Option<f64>) -> Option<f64> {
-                let c = candle.to_core().ok()?;
+            fn update(&mut self, input: &BarInput) -> Option<f64> {
+                let c = input.candle.to_core().ok()?;
                 let out = self.inner.update(c)?;
                 self.last = vec![$((stringify!($f), out.$f)),+];
                 Some(out.$first)
@@ -256,8 +291,37 @@ macro_rules! multi_pair {
             }
         }
         impl EvalIndicator for $wrap {
-            fn update(&mut self, candle: &Candle, reference: Option<f64>) -> Option<f64> {
-                let out = self.inner.update((candle.close, reference?))?;
+            fn update(&mut self, input: &BarInput) -> Option<f64> {
+                let out = self.inner.update((input.candle.close, input.reference?))?;
+                self.last = vec![$((stringify!($f), out.$f)),+];
+                Some(out.$first)
+            }
+            fn fields(&self) -> Vec<(&'static str, f64)> {
+                self.last.clone()
+            }
+            fn warmup(&self) -> usize {
+                self.inner.warmup_period()
+            }
+        }
+    };
+}
+
+/// Define a multi-output wrapper over a derivatives (`Input = DerivativesTick`)
+/// indicator. Without a derivatives feed it yields none.
+macro_rules! multi_deriv {
+    ($wrap:ident, $ty:ident, $first:ident, [$($f:ident),+]) => {
+        struct $wrap {
+            inner: wc::$ty,
+            last: Vec<(&'static str, f64)>,
+        }
+        impl $wrap {
+            fn wrap(inner: wc::$ty) -> Self {
+                Self { inner, last: Vec::new() }
+            }
+        }
+        impl EvalIndicator for $wrap {
+            fn update(&mut self, input: &BarInput) -> Option<f64> {
+                let out = self.inner.update(input.deriv?)?;
                 self.last = vec![$((stringify!($f), out.$f)),+];
                 Some(out.$first)
             }
@@ -362,6 +426,14 @@ mod tests {
         }
     }
 
+    fn input(c: &Candle) -> BarInput<'_> {
+        BarInput {
+            candle: c,
+            reference: None,
+            deriv: None,
+        }
+    }
+
     #[test]
     fn builds_all_known_indicators() {
         for (kind, params) in ALL_SPECS {
@@ -406,7 +478,7 @@ mod tests {
         let mut macd = build("MacdIndicator", &[2.0, 3.0, 2.0]).unwrap();
         let mut last_fields = Vec::new();
         for px in [10.0, 11.0, 12.0, 13.0, 14.0, 15.0, 16.0, 17.0] {
-            if macd.update(&candle(px, px, px), None).is_some() {
+            if macd.update(&input(&candle(px, px, px))).is_some() {
                 last_fields = macd.fields();
             }
         }
@@ -419,8 +491,8 @@ mod tests {
     #[test]
     fn single_output_has_no_fields() {
         let mut sma = build("Sma", &[2.0]).unwrap();
-        sma.update(&candle(10.0, 10.0, 10.0), None);
-        sma.update(&candle(20.0, 20.0, 20.0), None);
+        sma.update(&input(&candle(10.0, 10.0, 10.0)));
+        sma.update(&input(&candle(20.0, 20.0, 20.0)));
         assert!(sma.fields().is_empty());
     }
 }
@@ -451,13 +523,15 @@ def main():
     multis = []   # (ty, input, args, is_result, fields)
     pairs = []    # (ty, args, is_result) for Input = (f64, f64), Output = f64
     pair_multis = []  # (ty, args, is_result, fields) for pairwise struct output
+    deriv_scalars = []  # (ty, args, is_result) for Input = DerivativesTick, f64 out
+    deriv_multis = []   # (ty, args, is_result, fields) for derivatives struct out
     skip = Counter()
 
     for text in files.values():
         for m in re.finditer(r"\nimpl\s+Indicator\s+for\s+(\w+)\b", text):
             ty = m.group(1)
             inp, out = assoc_types(text, ty)
-            if inp not in ("f64", "Candle", "(f64,f64)"):
+            if inp not in ("f64", "Candle", "(f64,f64)", "DerivativesTick"):
                 if inp:
                     skip[f"input {inp}"] += 1
                 continue
@@ -480,6 +554,16 @@ def main():
                     else:
                         skip[f"pairwise no f64 fields ({out})"] += 1
                 continue
+            if inp == "DerivativesTick":
+                if out == "f64":
+                    deriv_scalars.append((ty, argtypes, is_result))
+                else:
+                    fields = out_fields(bigtext, out)
+                    if fields:
+                        deriv_multis.append((ty, argtypes, is_result, fields))
+                    else:
+                        skip[f"derivatives no f64 fields ({out})"] += 1
+                continue
             if out == "f64":
                 scalars.append((ty, inp, argtypes, is_result))
             else:
@@ -493,6 +577,8 @@ def main():
     multis.sort()
     pairs.sort()
     pair_multis.sort()
+    deriv_scalars.sort()
+    deriv_multis.sort()
 
     # Emit multi-wrapper macro invocations.
     wraps = []
@@ -503,6 +589,9 @@ def main():
     for ty, _args, _res, fields in pair_multis:
         flist = ", ".join(fields)
         wraps.append(f"multi_pair!({ty}Wrap, {ty}, {fields[0]}, [{flist}]);")
+    for ty, _args, _res, fields in deriv_multis:
+        flist = ", ".join(fields)
+        wraps.append(f"multi_deriv!({ty}Wrap, {ty}, {fields[0]}, [{flist}]);")
 
     arms = []
     specs = []
@@ -559,6 +648,18 @@ def main():
         seen.add(ty)
         specs.append((ty, default_for(ty, argtypes)))
 
+    arms.append("        // --- derivatives indicators, fed the bar's DerivativesTick ---")
+    for ty, argtypes, is_result in deriv_scalars:
+        arm = f'        "{ty}" => Ok(Box::new(DerivativesIn({ctor_expr(ty, argtypes, is_result)}))),'
+        arms.append(arm)
+        seen.add(ty)
+        specs.append((ty, default_for(ty, argtypes)))
+    for ty, argtypes, is_result, _fields in deriv_multis:
+        arm = f'        "{ty}" => Ok(Box::new({ty}Wrap::wrap({ctor_expr(ty, argtypes, is_result)}))),'
+        arms.append(arm)
+        seen.add(ty)
+        specs.append((ty, default_for(ty, argtypes)))
+
     arms.append("        // --- friendly aliases ---")
     for alias, canon in ALIASES.items():
         if canon in seen:
@@ -588,7 +689,9 @@ def main():
 
     print(f"registry: {len(seen)} indicators ({len(scalars)} scalar + "
           f"{len(multis)} multi + {len(pairs)} pairwise + "
-          f"{len(pair_multis)} pairwise-multi) + {len(ALIASES)} aliases -> {args.out}")
+          f"{len(pair_multis)} pairwise-multi + "
+          f"{len(deriv_scalars) + len(deriv_multis)} derivatives) "
+          f"+ {len(ALIASES)} aliases -> {args.out}")
     print("skipped (structurally out of scope):")
     for k, v in skip.most_common():
         print(f"  {v:3} {k}")

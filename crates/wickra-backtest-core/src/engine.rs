@@ -21,11 +21,11 @@
 
 use std::collections::BTreeMap;
 
-use crate::data::Candle;
+use crate::data::{Candle, DerivativesTick};
 use crate::error::{BacktestError, Result};
 use crate::metrics;
 use crate::portfolio::Portfolio;
-use crate::registry::{self, EvalIndicator};
+use crate::registry::{self, BarInput, EvalIndicator};
 use crate::report::{BacktestReport, EquityPoint, REPORT_SCHEMA_VERSION};
 use crate::rules::{eval_condition, BarRow, RuleState};
 use crate::spec::{Execution, FillTiming, OrderType, Risk, Sizing, Slippage, StrategySpec};
@@ -235,6 +235,31 @@ pub fn run_with_ref(
     Ok(bt.finish())
 }
 
+/// Run a backtest with a per-bar derivatives feed for derivatives indicators
+/// (funding, open interest, long/short ratio, …). `derivs` must be the same
+/// length as `candles`.
+pub fn run_with_deriv(
+    spec: &StrategySpec,
+    candles: &[Candle],
+    derivs: &[DerivativesTick],
+    capital: f64,
+) -> Result<BacktestReport> {
+    spec.validate()?;
+    if candles.is_empty() {
+        return Err(BacktestError::InvalidData("no candles".into()));
+    }
+    if derivs.len() != candles.len() {
+        return Err(BacktestError::InvalidData(
+            "derivatives feed must have the same length as the candles".into(),
+        ));
+    }
+    let mut bt = StreamingBacktest::new(spec, capital)?;
+    for (candle, d) in candles.iter().zip(derivs) {
+        bt.step_with_feeds(candle, None, Some(d))?;
+    }
+    Ok(bt.finish())
+}
+
 /// A streaming backtest: feed bars one at a time with [`StreamingBacktest::step`],
 /// then [`StreamingBacktest::finish`]. The historical runner is exactly this fed
 /// from a slice, so **backtest and live share one code path** — point `step` at
@@ -296,13 +321,26 @@ impl<'a> StreamingBacktest<'a> {
     /// Process one bar: fill the working order, update indicators, check intrabar
     /// stops, mark equity and decide the next action. Look-ahead-free.
     pub fn step(&mut self, candle: &Candle) -> Result<()> {
-        self.step_with_ref(candle, None)
+        self.step_with_feeds(candle, None, None)
     }
 
     /// Like [`StreamingBacktest::step`], but also supplies the reference series'
     /// close for this bar, which pairwise indicators consume as their second
     /// input. Single-instrument indicators ignore it.
     pub fn step_with_ref(&mut self, candle: &Candle, reference: Option<f64>) -> Result<()> {
+        self.step_with_feeds(candle, reference, None)
+    }
+
+    /// Process one bar with its optional reference close and derivatives tick.
+    /// Pairwise indicators consume the reference; derivatives indicators consume
+    /// the tick; other indicators ignore both.
+    pub fn step_with_feeds(
+        &mut self,
+        candle: &Candle,
+        reference: Option<f64>,
+        deriv: Option<&DerivativesTick>,
+    ) -> Result<()> {
+        let deriv = deriv.and_then(|d| d.to_core().ok());
         let t = self.history.len();
         self.last = Some((candle.time, candle.close));
 
@@ -359,7 +397,12 @@ impl<'a> StreamingBacktest<'a> {
         // 2. Update indicators and record the bar.
         let mut values = BTreeMap::new();
         for (name, ind) in &mut self.indicators {
-            if let Some(v) = ind.update(candle, reference) {
+            let input = BarInput {
+                candle,
+                reference,
+                deriv,
+            };
+            if let Some(v) = ind.update(&input) {
                 values.insert(name.clone(), v);
                 for (field, fv) in ind.fields() {
                     values.insert(format!("{name}.{field}"), fv);
@@ -1312,7 +1355,12 @@ mod tests {
                 close: px,
                 volume: 0.0,
             };
-            if ind.update(&c, Some(px * 0.9)).is_some() {
+            let input = BarInput {
+                candle: &c,
+                reference: Some(px * 0.9),
+                deriv: None,
+            };
+            if ind.update(&input).is_some() {
                 names = ind.fields().iter().map(|(n, _)| *n).collect();
             }
         }
@@ -1330,5 +1378,59 @@ mod tests {
         let a = [bar(0, 1.0, 1.0, 1.0, 1.0), bar(1, 1.0, 1.0, 1.0, 1.0)];
         let b = [bar(0, 1.0, 1.0, 1.0, 1.0)];
         assert!(run_with_ref(&spec, &a, &b, 10_000.0).is_err());
+    }
+
+    fn sample_tick(funding_rate: f64) -> DerivativesTick {
+        DerivativesTick {
+            funding_rate,
+            mark_price: 100.0,
+            index_price: 100.0,
+            futures_price: 100.0,
+            open_interest: 1000.0,
+            long_size: 600.0,
+            short_size: 400.0,
+            taker_buy_volume: 50.0,
+            taker_sell_volume: 40.0,
+            long_liquidation: 0.0,
+            short_liquidation: 0.0,
+            timestamp: 0,
+        }
+    }
+
+    #[test]
+    fn derivatives_indicator_uses_feed() {
+        // FundingRate passes the tick's funding rate through; the feed drives it.
+        let spec = StrategySpec::parse(
+            r#"{"symbol":"x","timeframe":"1h",
+                "indicators":{"f":{"type":"FundingRate","params":[]}},
+                "entry":{"gt":["f",0.0]},
+                "exit":{"lt":["f",-1.0]},
+                "sizing":{"type":"fixed_qty","qty":1}}"#,
+        )
+        .unwrap();
+        let candles: Vec<Candle> = (0i64..5)
+            .map(|i| bar(i, 100.0, 100.0, 100.0, 100.0))
+            .collect();
+        let derivs = vec![sample_tick(0.01); 5];
+
+        let with_feed = run_with_deriv(&spec, &candles, &derivs, 10_000.0).unwrap();
+        assert!(with_feed.metrics.num_trades >= 1);
+
+        // Without a derivatives feed the indicator yields nothing → no entry.
+        let without_feed = run_with_capital(&spec, &candles, 10_000.0).unwrap();
+        assert_eq!(without_feed.metrics.num_trades, 0);
+    }
+
+    #[test]
+    fn run_with_deriv_rejects_length_mismatch() {
+        let spec = StrategySpec::parse(
+            r#"{"symbol":"x","timeframe":"1h","indicators":{},
+                "entry":{"gt":[{"price":"close"},0]},"exit":{"in_position":true},
+                "sizing":{"type":"fixed_qty","qty":1}}"#,
+        )
+        .unwrap();
+        let candles = [bar(0, 1.0, 1.0, 1.0, 1.0), bar(1, 1.0, 1.0, 1.0, 1.0)];
+        let derivs = [sample_tick(0.0)];
+        assert!(run_with_deriv(&spec, &candles, &derivs, 10_000.0).is_err());
     }
 }
