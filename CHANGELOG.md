@@ -103,6 +103,10 @@ to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
   with a round-trip test, so any feed combination is reachable from all ten
   languages by passing one request document instead of marshalling variable
   per-bar feed arrays across the FFI.
+- Sortino and Calmar ratios in the metrics: Sortino is the per-bar mean return
+  over the downside deviation (only returns below zero are penalised), and
+  Calmar is the total return divided by the maximum drawdown. Both complete the
+  documented report schema alongside Sharpe.
 - Streaming API (`StreamingBacktest`): feed bars one at a time with `step` and
   finalize with `finish`. The historical `run` / `run_with_capital` is exactly
   this fed from a slice, so backtest and live share one code path — pointing
