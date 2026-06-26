@@ -73,9 +73,13 @@ to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
   one, so the documented examples can never drift from the engine.
 - Property tests (`tests/properties.rs`, proptest): the parser and engine never
   panic on any input — `StrategySpec::parse` and `run_json` always return a
-  `Result` for arbitrary text, and the engine runs any sequence of valid candles
-  with finite metrics. This gives fuzz-like coverage on the stable toolchain,
-  guarding the promise that no strategy input can crash the backtester.
+  `Result` for arbitrary text, the engine tolerates arbitrary candles (NaN, ±inf,
+  inverted high/low), and the data loaders tolerate arbitrary text. This guards
+  the promise that no strategy input can crash the backtester.
+- cargo-fuzz targets (`fuzz/`, nightly): `spec_parse`, `run_json`, `engine_run`,
+  `fill_model` and `data_loader` libfuzzer harnesses for the parse and execution
+  entry points. They mirror the property tests above, which prove the same
+  never-panic invariants on the stable toolchain.
 - Alternative-chart bar transforms (`to_renko`, `to_kagi`, `to_pnf`): rebuild a
   candle stream into Renko bricks, Kagi segments or Point-and-Figure columns
   using `wickra-core`'s `BarBuilder` types (so the bars match live Wickra), each
