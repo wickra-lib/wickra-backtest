@@ -86,6 +86,11 @@ to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ### Changed
 
+- Volume-participation partial fills: with `execution.partial_fills` and
+  `execution.max_participation`, an entry fills at most `max_participation *
+  bar_volume` (immediate-or-cancel — the unfilled remainder is cancelled), so a
+  strategy can't assume unlimited liquidity. Validation requires
+  `max_participation` when `partial_fills` is set; the default is off.
 - Execution latency: `execution.latency_bars` delays every order by that many
   bars before it becomes eligible to fill (on top of the look-ahead-free
   next-bar fill). A limit/stop order only starts checking its level once the

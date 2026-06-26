@@ -101,6 +101,11 @@ impl StrategySpec {
             }
             _ => {}
         }
+        if self.execution.partial_fills && self.execution.max_participation.is_none() {
+            return Err(BacktestError::InvalidSpec(
+                "partial_fills requires execution.max_participation".into(),
+            ));
+        }
         Ok(())
     }
 }
@@ -353,9 +358,14 @@ pub struct Execution {
     /// Simulated latency in bars before a fill.
     #[serde(default)]
     pub latency_bars: u32,
-    /// Whether partial fills are modelled.
+    /// Whether partial fills are modelled. When set, an entry fills at most
+    /// `max_participation * bar_volume` and the unfilled remainder is cancelled.
     #[serde(default)]
     pub partial_fills: bool,
+    /// Maximum fraction of a bar's volume a single entry may consume (required
+    /// when `partial_fills` is set).
+    #[serde(default)]
+    pub max_participation: Option<f64>,
 }
 
 /// Order type.

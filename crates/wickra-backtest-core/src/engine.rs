@@ -12,8 +12,10 @@
 //! slippage; and leverage / position sizing (fixed fraction / cash / quantity,
 //! risk-per-trade and vol-target, capped by `max_leverage` and
 //! `max_position_pct`; without `max_leverage` the cap is 1x equity — no leverage
-//! by default). Execution latency (`latency_bars`) delays every fill. Perp
-//! funding and liquidation come in a later phase.
+//! by default). Execution latency (`latency_bars`) delays every fill, and
+//! volume-participation partial fills (`partial_fills` + `max_participation`)
+//! cap an entry to a fraction of the bar's volume. Perp funding and liquidation
+//! come in a later phase.
 
 use std::collections::BTreeMap;
 
@@ -188,6 +190,15 @@ pub fn run_with_capital(
                                 _ => None,
                             };
                             if let Some(base) = size(spec.sizing, &spec.risk, pf.cash, fill, rv)? {
+                                // Immediate-or-cancel partial fills: an entry takes
+                                // at most a participation cap of the bar's volume.
+                                let base = if spec.execution.partial_fills {
+                                    let cap = spec.execution.max_participation.unwrap_or(0.0)
+                                        * candle.volume;
+                                    base.min(cap)
+                                } else {
+                                    base
+                                };
                                 if base > 0.0 {
                                     let fee = base * fill * taker;
                                     pf.enter(dir * base, fill, candle.time, fee);
@@ -960,5 +971,42 @@ mod tests {
         let r = run_with_capital(&spec, &candles, 10_000.0).unwrap();
         assert_eq!(r.trades.len(), 1);
         assert!((r.trades[0].entry_price - 120.0).abs() < 1e-9);
+    }
+
+    #[test]
+    fn partial_fills_cap_entry_to_participation() {
+        let spec = StrategySpec::parse(
+            r#"{"symbol":"x","timeframe":"1h","indicators":{},
+                "entry":{"gt":[{"price":"close"},0]},
+                "exit":{"in_position":false},
+                "sizing":{"type":"fixed_qty","qty":100},
+                "execution":{"partial_fills":true,"max_participation":0.05}}"#,
+        )
+        .unwrap();
+        // The fill bar's volume is 1000, so the cap is 0.05 * 1000 = 50 units,
+        // below the desired 100.
+        let vbar = |time, volume| Candle {
+            time,
+            open: 100.0,
+            high: 100.0,
+            low: 100.0,
+            close: 100.0,
+            volume,
+        };
+        let candles = [vbar(0, 0.0), vbar(1, 1000.0), vbar(2, 1000.0)];
+        let r = run_with_capital(&spec, &candles, 1_000_000.0).unwrap();
+        assert_eq!(r.trades.len(), 1);
+        assert!((r.trades[0].qty - 50.0).abs() < 1e-9);
+    }
+
+    #[test]
+    fn partial_fills_requires_participation() {
+        assert!(StrategySpec::parse(
+            r#"{"symbol":"x","timeframe":"1h","indicators":{},
+                "entry":{"gt":[{"price":"close"},0]},"exit":{"in_position":true},
+                "sizing":{"type":"fixed_qty","qty":1},
+                "execution":{"partial_fills":true}}"#,
+        )
+        .is_err());
     }
 }
