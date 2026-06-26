@@ -242,6 +242,35 @@ macro_rules! multi_candle {
     };
 }
 
+/// Define a multi-output wrapper over a pairwise (`Input = (f64, f64)`)
+/// indicator, fed `(close, reference_close)`. Without a reference it yields none.
+macro_rules! multi_pair {
+    ($wrap:ident, $ty:ident, $first:ident, [$($f:ident),+]) => {
+        struct $wrap {
+            inner: wc::$ty,
+            last: Vec<(&'static str, f64)>,
+        }
+        impl $wrap {
+            fn wrap(inner: wc::$ty) -> Self {
+                Self { inner, last: Vec::new() }
+            }
+        }
+        impl EvalIndicator for $wrap {
+            fn update(&mut self, candle: &Candle, reference: Option<f64>) -> Option<f64> {
+                let out = self.inner.update((candle.close, reference?))?;
+                self.last = vec![$((stringify!($f), out.$f)),+];
+                Some(out.$first)
+            }
+            fn fields(&self) -> Vec<(&'static str, f64)> {
+                self.last.clone()
+            }
+            fn warmup(&self) -> usize {
+                self.inner.warmup_period()
+            }
+        }
+    };
+}
+
 '''
 
 HELPERS = r'''
@@ -421,6 +450,7 @@ def main():
     scalars = []  # (ty, input, args, is_result)
     multis = []   # (ty, input, args, is_result, fields)
     pairs = []    # (ty, args, is_result) for Input = (f64, f64), Output = f64
+    pair_multis = []  # (ty, args, is_result, fields) for pairwise struct output
     skip = Counter()
 
     for text in files.values():
@@ -444,7 +474,11 @@ def main():
                 if out == "f64":
                     pairs.append((ty, argtypes, is_result))
                 else:
-                    skip[f"pairwise multi-output ({out})"] += 1
+                    fields = out_fields(bigtext, out)
+                    if fields:
+                        pair_multis.append((ty, argtypes, is_result, fields))
+                    else:
+                        skip[f"pairwise no f64 fields ({out})"] += 1
                 continue
             if out == "f64":
                 scalars.append((ty, inp, argtypes, is_result))
@@ -458,6 +492,7 @@ def main():
     scalars.sort()
     multis.sort()
     pairs.sort()
+    pair_multis.sort()
 
     # Emit multi-wrapper macro invocations.
     wraps = []
@@ -465,6 +500,9 @@ def main():
         mac = "multi_close" if inp == "f64" else "multi_candle"
         flist = ", ".join(fields)
         wraps.append(f"{mac}!({ty}Wrap, {ty}, {fields[0]}, [{flist}]);")
+    for ty, _args, _res, fields in pair_multis:
+        flist = ", ".join(fields)
+        wraps.append(f"multi_pair!({ty}Wrap, {ty}, {fields[0]}, [{flist}]);")
 
     arms = []
     specs = []
@@ -514,6 +552,13 @@ def main():
         seen.add(ty)
         specs.append((ty, default_for(ty, argtypes)))
 
+    arms.append("        // --- pairwise multi-output indicators ---")
+    for ty, argtypes, is_result, _fields in pair_multis:
+        arm = f'        "{ty}" => Ok(Box::new({ty}Wrap::wrap({ctor_expr(ty, argtypes, is_result)}))),'
+        arms.append(arm)
+        seen.add(ty)
+        specs.append((ty, default_for(ty, argtypes)))
+
     arms.append("        // --- friendly aliases ---")
     for alias, canon in ALIASES.items():
         if canon in seen:
@@ -542,8 +587,8 @@ def main():
     Path(args.out).write_text(body, encoding="utf-8")
 
     print(f"registry: {len(seen)} indicators ({len(scalars)} scalar + "
-          f"{len(multis)} multi + {len(pairs)} pairwise) "
-          f"+ {len(ALIASES)} aliases -> {args.out}")
+          f"{len(multis)} multi + {len(pairs)} pairwise + "
+          f"{len(pair_multis)} pairwise-multi) + {len(ALIASES)} aliases -> {args.out}")
     print("skipped (structurally out of scope):")
     for k, v in skip.most_common():
         print(f"  {v:3} {k}")

@@ -103,13 +103,16 @@ to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ### Changed
 
-- Pairwise indicators: the registry now includes the 19 pairwise
-  (`Input = (f64, f64)`) scalar-output indicators (correlation, beta, spread
-  z-score, variance ratio, …), fed `(close, reference_close)`. `run_with_ref`
-  (and `StreamingBacktest::step_with_ref`) supply a reference price series whose
-  per-bar close is the second input; `EvalIndicator::update` gained a
-  `reference: Option<f64>` argument that single-instrument indicators ignore.
-  Without a reference a pairwise indicator yields nothing. Registry: 421 → **440**.
+- Pairwise indicators: the registry now includes all 24 pairwise
+  (`Input = (f64, f64)`) indicators — 19 scalar-output (correlation, beta, spread
+  z-score, variance ratio, …) and 5 multi-output (cointegration, Kalman hedge
+  ratio, lead-lag cross-correlation, relative strength, spread Bollinger bands)
+  whose fields are addressed as `"name.field"` — all fed `(close,
+  reference_close)`. `run_with_ref` (and `StreamingBacktest::step_with_ref`)
+  supply a reference price series whose per-bar close is the second input;
+  `EvalIndicator::update` gained a `reference: Option<f64>` argument that
+  single-instrument indicators ignore. Without a reference a pairwise indicator
+  yields nothing. Registry: 421 → **445**.
 - Close-to-close execution: `execution.fill_timing` of `"close"` fills market
   orders on the signalling bar's own close (same bar) instead of the next bar's
   open. It is an opt-in, deliberately optimistic mode — the fill uses the very

@@ -1295,6 +1295,31 @@ mod tests {
     }
 
     #[test]
+    fn pairwise_multi_output_exposes_fields() {
+        // A pairwise multi-output indicator exposes its named fields when fed a
+        // reference value.
+        let mut ind = registry::build("RelativeStrengthAB", &[3.0, 3.0]).unwrap();
+        let mut names: Vec<&str> = Vec::new();
+        let prices = [
+            100.0, 102.0, 104.0, 103.0, 105.0, 106.0, 107.0, 108.0, 109.0, 110.0,
+        ];
+        for (i, &px) in prices.iter().enumerate() {
+            let c = Candle {
+                time: i64::try_from(i).unwrap(),
+                open: px,
+                high: px,
+                low: px,
+                close: px,
+                volume: 0.0,
+            };
+            if ind.update(&c, Some(px * 0.9)).is_some() {
+                names = ind.fields().iter().map(|(n, _)| *n).collect();
+            }
+        }
+        assert!(names.contains(&"ratio"), "fields: {names:?}");
+    }
+
+    #[test]
     fn run_with_ref_rejects_length_mismatch() {
         let spec = StrategySpec::parse(
             r#"{"symbol":"x","timeframe":"1h","indicators":{},

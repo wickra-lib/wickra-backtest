@@ -147,6 +147,35 @@ macro_rules! multi_candle {
     };
 }
 
+/// Define a multi-output wrapper over a pairwise (`Input = (f64, f64)`)
+/// indicator, fed `(close, reference_close)`. Without a reference it yields none.
+macro_rules! multi_pair {
+    ($wrap:ident, $ty:ident, $first:ident, [$($f:ident),+]) => {
+        struct $wrap {
+            inner: wc::$ty,
+            last: Vec<(&'static str, f64)>,
+        }
+        impl $wrap {
+            fn wrap(inner: wc::$ty) -> Self {
+                Self { inner, last: Vec::new() }
+            }
+        }
+        impl EvalIndicator for $wrap {
+            fn update(&mut self, candle: &Candle, reference: Option<f64>) -> Option<f64> {
+                let out = self.inner.update((candle.close, reference?))?;
+                self.last = vec![$((stringify!($f), out.$f)),+];
+                Some(out.$first)
+            }
+            fn fields(&self) -> Vec<(&'static str, f64)> {
+                self.last.clone()
+            }
+            fn warmup(&self) -> usize {
+                self.inner.warmup_period()
+            }
+        }
+    };
+}
+
 multi_candle!(
     AccelerationBandsWrap,
     AccelerationBands,
@@ -432,6 +461,36 @@ multi_close!(
     [macd, signal, histogram]
 );
 multi_candle!(ZigZagWrap, ZigZag, swing, [swing, direction]);
+multi_pair!(
+    CointegrationWrap,
+    Cointegration,
+    hedge_ratio,
+    [hedge_ratio, spread, adf_stat]
+);
+multi_pair!(
+    KalmanHedgeRatioWrap,
+    KalmanHedgeRatio,
+    hedge_ratio,
+    [hedge_ratio, intercept, spread]
+);
+multi_pair!(
+    LeadLagCrossCorrelationWrap,
+    LeadLagCrossCorrelation,
+    correlation,
+    [correlation]
+);
+multi_pair!(
+    RelativeStrengthABWrap,
+    RelativeStrengthAB,
+    ratio,
+    [ratio, ratio_ma, ratio_rsi]
+);
+multi_pair!(
+    SpreadBollingerBandsWrap,
+    SpreadBollingerBands,
+    middle,
+    [middle, upper, lower, percent_b]
+);
 
 /// Read parameter `idx` as a positive-integer period.
 fn period(params: &[f64], idx: usize, kind: &str) -> Result<usize> {
@@ -1784,6 +1843,27 @@ pub fn build(kind: &str, params: &[f64]) -> Result<Box<dyn EvalIndicator>> {
             kind,
             wc::VarianceRatio::new(p(0)?, p(1)?),
         )?))),
+        // --- pairwise multi-output indicators ---
+        "Cointegration" => Ok(Box::new(CointegrationWrap::wrap(map_new(
+            kind,
+            wc::Cointegration::new(p(0)?, p(1)?),
+        )?))),
+        "KalmanHedgeRatio" => Ok(Box::new(KalmanHedgeRatioWrap::wrap(map_new(
+            kind,
+            wc::KalmanHedgeRatio::new(float_param(params, 0, kind)?, float_param(params, 1, kind)?),
+        )?))),
+        "LeadLagCrossCorrelation" => Ok(Box::new(LeadLagCrossCorrelationWrap::wrap(map_new(
+            kind,
+            wc::LeadLagCrossCorrelation::new(p(0)?, p(1)?),
+        )?))),
+        "RelativeStrengthAB" => Ok(Box::new(RelativeStrengthABWrap::wrap(map_new(
+            kind,
+            wc::RelativeStrengthAB::new(p(0)?, p(1)?),
+        )?))),
+        "SpreadBollingerBands" => Ok(Box::new(SpreadBollingerBandsWrap::wrap(map_new(
+            kind,
+            wc::SpreadBollingerBands::new(p(0)?, float_param(params, 1, kind)?),
+        )?))),
         // --- friendly aliases ---
         "Macd" => build("MacdIndicator", params),
         "Bollinger" => build("BollingerBands", params),
@@ -1791,7 +1871,7 @@ pub fn build(kind: &str, params: &[f64]) -> Result<Box<dyn EvalIndicator>> {
     }
 }
 
-/// Every registered indicator with valid default parameters (440 indicators).
+/// Every registered indicator with valid default parameters (445 indicators).
 #[cfg(test)]
 const ALL_SPECS: &[(&str, &[f64])] = &[
     ("AdaptiveCycle", &[]),
@@ -2234,6 +2314,11 @@ const ALL_SPECS: &[(&str, &[f64])] = &[
     ("SpreadHurst", &[14.0]),
     ("TreynorRatio", &[14.0, 2.0]),
     ("VarianceRatio", &[60.0, 2.0]),
+    ("Cointegration", &[40.0, 1.0]),
+    ("KalmanHedgeRatio", &[0.01, 0.001]),
+    ("LeadLagCrossCorrelation", &[20.0, 10.0]),
+    ("RelativeStrengthAB", &[14.0, 14.0]),
+    ("SpreadBollingerBands", &[14.0, 2.0]),
 ];
 
 #[cfg(test)]
