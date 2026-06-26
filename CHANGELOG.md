@@ -12,6 +12,11 @@ to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
   (loaders) and the `wickra-backtest` facade, depending on `wickra-core`.
 - `BacktestError` error type and crate `version()` helpers.
 - `Candle` input type with conversion to `wickra-core` and derived prices.
+- Microstructure feed input types (`TradePrint`, `OrderBook` + `Level`,
+  `DerivativesTick`, `TradeSide`): serde-friendly, validated value types with
+  `to_core()` conversions into the `wickra-core` trade / order-book / derivatives
+  inputs — the data foundation for the trade-flow, order-book and derivatives
+  indicators.
 - The data-driven `StrategySpec` DSL (`spec.rs`): indicators, entry/exit/short
   conditions, the `Operand`/`Condition` expression trees, sizing, costs,
   slippage, risk and execution models, with `parse`/`validate` and structural
