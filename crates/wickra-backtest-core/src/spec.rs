@@ -255,11 +255,15 @@ pub enum Sizing {
         /// Cash amount.
         cash: f64,
     },
-    /// Size to a target volatility.
+    /// Size to a target volatility: the position notional is scaled so the
+    /// position's per-bar return volatility approximates `target_vol`. With
+    /// realized per-bar volatility `rv` over `lookback` bars, the notional is
+    /// `equity * target_vol / rv` (then capped by the leverage limits). No
+    /// position is taken until `lookback` bars of history exist.
     VolTarget {
-        /// Annualised target volatility.
+        /// Target per-bar return volatility, as a fraction (e.g. `0.02` = 2%).
         target_vol: f64,
-        /// Lookback bars for the volatility estimate.
+        /// Lookback bars for the realized-volatility estimate.
         lookback: u32,
     },
     /// Size from the stop-loss distance and a per-trade risk budget.

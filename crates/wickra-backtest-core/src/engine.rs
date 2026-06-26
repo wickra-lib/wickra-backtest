@@ -9,10 +9,10 @@
 //! Supports long and short positions; market, limit and stop entry orders (a
 //! limit/stop rests at a percent offset from the signal close and fills when a
 //! later bar reaches it, otherwise it keeps working); a taker fee and fixed-bps
-//! slippage; and leverage / position sizing (fixed fraction / cash / quantity
-//! and risk-per-trade, capped by `max_leverage` and `max_position_pct`; without
-//! `max_leverage` the cap is 1x equity — no leverage by default). Perp funding
-//! and liquidation come in a later phase.
+//! slippage; and leverage / position sizing (fixed fraction / cash / quantity,
+//! risk-per-trade and vol-target, capped by `max_leverage` and
+//! `max_position_pct`; without `max_leverage` the cap is 1x equity — no leverage
+//! by default). Perp funding and liquidation come in a later phase.
 
 use std::collections::BTreeMap;
 
@@ -83,6 +83,31 @@ fn entry_trigger(exec: &Execution, signal_close: f64) -> Option<(f64, LevelKind)
     }
 }
 
+/// Realized per-bar return volatility (standard deviation of simple
+/// close-to-close returns) over the last `lookback` bars, or `None` if there is
+/// not enough history or the series is flat.
+fn realized_vol(history: &[BarRow], lookback: usize) -> Option<f64> {
+    if lookback < 2 || history.len() < lookback {
+        return None;
+    }
+    let closes: Vec<f64> = history[history.len() - lookback..]
+        .iter()
+        .map(|row| row.candle.close)
+        .collect();
+    let rets: Vec<f64> = closes
+        .windows(2)
+        .filter(|w| w[0].abs() > f64::EPSILON)
+        .map(|w| (w[1] - w[0]) / w[0])
+        .collect();
+    if rets.is_empty() {
+        return None;
+    }
+    let mean = rets.iter().sum::<f64>() / rets.len() as f64;
+    let var = rets.iter().map(|r| (r - mean).powi(2)).sum::<f64>() / rets.len() as f64;
+    let sd = var.sqrt();
+    (sd > 0.0).then_some(sd)
+}
+
 /// Run a backtest of `spec` over `candles` with the default capital.
 pub fn run(spec: &StrategySpec, candles: &[Candle]) -> Result<BacktestReport> {
     run_with_capital(spec, candles, DEFAULT_CAPITAL)
@@ -142,7 +167,14 @@ pub fn run_with_capital(
                 };
                 if let Some(px) = level {
                     let fill = px * (1.0 + dir * slip);
-                    if let Some(base) = size(spec.sizing, &spec.risk, pf.cash, fill)? {
+                    // Realized volatility is only needed by vol-target sizing.
+                    let rv = match spec.sizing {
+                        Sizing::VolTarget { lookback, .. } => {
+                            realized_vol(&history, lookback as usize)
+                        }
+                        _ => None,
+                    };
+                    if let Some(base) = size(spec.sizing, &spec.risk, pf.cash, fill, rv)? {
                         if base > 0.0 {
                             let fee = base * fill * taker;
                             pf.enter(dir * base, fill, candle.time, fee);
@@ -271,7 +303,13 @@ pub fn run_with_capital(
 /// equity equals cash). The resulting notional is capped by the leverage and
 /// position limits: without `risk.max_leverage` the cap is 1x equity — no
 /// leverage by default — so an order can never exceed what the account can fund.
-fn size(sizing: Sizing, risk: &Risk, equity: f64, price: f64) -> Result<Option<f64>> {
+fn size(
+    sizing: Sizing,
+    risk: &Risk,
+    equity: f64,
+    price: f64,
+    realized_vol: Option<f64>,
+) -> Result<Option<f64>> {
     if price <= 0.0 || equity <= 0.0 {
         return Ok(None);
     }
@@ -292,10 +330,13 @@ fn size(sizing: Sizing, risk: &Risk, equity: f64, price: f64) -> Result<Option<f
             }
             (equity * risk_pct / 100.0) / (price * stop / 100.0)
         }
-        Sizing::VolTarget { .. } => {
-            return Err(BacktestError::InvalidSpec(
-                "vol_target sizing is not supported yet".into(),
-            ));
+        Sizing::VolTarget { target_vol, .. } => {
+            // Scale notional so the position's per-bar return vol ~= target_vol.
+            // No realized vol yet (warming up) => no position this bar.
+            let Some(rv) = realized_vol else {
+                return Ok(None);
+            };
+            (equity * target_vol / rv) / price
         }
     };
     if qty <= 0.0 {
@@ -623,19 +664,58 @@ mod tests {
     }
 
     #[test]
-    fn unsupported_sizing_errors() {
+    fn vol_target_sizes_inversely_to_vol() {
+        // target 1% per bar, realized 2% => notional 0.5x equity => 50 units.
+        let q = size(
+            Sizing::VolTarget {
+                target_vol: 0.01,
+                lookback: 5,
+            },
+            &Risk::default(),
+            10_000.0,
+            100.0,
+            Some(0.02),
+        )
+        .unwrap()
+        .unwrap();
+        assert!((q - 50.0).abs() < 1e-9);
+    }
+
+    #[test]
+    fn vol_target_takes_no_position_without_history() {
+        let none = size(
+            Sizing::VolTarget {
+                target_vol: 0.01,
+                lookback: 5,
+            },
+            &Risk::default(),
+            10_000.0,
+            100.0,
+            None,
+        )
+        .unwrap();
+        assert!(none.is_none());
+    }
+
+    #[test]
+    fn vol_target_trades_after_warmup() {
         let spec = StrategySpec::parse(
             r#"{"symbol":"x","timeframe":"1h","indicators":{},
                 "entry":{"gt":[{"price":"close"},0]},
-                "exit":{"in_position":true},
-                "sizing":{"type":"vol_target","target_vol":0.2,"lookback":20}}"#,
+                "exit":{"in_position":false},
+                "sizing":{"type":"vol_target","target_vol":0.02,"lookback":3}}"#,
         )
         .unwrap();
-        let candles = [
-            bar(0, 10.0, 10.0, 10.0, 10.0),
-            bar(1, 11.0, 11.0, 11.0, 11.0),
-        ];
-        assert!(run(&spec, &candles).is_err());
+        let closes = [100.0, 101.0, 102.0, 101.0, 103.0, 102.0];
+        let candles: Vec<Candle> = closes
+            .iter()
+            .enumerate()
+            .map(|(i, &c)| bar(i64::try_from(i).unwrap(), c, c + 0.5, c - 0.5, c))
+            .collect();
+        let r = run(&spec, &candles).unwrap();
+        // Once `lookback` bars of history exist, a vol-targeted position is taken.
+        assert!(!r.trades.is_empty());
+        assert!(r.trades[0].qty > 0.0);
     }
 
     #[test]
@@ -651,6 +731,7 @@ mod tests {
             &risk,
             10_000.0,
             100.0,
+            None,
         )
         .unwrap()
         .unwrap();
@@ -663,7 +744,8 @@ mod tests {
             Sizing::RiskPerTrade { risk_pct: 1.0 },
             &Risk::default(),
             10_000.0,
-            100.0
+            100.0,
+            None
         )
         .is_err());
     }
@@ -676,6 +758,7 @@ mod tests {
             &Risk::default(),
             10_000.0,
             100.0,
+            None,
         )
         .unwrap()
         .unwrap();
@@ -688,9 +771,15 @@ mod tests {
             max_leverage: Some(3.0),
             ..Default::default()
         };
-        let q = size(Sizing::FixedCash { cash: 50_000.0 }, &risk, 10_000.0, 100.0)
-            .unwrap()
-            .unwrap();
+        let q = size(
+            Sizing::FixedCash { cash: 50_000.0 },
+            &risk,
+            10_000.0,
+            100.0,
+            None,
+        )
+        .unwrap()
+        .unwrap();
         assert!((q - 300.0).abs() < 1e-9); // 3x equity / price
     }
 
@@ -702,9 +791,15 @@ mod tests {
             ..Default::default()
         };
         // 5x would allow 50_000, but 20% of equity = 2_000 notional => 20 units.
-        let q = size(Sizing::FixedCash { cash: 50_000.0 }, &risk, 10_000.0, 100.0)
-            .unwrap()
-            .unwrap();
+        let q = size(
+            Sizing::FixedCash { cash: 50_000.0 },
+            &risk,
+            10_000.0,
+            100.0,
+            None,
+        )
+        .unwrap()
+        .unwrap();
         assert!((q - 20.0).abs() < 1e-9);
     }
 
