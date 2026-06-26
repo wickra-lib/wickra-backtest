@@ -49,10 +49,16 @@ expected reports.
 Read `cases/*.json`, call the binding's `run(open, high, low, close, volume,
 time, spec, capital)`, and compare to `expected/<name>.json`:
 
+All ten language reaches are wired in and verified against the same reports:
+
 | Binding | Test | Match |
 |---------|------|-------|
 | Rust    | `crates/wickra-backtest-core/tests/golden.rs` | anchor (writes expected) |
-| Go      | `bindings/go/golden_test.go`        | byte-for-byte |
+| Go      | `bindings/go/golden_test.go`            | byte-for-byte |
 | Node.js | `bindings/node/__tests__/golden.test.js` | byte-for-byte |
-| Python  | `bindings/python/tests/test_golden.py`   | value-for-value (dict) |
-| C# / Java / R / C / C++ / WASM | same pattern | byte-for-byte |
+| Python  | `bindings/python/tests/test_golden.py`  | value-for-value (dict) |
+| C / C++ | `bindings/c/src/lib.rs` (`golden_parity_through_ffi`) | byte-for-byte (C ABI) |
+| C#      | `bindings/csharp/Wickra.Backtest.Tests/GoldenTests.cs` | byte-for-byte |
+| Java    | `bindings/java/src/test/java/org/wickra/backtest/GoldenParityTest.java` | byte-for-byte |
+| WASM    | `bindings/wasm/tests/golden.test.cjs`   | byte-for-byte |
+| R       | `bindings/r/tests/golden.R`             | byte-for-byte |

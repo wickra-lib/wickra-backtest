@@ -80,8 +80,9 @@ to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
   (`WICKRA_BLESS=1` regenerates the expected reports); the Go, Node.js and
   Python bindings assert their output against the same reports — byte-for-byte
   for the JSON-returning bindings, value-for-value for Python. This pins
-  cross-language equality and is regression-proof. The remaining bindings (C, C++,
-  C#, Java, R, WASM) plug into the same corpus with the documented pattern.
+  cross-language equality and is regression-proof. **All ten language reaches**
+  are wired in and verified against the same reports: Rust, Go, Node.js, Python,
+  C and C++ (through the C ABI), C#, Java, WASM and R.
 
 ### Changed
 

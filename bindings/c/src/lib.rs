@@ -204,4 +204,75 @@ mod tests {
         let s = unsafe { CStr::from_ptr(p).to_str().unwrap() };
         assert!(!s.is_empty());
     }
+
+    /// Drive the C ABI over the shared golden corpus and assert the report is
+    /// byte-for-byte identical to the canonical expected reports. This pins the
+    /// C / C++ language reach (the same `extern "C"` entry point `example.c`
+    /// calls) to the same contract as every other binding.
+    #[test]
+    fn golden_parity_through_ffi() {
+        use std::fs;
+        use std::path::PathBuf;
+
+        let golden = PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("../../golden");
+        let mut cases: Vec<PathBuf> = fs::read_dir(golden.join("cases"))
+            .unwrap()
+            .map(|e| e.unwrap().path())
+            .filter(|p| p.extension().is_some_and(|x| x == "json"))
+            .collect();
+        cases.sort();
+        assert!(!cases.is_empty(), "no golden cases found");
+
+        let col = |v: &serde_json::Value, k: &str| -> Vec<f64> {
+            v[k].as_array()
+                .unwrap()
+                .iter()
+                .map(|x| x.as_f64().unwrap())
+                .collect()
+        };
+
+        for path in cases {
+            let v: serde_json::Value =
+                serde_json::from_str(&fs::read_to_string(&path).unwrap()).unwrap();
+            let name = v["name"].as_str().unwrap();
+            let capital = v["capital"].as_f64().unwrap();
+            let spec = CString::new(v["spec"].to_string()).unwrap();
+            let (open, high, low, close, volume) = (
+                col(&v, "open"),
+                col(&v, "high"),
+                col(&v, "low"),
+                col(&v, "close"),
+                col(&v, "volume"),
+            );
+            let time: Vec<i64> = v["time"]
+                .as_array()
+                .unwrap()
+                .iter()
+                .map(|x| x.as_i64().unwrap())
+                .collect();
+
+            let mut out: *mut c_char = std::ptr::null_mut();
+            let code = unsafe {
+                wickra_backtest_run(
+                    open.as_ptr(),
+                    high.as_ptr(),
+                    low.as_ptr(),
+                    close.as_ptr(),
+                    volume.as_ptr(),
+                    time.as_ptr(),
+                    open.len(),
+                    spec.as_ptr(),
+                    capital,
+                    std::ptr::addr_of_mut!(out),
+                )
+            };
+            assert_eq!(code, WICKRA_BT_OK, "case {name} failed");
+            let got = unsafe { CStr::from_ptr(out).to_str().unwrap().to_string() };
+            unsafe { wickra_backtest_free_string(out) };
+
+            let want =
+                fs::read_to_string(golden.join("expected").join(format!("{name}.json"))).unwrap();
+            assert_eq!(got, want.trim_end(), "golden mismatch for {name}");
+        }
+    }
 }
