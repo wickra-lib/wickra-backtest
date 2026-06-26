@@ -48,6 +48,18 @@ int wickra_backtest_run(const double *open,
                         char **out_json);
 
 /**
+ * Run a backtest from a single JSON request (see `RunRequest`: a document with
+ * `spec`, `candles`, optional `capital` and optional `reference` / `derivs` /
+ * `books` / `trades` / `sections` feeds), writing the report JSON to
+ * `*out_json` (free it with [`wickra_backtest_free_string`]).
+ *
+ * # Safety
+ * `request_json` must be a valid NUL-terminated string; `out_json` must be a
+ * valid pointer to a `char *`.
+ */
+int wickra_backtest_run_json(const char *request_json, char **out_json);
+
+/**
  * Free a string returned by [`wickra_backtest_run`].
  *
  * # Safety

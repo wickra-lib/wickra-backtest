@@ -10,7 +10,7 @@ use std::ffi::{CStr, CString};
 use std::os::raw::{c_char, c_double, c_int};
 use std::panic::{catch_unwind, AssertUnwindSafe};
 
-use wickra_backtest_core::{run_with_capital, Candle, StrategySpec};
+use wickra_backtest_core::{run_json, run_with_capital, Candle, StrategySpec};
 
 /// Success.
 pub const WICKRA_BT_OK: c_int = 0;
@@ -103,6 +103,49 @@ unsafe fn run_ffi(
     let spec = StrategySpec::parse(spec_str).map_err(|e| e.to_string())?;
     let report = run_with_capital(&spec, &candles, capital).map_err(|e| e.to_string())?;
     serde_json::to_string(&report).map_err(|e| e.to_string())
+}
+
+/// Run a backtest from a single JSON request (see `RunRequest`: a document with
+/// `spec`, `candles`, optional `capital` and optional `reference` / `derivs` /
+/// `books` / `trades` / `sections` feeds), writing the report JSON to
+/// `*out_json` (free it with [`wickra_backtest_free_string`]).
+///
+/// # Safety
+/// `request_json` must be a valid NUL-terminated string; `out_json` must be a
+/// valid pointer to a `char *`.
+#[no_mangle]
+pub unsafe extern "C" fn wickra_backtest_run_json(
+    request_json: *const c_char,
+    out_json: *mut *mut c_char,
+) -> c_int {
+    if out_json.is_null() {
+        return WICKRA_BT_PANIC;
+    }
+    let outcome = catch_unwind(AssertUnwindSafe(|| run_json_ffi(request_json)));
+    let (code, payload) = match outcome {
+        Ok(Ok(json)) => (WICKRA_BT_OK, json),
+        Ok(Err(msg)) => (WICKRA_BT_ERROR, msg),
+        Err(_) => (
+            WICKRA_BT_PANIC,
+            "panic in wickra_backtest_run_json".to_string(),
+        ),
+    };
+    let Ok(cs) = CString::new(payload) else {
+        *out_json = std::ptr::null_mut();
+        return WICKRA_BT_PANIC;
+    };
+    *out_json = cs.into_raw();
+    code
+}
+
+unsafe fn run_json_ffi(request_json: *const c_char) -> Result<String, String> {
+    if request_json.is_null() {
+        return Err("null argument".to_string());
+    }
+    let req = CStr::from_ptr(request_json)
+        .to_str()
+        .map_err(|e| e.to_string())?;
+    run_json(req).map_err(|e| e.to_string())
 }
 
 /// Free a string returned by [`wickra_backtest_run`].
@@ -203,6 +246,32 @@ mod tests {
         let p = wickra_backtest_version();
         let s = unsafe { CStr::from_ptr(p).to_str().unwrap() };
         assert!(!s.is_empty());
+    }
+
+    #[test]
+    fn run_json_round_trip() {
+        let request = CString::new(
+            r#"{"capital":1000,
+                "spec":{"symbol":"x","timeframe":"1h","indicators":{},
+                    "entry":{"gt":[{"price":"close"},100]},
+                    "exit":{"lt":[{"price":"close"},100]},
+                    "sizing":{"type":"fixed_qty","qty":1}},
+                "candles":[
+                    {"time":0,"open":100,"high":101,"low":100,"close":101},
+                    {"time":1,"open":102,"high":103,"low":102,"close":103},
+                    {"time":2,"open":104,"high":104,"low":99,"close":99},
+                    {"time":3,"open":98,"high":98,"low":97,"close":97}]}"#,
+        )
+        .unwrap();
+        let mut out: *mut c_char = std::ptr::null_mut();
+        let code =
+            unsafe { wickra_backtest_run_json(request.as_ptr(), std::ptr::addr_of_mut!(out)) };
+        assert_eq!(code, WICKRA_BT_OK);
+        let json = unsafe { CStr::from_ptr(out).to_str().unwrap().to_string() };
+        unsafe { wickra_backtest_free_string(out) };
+        let v: serde_json::Value = serde_json::from_str(&json).unwrap();
+        assert_eq!(v["metrics"]["num_trades"], 1);
+        assert!((v["trades"][0]["entry_price"].as_f64().unwrap() - 102.0).abs() < 1e-9);
     }
 
     /// Drive the C ABI over the shared golden corpus and assert the report is
