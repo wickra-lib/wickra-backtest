@@ -86,6 +86,13 @@ to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ### Changed
 
+- Limit and stop entry orders: `execution.order_type` of `"limit"` / `"stop"`
+  rests an order at a percent offset from the signal bar's close
+  (`limit_offset_pct` / `stop_offset_pct`). A limit fills when a later bar trades
+  through it (at the level, or the open if it gaps past); a stop fills on the
+  breakout; otherwise the order keeps working (good-till-filled) without being
+  re-decided. A limit/stop without its offset, or `"stop_limit"`, is rejected by
+  validation. Market orders (the default) are unchanged.
 - Leverage and position sizing: `risk_per_trade` sizing is now implemented
   (quantity sized so a stop-loss hit loses `risk_pct` of equity, requires
   `risk.stop_loss_pct`), and every order's notional is capped by `max_leverage`

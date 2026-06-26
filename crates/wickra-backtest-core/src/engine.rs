@@ -6,11 +6,13 @@
 //! fill at the level (conservative: the stop is assumed hit before the target
 //! when a bar's range brackets both). Equity is marked to market at every close.
 //!
-//! Supports long and short positions, market orders, a taker fee and fixed-bps
-//! slippage, and leverage / position sizing (fixed fraction / cash / quantity
+//! Supports long and short positions; market, limit and stop entry orders (a
+//! limit/stop rests at a percent offset from the signal close and fills when a
+//! later bar reaches it, otherwise it keeps working); a taker fee and fixed-bps
+//! slippage; and leverage / position sizing (fixed fraction / cash / quantity
 //! and risk-per-trade, capped by `max_leverage` and `max_position_pct`; without
-//! `max_leverage` the cap is 1x equity — no leverage by default). Limit / stop
-//! orders, perp funding and liquidation come in a later phase.
+//! `max_leverage` the cap is 1x equity — no leverage by default). Perp funding
+//! and liquidation come in a later phase.
 
 use std::collections::BTreeMap;
 
@@ -21,7 +23,7 @@ use crate::portfolio::Portfolio;
 use crate::registry::{self, EvalIndicator};
 use crate::report::{BacktestReport, EquityPoint, REPORT_SCHEMA_VERSION};
 use crate::rules::{eval_condition, BarRow, RuleState};
-use crate::spec::{Risk, Sizing, Slippage, StrategySpec};
+use crate::spec::{Execution, OrderType, Risk, Sizing, Slippage, StrategySpec};
 
 /// Default starting capital for the runner.
 pub const DEFAULT_CAPITAL: f64 = 10_000.0;
@@ -32,9 +34,53 @@ enum Side {
     Short,
 }
 
-enum Action {
-    Enter(Side),
+/// A resting limit or stop trigger.
+#[derive(Clone, Copy)]
+enum LevelKind {
+    Limit,
+    Stop,
+}
+
+/// A working order, decided on a bar's close and filled on a later bar.
+enum Pending {
+    /// An entry. `trigger` is `None` for a market order (fills at the next
+    /// open) or a resting limit/stop level (fills when the bar reaches it).
+    Enter {
+        side: Side,
+        trigger: Option<(f64, LevelKind)>,
+    },
+    /// A market exit, fills at the next open.
     Exit(&'static str),
+}
+
+/// Fill price for a resting level order against a bar, or `None` if not reached.
+/// A buy fills at the open when it gaps through the level (open below a limit,
+/// above a stop), otherwise at the level; a sell mirrors this.
+fn level_fill(side: Side, trigger: f64, kind: LevelKind, c: &Candle) -> Option<f64> {
+    let is_buy = matches!(side, Side::Long);
+    match (is_buy, kind) {
+        (true, LevelKind::Limit) => (c.low <= trigger).then(|| c.open.min(trigger)),
+        (true, LevelKind::Stop) => (c.high >= trigger).then(|| c.open.max(trigger)),
+        (false, LevelKind::Limit) => (c.high >= trigger).then(|| c.open.max(trigger)),
+        (false, LevelKind::Stop) => (c.low <= trigger).then(|| c.open.min(trigger)),
+    }
+}
+
+/// The resting trigger level for an entry, or `None` for a market order. The
+/// level is the signal bar's close shifted by the configured limit/stop offset.
+fn entry_trigger(exec: &Execution, signal_close: f64) -> Option<(f64, LevelKind)> {
+    match exec.order_type {
+        OrderType::Limit => Some((
+            signal_close * (1.0 + exec.limit_offset_pct.unwrap_or(0.0) / 100.0),
+            LevelKind::Limit,
+        )),
+        OrderType::Stop => Some((
+            signal_close * (1.0 + exec.stop_offset_pct.unwrap_or(0.0) / 100.0),
+            LevelKind::Stop,
+        )),
+        // Market order (StopLimit is rejected by validation before the run).
+        _ => None,
+    }
 }
 
 /// Run a backtest of `spec` over `candles` with the default capital.
@@ -72,31 +118,43 @@ pub fn run_with_capital(
     let mut pf = Portfolio::new(capital);
     let mut history: Vec<BarRow> = Vec::with_capacity(candles.len());
     let mut equity: Vec<EquityPoint> = Vec::with_capacity(candles.len());
-    let mut pending: Option<Action> = None;
+    let mut pending: Option<Pending> = None;
     let mut entry_bar: Option<usize> = None;
     // Most favourable price reached since entry (peak for a long, trough for a
     // short) — the reference for the trailing stop.
     let mut extreme = 0.0f64;
 
     for (t, candle) in candles.iter().enumerate() {
-        // 1. Fill the pending signal order at this bar's open (look-ahead-free).
-        match pending.take() {
-            Some(Action::Enter(side)) => {
+        // 1. Fill the working order against this bar (look-ahead-free). A market
+        //    order fills at the open; a resting limit/stop fills only when the
+        //    bar reaches its level, otherwise it keeps working into the next bar.
+        let mut consumed = true;
+        match &pending {
+            Some(Pending::Enter { side, trigger }) => {
+                let side = *side;
                 let dir = match side {
                     Side::Long => 1.0,
                     Side::Short => -1.0,
                 };
-                let fill = candle.open * (1.0 + dir * slip);
-                if let Some(base) = size(spec.sizing, &spec.risk, pf.cash, fill)? {
-                    if base > 0.0 {
-                        let fee = base * fill * taker;
-                        pf.enter(dir * base, fill, candle.time, fee);
-                        entry_bar = Some(t);
-                        extreme = fill;
+                let level = match trigger {
+                    None => Some(candle.open),
+                    Some((trig, kind)) => level_fill(side, *trig, *kind, candle),
+                };
+                if let Some(px) = level {
+                    let fill = px * (1.0 + dir * slip);
+                    if let Some(base) = size(spec.sizing, &spec.risk, pf.cash, fill)? {
+                        if base > 0.0 {
+                            let fee = base * fill * taker;
+                            pf.enter(dir * base, fill, candle.time, fee);
+                            entry_bar = Some(t);
+                            extreme = fill;
+                        }
                     }
+                } else {
+                    consumed = false; // level not reached; the order keeps working
                 }
             }
-            Some(Action::Exit(reason)) if pf.in_position() => {
+            Some(Pending::Exit(reason)) if pf.in_position() => {
                 // Long exit sells (fills lower), short exit buys (fills higher).
                 let dir = if pf.is_long() { -1.0 } else { 1.0 };
                 let fill = candle.open * (1.0 + dir * slip);
@@ -105,6 +163,9 @@ pub fn run_with_capital(
                 entry_bar = None;
             }
             _ => {}
+        }
+        if consumed {
+            pending = None;
         }
 
         // 2. Update indicators and record the bar.
@@ -163,13 +224,24 @@ pub fn run_with_capital(
                 spec.short_exit.as_ref().unwrap_or(&spec.exit)
             };
             if eval_condition(cond, &history, idx, state) {
-                pending = Some(Action::Exit("signal"));
+                pending = Some(Pending::Exit("signal"));
             }
-        } else if eval_condition(&spec.entry, &history, idx, state) {
-            pending = Some(Action::Enter(Side::Long));
-        } else if let Some(short_entry) = &spec.short_entry {
-            if eval_condition(short_entry, &history, idx, state) {
-                pending = Some(Action::Enter(Side::Short));
+        } else if pending.is_none() {
+            // No order working: a new entry signal places one. Its trigger is the
+            // signal bar's close shifted by the configured limit/stop offset.
+            let trigger = entry_trigger(&spec.execution, candle.close);
+            if eval_condition(&spec.entry, &history, idx, state) {
+                pending = Some(Pending::Enter {
+                    side: Side::Long,
+                    trigger,
+                });
+            } else if let Some(short_entry) = &spec.short_entry {
+                if eval_condition(short_entry, &history, idx, state) {
+                    pending = Some(Pending::Enter {
+                        side: Side::Short,
+                        trigger,
+                    });
+                }
             }
         }
     }
@@ -663,5 +735,87 @@ mod tests {
         .unwrap();
         let r1 = run_with_capital(&levered, &candles, 10_000.0).unwrap();
         assert!((r1.trades[0].qty - 300.0).abs() < 1e-9); // 3x equity
+    }
+
+    #[test]
+    fn limit_entry_fills_on_dip() {
+        let spec = StrategySpec::parse(
+            r#"{"symbol":"x","timeframe":"1h","indicators":{},
+                "entry":{"gt":[{"price":"close"},0]},
+                "exit":{"in_position":false},
+                "sizing":{"type":"fixed_qty","qty":1},
+                "execution":{"order_type":"limit","limit_offset_pct":-1.0}}"#,
+        )
+        .unwrap();
+        let candles = [
+            bar(0, 100.0, 100.0, 100.0, 100.0), // signal -> limit works @ 99
+            bar(1, 100.0, 101.0, 100.0, 100.0), // low 100 > 99: no fill, keeps working
+            bar(2, 100.0, 100.0, 98.0, 99.0),   // low 98 <= 99: fills @ 99
+        ];
+        let r = run_with_capital(&spec, &candles, 10_000.0).unwrap();
+        assert_eq!(r.trades.len(), 1);
+        assert!((r.trades[0].entry_price - 99.0).abs() < 1e-9);
+    }
+
+    #[test]
+    fn limit_entry_never_fills_without_a_dip() {
+        let spec = StrategySpec::parse(
+            r#"{"symbol":"x","timeframe":"1h","indicators":{},
+                "entry":{"gt":[{"price":"close"},0]},
+                "exit":{"in_position":false},
+                "sizing":{"type":"fixed_qty","qty":1},
+                "execution":{"order_type":"limit","limit_offset_pct":-1.0}}"#,
+        )
+        .unwrap();
+        let candles = [
+            bar(0, 100.0, 100.0, 100.0, 100.0),
+            bar(1, 100.0, 101.0, 100.0, 100.0),
+            bar(2, 100.0, 102.0, 100.0, 101.0), // low never reaches 99
+        ];
+        let r = run_with_capital(&spec, &candles, 10_000.0).unwrap();
+        assert!(r.trades.is_empty());
+    }
+
+    #[test]
+    fn stop_entry_fills_on_breakout() {
+        let spec = StrategySpec::parse(
+            r#"{"symbol":"x","timeframe":"1h","indicators":{},
+                "entry":{"gt":[{"price":"close"},0]},
+                "exit":{"in_position":false},
+                "sizing":{"type":"fixed_qty","qty":1},
+                "execution":{"order_type":"stop","stop_offset_pct":1.0}}"#,
+        )
+        .unwrap();
+        let candles = [
+            bar(0, 100.0, 100.0, 100.0, 100.0), // signal -> stop works @ 101
+            bar(1, 100.0, 100.5, 100.0, 100.0), // high 100.5 < 101: no fill
+            bar(2, 100.0, 102.0, 100.0, 101.0), // high 102 >= 101: fills @ 101
+        ];
+        let r = run_with_capital(&spec, &candles, 10_000.0).unwrap();
+        assert_eq!(r.trades.len(), 1);
+        assert!((r.trades[0].entry_price - 101.0).abs() < 1e-9);
+    }
+
+    #[test]
+    fn limit_order_requires_offset() {
+        // `parse` validates, so an order_type without its offset is rejected up front.
+        assert!(StrategySpec::parse(
+            r#"{"symbol":"x","timeframe":"1h","indicators":{},
+                "entry":{"gt":[{"price":"close"},0]},"exit":{"in_position":true},
+                "sizing":{"type":"fixed_qty","qty":1},
+                "execution":{"order_type":"limit"}}"#,
+        )
+        .is_err());
+    }
+
+    #[test]
+    fn stop_limit_is_unsupported() {
+        assert!(StrategySpec::parse(
+            r#"{"symbol":"x","timeframe":"1h","indicators":{},
+                "entry":{"gt":[{"price":"close"},0]},"exit":{"in_position":true},
+                "sizing":{"type":"fixed_qty","qty":1},
+                "execution":{"order_type":"stop_limit"}}"#,
+        )
+        .is_err());
     }
 }

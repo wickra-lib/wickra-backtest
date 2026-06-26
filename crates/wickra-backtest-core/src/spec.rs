@@ -83,6 +83,24 @@ impl StrategySpec {
         if let Some(c) = &self.short_exit {
             check_condition(c, &declared)?;
         }
+        match self.execution.order_type {
+            OrderType::Limit if self.execution.limit_offset_pct.is_none() => {
+                return Err(BacktestError::InvalidSpec(
+                    "limit order_type requires execution.limit_offset_pct".into(),
+                ));
+            }
+            OrderType::Stop if self.execution.stop_offset_pct.is_none() => {
+                return Err(BacktestError::InvalidSpec(
+                    "stop order_type requires execution.stop_offset_pct".into(),
+                ));
+            }
+            OrderType::StopLimit => {
+                return Err(BacktestError::InvalidSpec(
+                    "stop_limit order_type is not supported yet".into(),
+                ));
+            }
+            _ => {}
+        }
         Ok(())
     }
 }
@@ -318,6 +336,16 @@ pub struct Execution {
     /// When a signalled order fills.
     #[serde(default)]
     pub fill_timing: FillTiming,
+    /// Limit-order trigger as a percent offset from the signal bar's close
+    /// (required for `order_type = "limit"`). Negative places a long limit
+    /// below the market (buy the dip); positive places a short limit above it.
+    #[serde(default)]
+    pub limit_offset_pct: Option<f64>,
+    /// Stop-order trigger as a percent offset from the signal bar's close
+    /// (required for `order_type = "stop"`). Positive places a long stop above
+    /// the market (breakout); negative places a short stop below it.
+    #[serde(default)]
+    pub stop_offset_pct: Option<f64>,
     /// Simulated latency in bars before a fill.
     #[serde(default)]
     pub latency_bars: u32,
