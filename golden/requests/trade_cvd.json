@@ -1,0 +1,143 @@
+{
+  "capital": 10000.0,
+  "spec": {
+    "symbol": "x",
+    "timeframe": "1h",
+    "indicators": {
+      "cvd": {
+        "type": "CumulativeVolumeDelta",
+        "params": []
+      }
+    },
+    "entry": {
+      "gt": [
+        "cvd",
+        0.0
+      ]
+    },
+    "exit": {
+      "lt": [
+        "cvd",
+        -1.0
+      ]
+    },
+    "sizing": {
+      "type": "fixed_qty",
+      "qty": 1
+    }
+  },
+  "candles": [
+    {
+      "time": 0,
+      "open": 100.0,
+      "high": 100.0,
+      "low": 100.0,
+      "close": 100.0,
+      "volume": 0.0
+    },
+    {
+      "time": 1,
+      "open": 100.0,
+      "high": 100.0,
+      "low": 100.0,
+      "close": 100.0,
+      "volume": 0.0
+    },
+    {
+      "time": 2,
+      "open": 100.0,
+      "high": 100.0,
+      "low": 100.0,
+      "close": 100.0,
+      "volume": 0.0
+    },
+    {
+      "time": 3,
+      "open": 100.0,
+      "high": 100.0,
+      "low": 100.0,
+      "close": 100.0,
+      "volume": 0.0
+    },
+    {
+      "time": 4,
+      "open": 100.0,
+      "high": 100.0,
+      "low": 100.0,
+      "close": 100.0,
+      "volume": 0.0
+    }
+  ],
+  "trades": [
+    [
+      {
+        "price": 100.0,
+        "size": 5.0,
+        "side": "buy",
+        "timestamp": 0
+      },
+      {
+        "price": 100.0,
+        "size": 5.0,
+        "side": "buy",
+        "timestamp": 0
+      }
+    ],
+    [
+      {
+        "price": 100.0,
+        "size": 5.0,
+        "side": "buy",
+        "timestamp": 0
+      },
+      {
+        "price": 100.0,
+        "size": 5.0,
+        "side": "buy",
+        "timestamp": 0
+      }
+    ],
+    [
+      {
+        "price": 100.0,
+        "size": 5.0,
+        "side": "buy",
+        "timestamp": 0
+      },
+      {
+        "price": 100.0,
+        "size": 5.0,
+        "side": "buy",
+        "timestamp": 0
+      }
+    ],
+    [
+      {
+        "price": 100.0,
+        "size": 5.0,
+        "side": "buy",
+        "timestamp": 0
+      },
+      {
+        "price": 100.0,
+        "size": 5.0,
+        "side": "buy",
+        "timestamp": 0
+      }
+    ],
+    [
+      {
+        "price": 100.0,
+        "size": 5.0,
+        "side": "buy",
+        "timestamp": 0
+      },
+      {
+        "price": 100.0,
+        "size": 5.0,
+        "side": "buy",
+        "timestamp": 0
+      }
+    ]
+  ]
+}

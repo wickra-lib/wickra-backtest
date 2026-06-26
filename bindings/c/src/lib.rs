@@ -344,4 +344,39 @@ mod tests {
             assert_eq!(got, want.trim_end(), "golden mismatch for {name}");
         }
     }
+
+    /// Drive the C ABI's `run_json` over the shared feed request corpus and
+    /// assert the report is byte-for-byte identical to the canonical expected
+    /// reports — pinning the C / C++ microstructure feed paths to the same
+    /// contract as every other binding.
+    #[test]
+    fn feed_golden_parity_through_ffi() {
+        use std::fs;
+        use std::path::PathBuf;
+
+        let golden = PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("../../golden");
+        let mut requests: Vec<PathBuf> = fs::read_dir(golden.join("requests"))
+            .unwrap()
+            .map(|e| e.unwrap().path())
+            .filter(|p| p.extension().is_some_and(|x| x == "json"))
+            .collect();
+        requests.sort();
+        assert!(!requests.is_empty(), "no golden requests found");
+
+        for path in requests {
+            let name = path.file_stem().unwrap().to_str().unwrap().to_string();
+            let request = CString::new(fs::read_to_string(&path).unwrap()).unwrap();
+            let mut out: *mut c_char = std::ptr::null_mut();
+            let code =
+                unsafe { wickra_backtest_run_json(request.as_ptr(), std::ptr::addr_of_mut!(out)) };
+            assert_eq!(code, WICKRA_BT_OK, "request {name} failed");
+            let got = unsafe { CStr::from_ptr(out).to_str().unwrap().to_string() };
+            unsafe { wickra_backtest_free_string(out) };
+
+            let want =
+                fs::read_to_string(golden.join("expected_json").join(format!("{name}.json")))
+                    .unwrap();
+            assert_eq!(got, want.trim_end(), "feed golden mismatch for {name}");
+        }
+    }
 }

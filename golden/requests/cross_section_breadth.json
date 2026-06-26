@@ -1,0 +1,181 @@
+{
+  "capital": 10000.0,
+  "spec": {
+    "symbol": "x",
+    "timeframe": "1h",
+    "indicators": {
+      "ad": {
+        "type": "AdvanceDecline",
+        "params": []
+      }
+    },
+    "entry": {
+      "gt": [
+        "ad",
+        0.0
+      ]
+    },
+    "exit": {
+      "lt": [
+        "ad",
+        -100.0
+      ]
+    },
+    "sizing": {
+      "type": "fixed_qty",
+      "qty": 1
+    }
+  },
+  "candles": [
+    {
+      "time": 0,
+      "open": 100.0,
+      "high": 100.0,
+      "low": 100.0,
+      "close": 100.0,
+      "volume": 0.0
+    },
+    {
+      "time": 1,
+      "open": 100.0,
+      "high": 100.0,
+      "low": 100.0,
+      "close": 100.0,
+      "volume": 0.0
+    },
+    {
+      "time": 2,
+      "open": 100.0,
+      "high": 100.0,
+      "low": 100.0,
+      "close": 100.0,
+      "volume": 0.0
+    },
+    {
+      "time": 3,
+      "open": 100.0,
+      "high": 100.0,
+      "low": 100.0,
+      "close": 100.0,
+      "volume": 0.0
+    }
+  ],
+  "sections": [
+    {
+      "members": [
+        {
+          "change": 1.0,
+          "volume": 100.0,
+          "new_high": false,
+          "new_low": false
+        },
+        {
+          "change": 1.0,
+          "volume": 100.0,
+          "new_high": false,
+          "new_low": false
+        },
+        {
+          "change": 1.0,
+          "volume": 100.0,
+          "new_high": false,
+          "new_low": false
+        },
+        {
+          "change": -1.0,
+          "volume": 100.0,
+          "new_high": false,
+          "new_low": false
+        }
+      ],
+      "timestamp": 0
+    },
+    {
+      "members": [
+        {
+          "change": 1.0,
+          "volume": 100.0,
+          "new_high": false,
+          "new_low": false
+        },
+        {
+          "change": 1.0,
+          "volume": 100.0,
+          "new_high": false,
+          "new_low": false
+        },
+        {
+          "change": 1.0,
+          "volume": 100.0,
+          "new_high": false,
+          "new_low": false
+        },
+        {
+          "change": -1.0,
+          "volume": 100.0,
+          "new_high": false,
+          "new_low": false
+        }
+      ],
+      "timestamp": 0
+    },
+    {
+      "members": [
+        {
+          "change": 1.0,
+          "volume": 100.0,
+          "new_high": false,
+          "new_low": false
+        },
+        {
+          "change": 1.0,
+          "volume": 100.0,
+          "new_high": false,
+          "new_low": false
+        },
+        {
+          "change": 1.0,
+          "volume": 100.0,
+          "new_high": false,
+          "new_low": false
+        },
+        {
+          "change": -1.0,
+          "volume": 100.0,
+          "new_high": false,
+          "new_low": false
+        }
+      ],
+      "timestamp": 0
+    },
+    {
+      "members": [
+        {
+          "change": 1.0,
+          "volume": 100.0,
+          "new_high": false,
+          "new_low": false
+        },
+        {
+          "change": 1.0,
+          "volume": 100.0,
+          "new_high": false,
+          "new_low": false
+        },
+        {
+          "change": 1.0,
+          "volume": 100.0,
+          "new_high": false,
+          "new_low": false
+        },
+        {
+          "change": -1.0,
+          "volume": 100.0,
+          "new_high": false,
+          "new_low": false
+        }
+      ],
+      "timestamp": 0
+    }
+  ]
+}

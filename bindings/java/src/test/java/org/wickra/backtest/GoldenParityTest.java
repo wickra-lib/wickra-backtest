@@ -57,4 +57,26 @@ class GoldenParityTest {
         }
         assertTrue(n > 0, "no golden cases found");
     }
+
+    // Feed golden parity: each request bundle (golden/requests/) drives a
+    // microstructure feed path through run_json, asserted byte-for-byte against
+    // the shared expected reports (golden/expected_json/).
+    @Test
+    void feedGoldenParity() throws IOException {
+        Path golden = Paths.get("..", "..", "golden");
+        int n = 0;
+        try (Stream<Path> files = Files.list(golden.resolve("requests"))) {
+            for (Path p : (Iterable<Path>) files
+                    .filter(x -> x.toString().endsWith(".json"))::iterator) {
+                String name = p.getFileName().toString().replaceFirst("\\.json$", "");
+                String got = Backtester.runJson(Files.readString(p));
+                String want = Files
+                        .readString(golden.resolve("expected_json").resolve(name + ".json"))
+                        .trim();
+                assertEquals(want, got, "feed golden mismatch for " + name);
+                n++;
+            }
+        }
+        assertTrue(n > 0, "no golden requests found");
+    }
 }

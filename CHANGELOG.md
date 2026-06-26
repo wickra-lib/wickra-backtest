@@ -126,6 +126,15 @@ to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
   cross-language equality and is regression-proof. **All ten language reaches**
   are wired in and verified against the same reports: Rust, Go, Node.js, Python,
   C and C++ (through the C ABI), C#, Java, WASM and R.
+- Feed golden parity corpus (`golden/requests/`, `golden/expected_json/`): five
+  request bundles that each drive a microstructure feed path — derivatives
+  funding, top-of-book imbalance, cumulative volume delta, advance-decline
+  breadth and a pairwise correlation reference series — through the unified
+  `run_json` entry point. The Rust integration test (`tests/golden_json.rs`) is
+  the anchor (`WICKRA_BLESS=1` regenerates the expected reports), and all ten
+  language reaches assert their own `run_json` output against the same reports.
+  This pins cross-language equality for the feed paths, not just the plain OHLCV
+  path — the microstructure differentiator is now regression-proof end to end.
 
 ### Changed
 

@@ -1,0 +1,143 @@
+{
+  "capital": 10000.0,
+  "spec": {
+    "symbol": "x",
+    "timeframe": "1h",
+    "indicators": {
+      "i": {
+        "type": "OrderBookImbalanceTop1",
+        "params": []
+      }
+    },
+    "entry": {
+      "gt": [
+        "i",
+        0.0
+      ]
+    },
+    "exit": {
+      "lt": [
+        "i",
+        -2.0
+      ]
+    },
+    "sizing": {
+      "type": "fixed_qty",
+      "qty": 1
+    }
+  },
+  "candles": [
+    {
+      "time": 0,
+      "open": 100.0,
+      "high": 100.0,
+      "low": 100.0,
+      "close": 100.0,
+      "volume": 0.0
+    },
+    {
+      "time": 1,
+      "open": 100.0,
+      "high": 100.0,
+      "low": 100.0,
+      "close": 100.0,
+      "volume": 0.0
+    },
+    {
+      "time": 2,
+      "open": 100.0,
+      "high": 100.0,
+      "low": 100.0,
+      "close": 100.0,
+      "volume": 0.0
+    },
+    {
+      "time": 3,
+      "open": 100.0,
+      "high": 100.0,
+      "low": 100.0,
+      "close": 100.0,
+      "volume": 0.0
+    },
+    {
+      "time": 4,
+      "open": 100.0,
+      "high": 100.0,
+      "low": 100.0,
+      "close": 100.0,
+      "volume": 0.0
+    }
+  ],
+  "books": [
+    {
+      "bids": [
+        {
+          "price": 100.0,
+          "size": 9.0
+        }
+      ],
+      "asks": [
+        {
+          "price": 101.0,
+          "size": 1.0
+        }
+      ]
+    },
+    {
+      "bids": [
+        {
+          "price": 100.0,
+          "size": 9.0
+        }
+      ],
+      "asks": [
+        {
+          "price": 101.0,
+          "size": 1.0
+        }
+      ]
+    },
+    {
+      "bids": [
+        {
+          "price": 100.0,
+          "size": 9.0
+        }
+      ],
+      "asks": [
+        {
+          "price": 101.0,
+          "size": 1.0
+        }
+      ]
+    },
+    {
+      "bids": [
+        {
+          "price": 100.0,
+          "size": 9.0
+        }
+      ],
+      "asks": [
+        {
+          "price": 101.0,
+          "size": 1.0
+        }
+      ]
+    },
+    {
+      "bids": [
+        {
+          "price": 100.0,
+          "size": 9.0
+        }
+      ],
+      "asks": [
+        {
+          "price": 101.0,
+          "size": 1.0
+        }
+      ]
+    }
+  ]
+}

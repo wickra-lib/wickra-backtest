@@ -52,3 +52,23 @@ for (path in cases) {
   }
 }
 cat("R golden parity: all", length(cases), "cases match\n")
+
+# Feed golden parity: each request bundle (golden/requests/) drives a
+# microstructure feed path through run_json, asserted byte-for-byte against the
+# shared expected reports (golden/expected_json/). The request is passed
+# verbatim, so no spec brace-matching is needed.
+requests <- list.files(file.path(golden, "requests"), pattern = "\\.json$", full.names = TRUE)
+stopifnot(length(requests) > 0)
+
+for (path in requests) {
+  request <- readChar(path, file.info(path)$size)
+  got <- backtest_run_json(request)
+  name <- sub("\\.json$", "", basename(path))
+  exp_path <- file.path(golden, "expected_json", paste0(name, ".json"))
+  want <- trimws(readChar(exp_path, file.info(exp_path)$size))
+  if (!identical(got, want)) {
+    cat("FEED MISMATCH", name, "\n got: ", got, "\nwant: ", want, "\n")
+    quit(status = 1)
+  }
+}
+cat("R feed golden parity: all", length(requests), "requests match\n")

@@ -1,0 +1,163 @@
+{
+  "capital": 10000.0,
+  "spec": {
+    "symbol": "x",
+    "timeframe": "1h",
+    "indicators": {
+      "c": {
+        "type": "PearsonCorrelation",
+        "params": [
+          3
+        ]
+      }
+    },
+    "entry": {
+      "gt": [
+        "c",
+        0.5
+      ]
+    },
+    "exit": {
+      "lt": [
+        "c",
+        -2.0
+      ]
+    },
+    "sizing": {
+      "type": "fixed_qty",
+      "qty": 1
+    }
+  },
+  "candles": [
+    {
+      "time": 0,
+      "open": 100.0,
+      "high": 100.5,
+      "low": 99.5,
+      "close": 100.0,
+      "volume": 0.0
+    },
+    {
+      "time": 1,
+      "open": 101.0,
+      "high": 101.5,
+      "low": 100.5,
+      "close": 101.0,
+      "volume": 0.0
+    },
+    {
+      "time": 2,
+      "open": 102.0,
+      "high": 102.5,
+      "low": 101.5,
+      "close": 102.0,
+      "volume": 0.0
+    },
+    {
+      "time": 3,
+      "open": 101.0,
+      "high": 101.5,
+      "low": 100.5,
+      "close": 101.0,
+      "volume": 0.0
+    },
+    {
+      "time": 4,
+      "open": 103.0,
+      "high": 103.5,
+      "low": 102.5,
+      "close": 103.0,
+      "volume": 0.0
+    },
+    {
+      "time": 5,
+      "open": 102.0,
+      "high": 102.5,
+      "low": 101.5,
+      "close": 102.0,
+      "volume": 0.0
+    },
+    {
+      "time": 6,
+      "open": 104.0,
+      "high": 104.5,
+      "low": 103.5,
+      "close": 104.0,
+      "volume": 0.0
+    },
+    {
+      "time": 7,
+      "open": 103.0,
+      "high": 103.5,
+      "low": 102.5,
+      "close": 103.0,
+      "volume": 0.0
+    }
+  ],
+  "reference": [
+    {
+      "time": 0,
+      "open": 50.0,
+      "high": 50.5,
+      "low": 49.5,
+      "close": 50.0,
+      "volume": 0.0
+    },
+    {
+      "time": 1,
+      "open": 50.5,
+      "high": 51.0,
+      "low": 50.0,
+      "close": 50.5,
+      "volume": 0.0
+    },
+    {
+      "time": 2,
+      "open": 51.0,
+      "high": 51.5,
+      "low": 50.5,
+      "close": 51.0,
+      "volume": 0.0
+    },
+    {
+      "time": 3,
+      "open": 50.5,
+      "high": 51.0,
+      "low": 50.0,
+      "close": 50.5,
+      "volume": 0.0
+    },
+    {
+      "time": 4,
+      "open": 51.5,
+      "high": 52.0,
+      "low": 51.0,
+      "close": 51.5,
+      "volume": 0.0
+    },
+    {
+      "time": 5,
+      "open": 51.0,
+      "high": 51.5,
+      "low": 50.5,
+      "close": 51.0,
+      "volume": 0.0
+    },
+    {
+      "time": 6,
+      "open": 52.0,
+      "high": 52.5,
+      "low": 51.5,
+      "close": 52.0,
+      "volume": 0.0
+    },
+    {
+      "time": 7,
+      "open": 51.5,
+      "high": 52.0,
+      "low": 51.0,
+      "close": 51.5,
+      "volume": 0.0
+    }
+  ]
+}

@@ -57,4 +57,23 @@ public class GoldenTests
             Assert.Equal(want, got);
         }
     }
+
+    // Feed golden parity: each request bundle (golden/requests/) drives a
+    // microstructure feed path through run_json, asserted byte-for-byte against
+    // the shared expected reports (golden/expected_json/).
+    [Fact]
+    public void FeedGoldenParity()
+    {
+        string golden = GoldenDir();
+        var requests = Directory.GetFiles(Path.Combine(golden, "requests"), "*.json");
+        Assert.NotEmpty(requests);
+        foreach (var path in requests)
+        {
+            string name = Path.GetFileNameWithoutExtension(path);
+            string request = File.ReadAllText(path);
+            string got = Backtester.RunJson(request);
+            string want = File.ReadAllText(Path.Combine(golden, "expected_json", name + ".json")).Trim();
+            Assert.Equal(want, got);
+        }
+    }
 }

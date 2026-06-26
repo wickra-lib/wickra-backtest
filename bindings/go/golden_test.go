@@ -58,3 +58,41 @@ func TestGoldenParity(t *testing.T) {
 		t.Fatal("no golden cases found")
 	}
 }
+
+// Feed golden parity: each request bundle (golden/requests/) drives a
+// microstructure feed path through run_json, and the Go binding asserts its
+// output byte-for-byte against the shared expected reports
+// (golden/expected_json/).
+func TestFeedGoldenParity(t *testing.T) {
+	dir := filepath.Join("..", "..", "golden")
+	entries, err := os.ReadDir(filepath.Join(dir, "requests"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	n := 0
+	for _, e := range entries {
+		if filepath.Ext(e.Name()) != ".json" {
+			continue
+		}
+		name := strings.TrimSuffix(e.Name(), ".json")
+		request, err := os.ReadFile(filepath.Join(dir, "requests", e.Name()))
+		if err != nil {
+			t.Fatal(err)
+		}
+		got, err := RunJSON(string(request))
+		if err != nil {
+			t.Fatalf("%s: %v", name, err)
+		}
+		want, err := os.ReadFile(filepath.Join(dir, "expected_json", name+".json"))
+		if err != nil {
+			t.Fatal(err)
+		}
+		if got != strings.TrimSpace(string(want)) {
+			t.Errorf("%s: feed golden mismatch\n got: %s\nwant: %s", name, got, strings.TrimSpace(string(want)))
+		}
+		n++
+	}
+	if n == 0 {
+		t.Fatal("no golden requests found")
+	}
+}

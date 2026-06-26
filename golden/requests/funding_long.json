@@ -1,0 +1,138 @@
+{
+  "capital": 10000.0,
+  "spec": {
+    "symbol": "x",
+    "timeframe": "1h",
+    "indicators": {
+      "f": {
+        "type": "FundingRate",
+        "params": []
+      }
+    },
+    "entry": {
+      "gt": [
+        "f",
+        0.0
+      ]
+    },
+    "exit": {
+      "lt": [
+        "f",
+        -1.0
+      ]
+    },
+    "sizing": {
+      "type": "fixed_qty",
+      "qty": 1
+    }
+  },
+  "candles": [
+    {
+      "time": 0,
+      "open": 100.0,
+      "high": 100.0,
+      "low": 100.0,
+      "close": 100.0,
+      "volume": 0.0
+    },
+    {
+      "time": 1,
+      "open": 100.0,
+      "high": 100.0,
+      "low": 100.0,
+      "close": 100.0,
+      "volume": 0.0
+    },
+    {
+      "time": 2,
+      "open": 100.0,
+      "high": 100.0,
+      "low": 100.0,
+      "close": 100.0,
+      "volume": 0.0
+    },
+    {
+      "time": 3,
+      "open": 100.0,
+      "high": 100.0,
+      "low": 100.0,
+      "close": 100.0,
+      "volume": 0.0
+    },
+    {
+      "time": 4,
+      "open": 100.0,
+      "high": 100.0,
+      "low": 100.0,
+      "close": 100.0,
+      "volume": 0.0
+    }
+  ],
+  "derivs": [
+    {
+      "funding_rate": 0.01,
+      "mark_price": 100.0,
+      "index_price": 100.0,
+      "futures_price": 100.0,
+      "open_interest": 1000.0,
+      "long_size": 600.0,
+      "short_size": 400.0,
+      "taker_buy_volume": 50.0,
+      "taker_sell_volume": 40.0,
+      "long_liquidation": 0.0,
+      "short_liquidation": 0.0
+    },
+    {
+      "funding_rate": 0.01,
+      "mark_price": 100.0,
+      "index_price": 100.0,
+      "futures_price": 100.0,
+      "open_interest": 1000.0,
+      "long_size": 600.0,
+      "short_size": 400.0,
+      "taker_buy_volume": 50.0,
+      "taker_sell_volume": 40.0,
+      "long_liquidation": 0.0,
+      "short_liquidation": 0.0
+    },
+    {
+      "funding_rate": 0.01,
+      "mark_price": 100.0,
+      "index_price": 100.0,
+      "futures_price": 100.0,
+      "open_interest": 1000.0,
+      "long_size": 600.0,
+      "short_size": 400.0,
+      "taker_buy_volume": 50.0,
+      "taker_sell_volume": 40.0,
+      "long_liquidation": 0.0,
+      "short_liquidation": 0.0
+    },
+    {
+      "funding_rate": 0.01,
+      "mark_price": 100.0,
+      "index_price": 100.0,
+      "futures_price": 100.0,
+      "open_interest": 1000.0,
+      "long_size": 600.0,
+      "short_size": 400.0,
+      "taker_buy_volume": 50.0,
+      "taker_sell_volume": 40.0,
+      "long_liquidation": 0.0,
+      "short_liquidation": 0.0
+    },
+    {
+      "funding_rate": 0.01,
+      "mark_price": 100.0,
+      "index_price": 100.0,
+      "futures_price": 100.0,
+      "open_interest": 1000.0,
+      "long_size": 600.0,
+      "short_size": 400.0,
+      "taker_buy_volume": 50.0,
+      "taker_sell_volume": 40.0,
+      "long_liquidation": 0.0,
+      "short_liquidation": 0.0
+    }
+  ]
+}
