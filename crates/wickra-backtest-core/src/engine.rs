@@ -1025,6 +1025,59 @@ mod tests {
         assert!((t.pnl - 10.0).abs() < 1e-9);
     }
 
+    /// When a single bar's range spans both the stop and the target, the stop
+    /// is assumed hit first (the conservative O→H→L→C path): the exit is the
+    /// stop, not the target.
+    #[test]
+    fn simultaneous_stop_and_target_prefers_stop() {
+        let spec = StrategySpec::parse(
+            r#"{"symbol":"x","timeframe":"1h","indicators":{},
+                "entry":{"gt":[{"price":"close"},0]},
+                "exit":{"lt":[{"price":"close"},0]},
+                "sizing":{"type":"fixed_qty","qty":1},
+                "risk":{"stop_loss_pct":5.0,"take_profit_pct":10.0}}"#,
+        )
+        .unwrap();
+        let candles = [
+            bar(0, 100.0, 100.0, 100.0, 100.0), // enter signal
+            bar(1, 100.0, 100.0, 100.0, 100.0), // fill enter @ 100; stop 95, target 110
+            bar(2, 100.0, 115.0, 90.0, 100.0),  // range hits BOTH 90<=95 and 115>=110
+        ];
+        let r = run_with_capital(&spec, &candles, 1000.0).unwrap();
+        assert_eq!(r.trades.len(), 1);
+        let t = &r.trades[0];
+        assert_eq!(t.reason, "stop_loss");
+        assert!((t.exit_price - 95.0).abs() < 1e-9);
+        assert!((t.pnl - (-5.0)).abs() < 1e-9);
+    }
+
+    /// A bar that gaps entirely below the stop still triggers the stop. The
+    /// current model fills at the stop level; note this is optimistic for a true
+    /// gap (a fill at the gapped-down open would be more conservative) — a
+    /// deliberate, documented simplification, pinned here so any change to it is
+    /// a conscious one.
+    #[test]
+    fn gap_down_through_stop_triggers_at_level() {
+        let spec = StrategySpec::parse(
+            r#"{"symbol":"x","timeframe":"1h","indicators":{},
+                "entry":{"gt":[{"price":"close"},0]},
+                "exit":{"lt":[{"price":"close"},0]},
+                "sizing":{"type":"fixed_qty","qty":1},
+                "risk":{"stop_loss_pct":5.0}}"#,
+        )
+        .unwrap();
+        let candles = [
+            bar(0, 100.0, 100.0, 100.0, 100.0), // enter signal
+            bar(1, 100.0, 100.0, 100.0, 100.0), // fill enter @ 100; stop at 95
+            bar(2, 90.0, 92.0, 88.0, 89.0),     // gaps open 90, already below the 95 stop
+        ];
+        let r = run_with_capital(&spec, &candles, 1000.0).unwrap();
+        assert_eq!(r.trades.len(), 1);
+        let t = &r.trades[0];
+        assert_eq!(t.reason, "stop_loss");
+        assert!((t.exit_price - 95.0).abs() < 1e-9);
+    }
+
     /// A long trailing stop exits when price retraces past the trailed peak.
     #[test]
     fn trailing_stop() {
