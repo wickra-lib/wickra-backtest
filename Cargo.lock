@@ -1549,6 +1549,7 @@ dependencies = [
  "parquet",
  "serde_json",
  "wickra-backtest-core",
+ "wickra-core",
 ]
 
 [[package]]

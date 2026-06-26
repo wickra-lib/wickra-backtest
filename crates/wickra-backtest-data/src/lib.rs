@@ -266,6 +266,86 @@ pub fn resample_by_interval(candles: &[Candle], interval: i64) -> Result<Vec<Can
     Ok(out)
 }
 
+/// Build a synthetic [`Candle`] from an alternative-chart bar's two edge prices
+/// and direction: the bar opens at `open_edge`, closes at `close_edge`, and its
+/// high/low are the two edges' extremes. The timestamp is a sequential index so
+/// the resulting stream is strictly ordered. Volume is zero (price-only bars).
+fn edge_candle(index: i64, open_edge: f64, close_edge: f64) -> Candle {
+    Candle {
+        time: index,
+        open: open_edge,
+        high: open_edge.max(close_edge),
+        low: open_edge.min(close_edge),
+        close: close_edge,
+        volume: 0.0,
+    }
+}
+
+/// Transform candles into Renko bricks (`wickra-core`'s `RenkoBars`, fixed
+/// `box_size` on closes), each emitted as a synthetic candle (`open`/`close` =
+/// the brick edges, sequential timestamps). Backtest a strategy on price-driven
+/// Renko bars instead of time bars. `box_size` must be positive.
+pub fn to_renko(candles: &[Candle], box_size: f64) -> Result<Vec<Candle>> {
+    use wickra_core::{BarBuilder, RenkoBars};
+
+    let mut builder =
+        RenkoBars::new(box_size).map_err(|e| BacktestError::InvalidData(e.to_string()))?;
+    let mut out = Vec::new();
+    let mut index: i64 = 0;
+    for candle in candles {
+        for brick in builder.update(candle.to_core()?) {
+            out.push(edge_candle(index, brick.open, brick.close));
+            index += 1;
+        }
+    }
+    Ok(out)
+}
+
+/// Transform candles into Kagi segments (`wickra-core`'s `KagiBars`, fixed
+/// `reversal` amount on closes), each emitted as a synthetic candle (`open` =
+/// segment start, `close` = segment end). `reversal` must be positive.
+pub fn to_kagi(candles: &[Candle], reversal: f64) -> Result<Vec<Candle>> {
+    use wickra_core::{BarBuilder, KagiBars};
+
+    let mut builder =
+        KagiBars::new(reversal).map_err(|e| BacktestError::InvalidData(e.to_string()))?;
+    let mut out = Vec::new();
+    let mut index: i64 = 0;
+    for candle in candles {
+        for bar in builder.update(candle.to_core()?) {
+            out.push(edge_candle(index, bar.start, bar.end));
+            index += 1;
+        }
+    }
+    Ok(out)
+}
+
+/// Transform candles into Point-and-Figure columns (`wickra-core`'s
+/// `PointAndFigureBars`, fixed `box_size` and N-box `reversal` on closes), each
+/// emitted as a synthetic candle. A rising (X) column opens at its low and
+/// closes at its high; a falling (O) column opens high and closes low.
+/// `box_size` must be positive and `reversal` non-zero.
+pub fn to_pnf(candles: &[Candle], box_size: f64, reversal: usize) -> Result<Vec<Candle>> {
+    use wickra_core::{BarBuilder, PointAndFigureBars};
+
+    let mut builder = PointAndFigureBars::new(box_size, reversal)
+        .map_err(|e| BacktestError::InvalidData(e.to_string()))?;
+    let mut out = Vec::new();
+    let mut index: i64 = 0;
+    for candle in candles {
+        for col in builder.update(candle.to_core()?) {
+            let (open_edge, close_edge) = if col.direction >= 0 {
+                (col.low, col.high)
+            } else {
+                (col.high, col.low)
+            };
+            out.push(edge_candle(index, open_edge, close_edge));
+            index += 1;
+        }
+    }
+    Ok(out)
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -352,6 +432,69 @@ mod tests {
     fn resample_rejects_zero_step() {
         assert!(resample_by_count(&four_bars(), 0).is_err());
         assert!(resample_by_interval(&four_bars(), 0).is_err());
+    }
+
+    fn rising_closes(prices: &[f64]) -> Vec<Candle> {
+        prices
+            .iter()
+            .zip(0_i64..)
+            .map(|(&p, i)| Candle {
+                time: i,
+                open: p,
+                high: p,
+                low: p,
+                close: p,
+                volume: 0.0,
+            })
+            .collect()
+    }
+
+    #[test]
+    fn renko_builds_up_bricks_on_a_rising_series() {
+        // A 100 -> 105 climb with box size 1 yields five up bricks.
+        let candles = rising_closes(&[100.0, 101.0, 102.0, 103.0, 104.0, 105.0]);
+        let bricks = to_renko(&candles, 1.0).unwrap();
+        assert_eq!(bricks.len(), 5);
+        assert!((bricks[0].open - 100.0).abs() < 1e-9);
+        assert!((bricks[0].close - 101.0).abs() < 1e-9);
+        // Up brick: close above open, high/low are the edges, timestamps sequential.
+        assert!(bricks[0].close > bricks[0].open);
+        assert!((bricks[0].high - 101.0).abs() < 1e-9);
+        assert!((bricks[0].low - 100.0).abs() < 1e-9);
+        assert_eq!(bricks[4].time, 4);
+        assert!((bricks[4].close - 105.0).abs() < 1e-9);
+    }
+
+    #[test]
+    fn renko_rejects_non_positive_box() {
+        assert!(to_renko(&rising_closes(&[100.0, 101.0]), 0.0).is_err());
+    }
+
+    #[test]
+    fn kagi_emits_segments_with_edge_prices() {
+        // A clear up move then a reversal beyond the threshold yields segments.
+        let candles = rising_closes(&[100.0, 103.0, 106.0, 109.0, 104.0, 99.0]);
+        let bars = to_kagi(&candles, 3.0).unwrap();
+        assert!(!bars.is_empty());
+        // Every emitted bar is a valid candle (high >= low) with the edge prices.
+        assert!(bars.iter().all(|b| b.high >= b.low));
+    }
+
+    #[test]
+    fn pnf_columns_open_and_close_on_the_box_edges() {
+        // Climb to 106 then fall back to 100: the drop past the 3-box reversal
+        // completes the rising X column, which is emitted.
+        let candles = rising_closes(&[
+            100.0, 101.0, 102.0, 103.0, 104.0, 105.0, 106.0, 105.0, 104.0, 103.0, 100.0,
+        ]);
+        let cols = to_pnf(&candles, 1.0, 3).unwrap();
+        assert!(!cols.is_empty());
+        // Every column is a valid candle, and the completed rising column opens
+        // at its low edge and closes at its high edge.
+        assert!(cols.iter().all(|c| c.high >= c.low));
+        let rising = cols.iter().find(|c| c.close > c.open).unwrap();
+        assert!((rising.open - rising.low).abs() < 1e-9);
+        assert!((rising.close - rising.high).abs() < 1e-9);
     }
 
     #[cfg(feature = "parquet")]

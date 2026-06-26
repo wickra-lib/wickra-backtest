@@ -64,6 +64,13 @@ to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
   `WKBT_INC` / `WKBT_LIB` environment variables.
 - Data loaders (`wickra-backtest-data`): CSV (`time,open,high,low,close[,volume]`,
   optional header), JSON Lines and JSON-array candle files, dispatched by extension.
+- Alternative-chart bar transforms (`to_renko`, `to_kagi`, `to_pnf`): rebuild a
+  candle stream into Renko bricks, Kagi segments or Point-and-Figure columns
+  using `wickra-core`'s `BarBuilder` types (so the bars match live Wickra), each
+  emitted as a synthetic candle with the bar's edge prices and a sequential
+  timestamp. The CLI gains `--renko BOX`, `--kagi REVERSAL` and `--pnf
+  BOX:REVERSAL`, mutually exclusive with each other and the resample options, so
+  `wkbt run` can backtest a strategy on price-driven bars instead of time bars.
 - Apache Parquet loading behind the `parquet` feature (`load_parquet`, dispatched
   for `.parquet` files): reads `time, open, high, low, close[, volume]` columns
   (matched case-insensitively, integer or floating-point). The CLI gains a

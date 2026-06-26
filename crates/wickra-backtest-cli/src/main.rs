@@ -2,7 +2,8 @@
 //!
 //! ```text
 //! wkbt run --data candles.csv --spec strategy.json [--capital N]
-//!          [--resample-count N | --resample-interval I]
+//!          [--resample-count N | --resample-interval I |
+//!           --renko BOX | --kagi REVERSAL | --pnf BOX:REVERSAL]
 //!          [--report report.json] [--trades trades.jsonl] [--equity equity.jsonl]
 //! wkbt schema   # print the strategy-spec JSON Schema
 //! ```
@@ -15,7 +16,9 @@ use std::process::ExitCode;
 use clap::{Parser, Subcommand};
 use serde::Serialize;
 use wickra_backtest_core::{run_with_capital, strategy_spec_schema, StrategySpec, DEFAULT_CAPITAL};
-use wickra_backtest_data::{load_candles, resample_by_count, resample_by_interval};
+use wickra_backtest_data::{
+    load_candles, resample_by_count, resample_by_interval, to_kagi, to_pnf, to_renko,
+};
 
 #[derive(Parser)]
 #[command(
@@ -29,8 +32,14 @@ struct Cli {
 }
 
 #[derive(Subcommand)]
+// The `Run` variant carries all the run options and is naturally much larger
+// than the unit `Schema` variant; this is a short-lived CLI command parsed once,
+// so the size difference is irrelevant and boxing clap arg structs is awkward.
+#[allow(clippy::large_enum_variant)]
 enum Command {
     /// Run a backtest of a strategy spec over a data file.
+    #[command(group(clap::ArgGroup::new("transform")
+        .args(["resample_count", "resample_interval", "renko", "kagi", "pnf"])))]
     Run {
         /// Market-data file (CSV / JSONL / JSON).
         #[arg(long)]
@@ -42,11 +51,20 @@ enum Command {
         #[arg(long, default_value_t = DEFAULT_CAPITAL)]
         capital: f64,
         /// Resample the data into fixed groups of this many bars before running.
-        #[arg(long, conflicts_with = "resample_interval")]
+        #[arg(long)]
         resample_count: Option<usize>,
         /// Resample the data by this timestamp interval before running.
         #[arg(long)]
         resample_interval: Option<i64>,
+        /// Rebuild the data as Renko bricks of this box size before running.
+        #[arg(long)]
+        renko: Option<f64>,
+        /// Rebuild the data as Kagi segments with this reversal amount.
+        #[arg(long)]
+        kagi: Option<f64>,
+        /// Rebuild the data as Point-and-Figure columns (`BOX:REVERSAL`, e.g. `1.0:3`).
+        #[arg(long)]
+        pnf: Option<String>,
         /// Write the full report as JSON to this path.
         #[arg(long)]
         report: Option<PathBuf>,
@@ -83,15 +101,26 @@ fn dispatch(cli: Cli) -> Result<(), String> {
             capital,
             resample_count,
             resample_interval,
+            renko,
+            kagi,
+            pnf,
             report,
             trades,
             equity,
         } => {
             let mut candles = load_candles(&data).map_err(|e| e.to_string())?;
+            // At most one transform applies (enforced by the `transform` group).
             if let Some(n) = resample_count {
                 candles = resample_by_count(&candles, n).map_err(|e| e.to_string())?;
             } else if let Some(interval) = resample_interval {
                 candles = resample_by_interval(&candles, interval).map_err(|e| e.to_string())?;
+            } else if let Some(box_size) = renko {
+                candles = to_renko(&candles, box_size).map_err(|e| e.to_string())?;
+            } else if let Some(reversal) = kagi {
+                candles = to_kagi(&candles, reversal).map_err(|e| e.to_string())?;
+            } else if let Some(spec) = pnf {
+                let (box_size, reversal) = parse_pnf(&spec)?;
+                candles = to_pnf(&candles, box_size, reversal).map_err(|e| e.to_string())?;
             }
             let spec_json = std::fs::read_to_string(&spec)
                 .map_err(|e| format!("reading {}: {e}", spec.display()))?;
@@ -121,6 +150,22 @@ fn dispatch(cli: Cli) -> Result<(), String> {
             Ok(())
         }
     }
+}
+
+/// Parse the `--pnf BOX:REVERSAL` argument (e.g. `1.0:3`).
+fn parse_pnf(arg: &str) -> Result<(f64, usize), String> {
+    let (box_str, rev_str) = arg
+        .split_once(':')
+        .ok_or_else(|| format!("--pnf expects BOX:REVERSAL (e.g. 1.0:3), got `{arg}`"))?;
+    let box_size = box_str
+        .trim()
+        .parse::<f64>()
+        .map_err(|_| format!("--pnf box size `{box_str}` is not a number"))?;
+    let reversal = rev_str
+        .trim()
+        .parse::<usize>()
+        .map_err(|_| format!("--pnf reversal `{rev_str}` is not an integer"))?;
+    Ok((box_size, reversal))
 }
 
 fn write_json<T: Serialize>(path: &Path, value: &T) -> Result<(), String> {
