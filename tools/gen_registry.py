@@ -550,6 +550,73 @@ mod tests {
     }
 
     #[test]
+    fn every_indicator_updates_without_panicking() {
+        use crate::data::{
+            CrossSection as DCrossSection, CrossSectionMember, DerivativesTick as DDeriv, Level,
+            OrderBook as DOrderBook, TradePrint, TradeSide,
+        };
+        // One populated snapshot of every feed, converted to core types, so each
+        // input family's update arm has real data to consume.
+        let deriv = DDeriv {
+            funding_rate: 0.01,
+            mark_price: 100.0,
+            index_price: 100.0,
+            futures_price: 100.0,
+            open_interest: 1000.0,
+            long_size: 600.0,
+            short_size: 400.0,
+            taker_buy_volume: 50.0,
+            taker_sell_volume: 40.0,
+            long_liquidation: 0.0,
+            short_liquidation: 0.0,
+            timestamp: 0,
+        }
+        .to_core()
+        .unwrap();
+        let book = DOrderBook {
+            bids: vec![Level { price: 99.0, size: 5.0 }],
+            asks: vec![Level { price: 101.0, size: 5.0 }],
+        }
+        .to_core()
+        .unwrap();
+        let trades: Vec<_> = [
+            TradePrint { price: 100.0, size: 2.0, side: TradeSide::Buy, timestamp: 0 },
+            TradePrint { price: 100.5, size: 1.0, side: TradeSide::Sell, timestamp: 0 },
+        ]
+        .iter()
+        .map(|t| t.to_core().unwrap())
+        .collect();
+        let section = DCrossSection {
+            members: vec![
+                CrossSectionMember { change: 1.0, volume: 100.0, new_high: true, new_low: false },
+                CrossSectionMember { change: -1.0, volume: 100.0, new_high: false, new_low: true },
+            ],
+            timestamp: 0,
+        }
+        .to_core()
+        .unwrap();
+
+        // Drive every indicator through a varied bar stream with all feeds
+        // present, so each wrapper's update arm executes without panicking.
+        for (kind, params) in ALL_SPECS {
+            let mut ind = build(kind, params).expect("build");
+            for i in 0..40i64 {
+                let px = 100.0 + ((i as f64) * 0.3).sin() * 5.0;
+                let c = candle(px + 0.5, px - 0.5, px);
+                let bi = BarInput {
+                    candle: &c,
+                    reference: Some(px * 0.5),
+                    deriv: Some(deriv),
+                    orderbook: Some(&book),
+                    trades: &trades,
+                    cross_section: Some(&section),
+                };
+                let _ = ind.update(&bi);
+            }
+        }
+    }
+
+    #[test]
     fn registry_has_full_catalog() {
         assert!(
             ALL_SPECS.len() >= 400,

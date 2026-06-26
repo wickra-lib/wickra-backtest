@@ -252,4 +252,211 @@ mod tests {
         ));
         assert!(eval_condition(&Condition::Not(Box::new(lt)), &h, 0, STATE));
     }
+
+    fn ohlcv_row(open: f64, high: f64, low: f64, close: f64, volume: f64) -> BarRow {
+        BarRow {
+            candle: Candle {
+                time: 0,
+                open,
+                high,
+                low,
+                close,
+                volume,
+            },
+            values: BTreeMap::new(),
+        }
+    }
+
+    fn px(field: PriceField) -> Operand {
+        Operand::Expr(Box::new(OperandExpr::Price(field)))
+    }
+
+    fn expr(e: OperandExpr) -> Operand {
+        Operand::Expr(Box::new(e))
+    }
+
+    #[test]
+    fn all_price_fields_resolve() {
+        let h = vec![ohlcv_row(10.0, 20.0, 5.0, 15.0, 100.0)];
+        let at = |f| eval_operand(&px(f), &h, 0).unwrap();
+        assert!((at(PriceField::Open) - 10.0).abs() < 1e-9);
+        assert!((at(PriceField::High) - 20.0).abs() < 1e-9);
+        assert!((at(PriceField::Low) - 5.0).abs() < 1e-9);
+        assert!((at(PriceField::Close) - 15.0).abs() < 1e-9);
+        assert!((at(PriceField::Volume) - 100.0).abs() < 1e-9);
+        assert!((at(PriceField::Hlc3) - (20.0 + 5.0 + 15.0) / 3.0).abs() < 1e-9);
+        assert!((at(PriceField::Ohlc4) - (10.0 + 20.0 + 5.0 + 15.0) / 4.0).abs() < 1e-9);
+    }
+
+    #[test]
+    fn arithmetic_operands() {
+        let h = vec![ohlcv_row(0.0, 0.0, 0.0, 0.0, 0.0)];
+        let c = |v| Operand::Const(v);
+        let ev = |e| eval_operand(&expr(e), &h, 0);
+        assert_eq!(
+            ev(OperandExpr::Add((Box::new(c(2.0)), Box::new(c(3.0))))),
+            Some(5.0)
+        );
+        assert_eq!(
+            ev(OperandExpr::Sub((Box::new(c(2.0)), Box::new(c(3.0))))),
+            Some(-1.0)
+        );
+        assert_eq!(
+            ev(OperandExpr::Mul((Box::new(c(2.0)), Box::new(c(3.0))))),
+            Some(6.0)
+        );
+        assert_eq!(
+            ev(OperandExpr::Div((Box::new(c(6.0)), Box::new(c(3.0))))),
+            Some(2.0)
+        );
+        // Division by zero yields NaN, not a panic.
+        let nan = ev(OperandExpr::Div((Box::new(c(1.0)), Box::new(c(0.0))))).unwrap();
+        assert!(nan.is_nan());
+    }
+
+    #[test]
+    fn arithmetic_with_missing_operand_is_none() {
+        let h = vec![ohlcv_row(0.0, 0.0, 0.0, 0.0, 0.0)];
+        let miss = Box::new(Operand::Ref("nope".into()));
+        let got = eval_operand(
+            &expr(OperandExpr::Add((miss, Box::new(Operand::Const(1.0))))),
+            &h,
+            0,
+        );
+        assert_eq!(got, None);
+    }
+
+    #[test]
+    fn prev_underflow_is_none() {
+        let h = vec![ohlcv_row(0.0, 0.0, 0.0, 0.0, 0.0)];
+        let got = eval_operand(
+            &expr(OperandExpr::Prev((Box::new(px(PriceField::Close)), 3))),
+            &h,
+            0,
+        );
+        assert_eq!(got, None);
+    }
+
+    #[test]
+    fn comparisons_ge_le_eq_ne() {
+        let h = vec![row(0.0, &[("a", 2.0)])];
+        let a = Operand::Ref("a".into());
+        let two = Operand::Const(2.0);
+        let three = Operand::Const(3.0);
+        assert!(eval_condition(
+            &Condition::Ge((a.clone(), two.clone())),
+            &h,
+            0,
+            STATE
+        ));
+        assert!(eval_condition(
+            &Condition::Le((a.clone(), two.clone())),
+            &h,
+            0,
+            STATE
+        ));
+        assert!(eval_condition(
+            &Condition::Eq((a.clone(), two.clone())),
+            &h,
+            0,
+            STATE
+        ));
+        assert!(eval_condition(
+            &Condition::Ne((a.clone(), three)),
+            &h,
+            0,
+            STATE
+        ));
+        // A missing operand makes any comparison false.
+        let miss = Operand::Ref("x".into());
+        assert!(!eval_condition(&Condition::Gt((miss, two)), &h, 0, STATE));
+    }
+
+    #[test]
+    fn cross_below_detects_crossing() {
+        let h = vec![
+            row(0.0, &[("f", 3.0), ("s", 2.0)]),
+            row(0.0, &[("f", 1.0), ("s", 2.0)]),
+        ];
+        let cond = Condition::CrossBelow((Operand::Ref("f".into()), Operand::Ref("s".into())));
+        assert!(!eval_condition(&cond, &h, 0, STATE));
+        assert!(eval_condition(&cond, &h, 1, STATE));
+    }
+
+    #[test]
+    fn between_inside_and_outside() {
+        let h = vec![row(0.0, &[("a", 5.0)])];
+        let a = Operand::Ref("a".into());
+        let inside = Condition::Between((a.clone(), Operand::Const(1.0), Operand::Const(10.0)));
+        let outside = Condition::Between((a.clone(), Operand::Const(6.0), Operand::Const(10.0)));
+        assert!(eval_condition(&inside, &h, 0, STATE));
+        assert!(!eval_condition(&outside, &h, 0, STATE));
+        // Missing operand -> false.
+        let miss = Condition::Between((
+            Operand::Ref("x".into()),
+            Operand::Const(1.0),
+            Operand::Const(10.0),
+        ));
+        assert!(!eval_condition(&miss, &h, 0, STATE));
+    }
+
+    #[test]
+    fn rising_and_falling() {
+        let up = vec![row(0.0, &[("a", 1.0)]), row(0.0, &[("a", 2.0)])];
+        let down = vec![row(0.0, &[("a", 2.0)]), row(0.0, &[("a", 1.0)])];
+        let a = Operand::Ref("a".into());
+        assert!(eval_condition(
+            &Condition::Rising((a.clone(), 1)),
+            &up,
+            1,
+            STATE
+        ));
+        assert!(eval_condition(
+            &Condition::Falling((a.clone(), 1)),
+            &down,
+            1,
+            STATE
+        ));
+        // Not enough history -> false.
+        assert!(!eval_condition(&Condition::Rising((a, 5)), &up, 1, STATE));
+    }
+
+    #[test]
+    fn in_position_and_bars_since_entry() {
+        let h = vec![row(0.0, &[])];
+        let open_state = RuleState {
+            in_position: true,
+            bars_since_entry: Some(5),
+        };
+        assert!(eval_condition(
+            &Condition::InPosition(true),
+            &h,
+            0,
+            open_state
+        ));
+        assert!(!eval_condition(&Condition::InPosition(true), &h, 0, STATE));
+
+        // Each integer predicate against bars_since_entry = 5.
+        let cases = [
+            (IntPredicate::Gt(4), true),
+            (IntPredicate::Lt(6), true),
+            (IntPredicate::Ge(5), true),
+            (IntPredicate::Le(5), true),
+            (IntPredicate::Eq(5), true),
+            (IntPredicate::Eq(4), false),
+        ];
+        for (pred, want) in cases {
+            assert_eq!(
+                eval_condition(&Condition::BarsSinceEntry(pred), &h, 0, open_state),
+                want
+            );
+        }
+        // Flat: bars_since_entry is None -> always false.
+        assert!(!eval_condition(
+            &Condition::BarsSinceEntry(IntPredicate::Ge(0)),
+            &h,
+            0,
+            STATE
+        ));
+    }
 }
