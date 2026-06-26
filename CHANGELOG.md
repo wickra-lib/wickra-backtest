@@ -86,6 +86,10 @@ to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ### Changed
 
+- Execution latency: `execution.latency_bars` delays every order by that many
+  bars before it becomes eligible to fill (on top of the look-ahead-free
+  next-bar fill). A limit/stop order only starts checking its level once the
+  latency has elapsed. The default is 0 (fill at the next bar).
 - Limit and stop entry orders: `execution.order_type` of `"limit"` / `"stop"`
   rests an order at a percent offset from the signal bar's close
   (`limit_offset_pct` / `stop_offset_pct`). A limit fills when a later bar trades
