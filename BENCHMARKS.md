@@ -42,6 +42,29 @@ window on every bar.
   optimisation for very long runs.
 - This is a single-symbol, single-strategy micro-benchmark. It measures the
   engine, not a realistic multi-asset optimisation workload.
-- A like-for-like comparison against vectorbt / backtrader / nautilus is planned
-  once the data-loading paths are aligned; we will publish the harness, not just
-  the numbers.
+
+## Versus other libraries
+
+A reproducible harness runs the **same SMA-crossover strategy over the same
+candle series** through each library and reports end-to-end backtest throughput:
+
+```bash
+cd bindings/python
+python -m benchmarks.compare_libraries --size 10000 --repeat 3
+```
+
+On one development machine over 10,000 bars (best of 3):
+
+| Library | bars/second | Notes |
+|---------|-------------|-------|
+| **wickra-backtest** | ~564,000 | O(1)-per-bar streaming engine (Rust) |
+| backtrader | ~4,400 | pure-Python event loop (~128× slower here) |
+| vectorbt | — | vectorised NumPy; not installed in this run (skipped automatically) |
+
+This measures **engine-loop throughput on identical data, not identical
+results**: each library models fills, sizing and costs differently, so trade
+counts and P&L will not match. backtrader is the closest comparison because it is
+also an event-driven engine; vectorbt is vectorised (fast, but it recomputes over
+the whole array and is not a streaming/live engine). Run the harness on your own
+hardware rather than trusting a quoted figure — libraries that are not installed
+are skipped, so the script always produces output.
