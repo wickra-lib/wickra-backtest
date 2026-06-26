@@ -306,6 +306,11 @@ pub struct Costs {
     /// Slippage model.
     #[serde(default)]
     pub slippage: Slippage,
+    /// Charge perpetual funding each bar to an open position, using the
+    /// derivatives feed's funding rate and mark price (longs pay when the rate
+    /// is positive, shorts receive). Requires a derivatives feed; default off.
+    #[serde(default)]
+    pub funding: bool,
 }
 
 /// Slippage model.

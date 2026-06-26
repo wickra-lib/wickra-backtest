@@ -108,6 +108,10 @@ to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ### Changed
 
+- Perpetual funding cost: `costs.funding` charges funding to an open position
+  each bar from the derivatives feed (`payment = qty * mark_price * funding_rate`
+  — longs pay when the rate is positive, shorts receive), reflected in `cash`,
+  equity and `fees_paid`. Requires a derivatives feed; default off.
 - Trade feed: the registry now includes the 8 trade-flow (`Input = Trade`)
   indicators (cumulative volume delta, trade imbalance, signed volume, VPIN,
   Amihud illiquidity, Roll measure, PIN, trade-sign autocorrelation), fed the

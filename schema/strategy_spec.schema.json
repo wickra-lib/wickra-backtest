@@ -15,6 +15,7 @@
     "costs": {
       "description": "Trading costs.",
       "default": {
+        "funding": false,
         "maker_bps": 0.0,
         "slippage": {
           "bps": 0.0,
@@ -490,6 +491,11 @@
       "description": "Trading costs.",
       "type": "object",
       "properties": {
+        "funding": {
+          "description": "Charge perpetual funding each bar to an open position, using the derivatives feed's funding rate and mark price (longs pay when the rate is positive, shorts receive). Requires a derivatives feed; default off.",
+          "default": false,
+          "type": "boolean"
+        },
         "maker_bps": {
           "description": "Maker fee in basis points.",
           "default": 0.0,

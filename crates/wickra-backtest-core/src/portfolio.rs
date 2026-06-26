@@ -77,6 +77,14 @@ impl Portfolio {
         self.cash + self.qty * mark
     }
 
+    /// Apply a funding `payment` to cash (positive = paid out, e.g. a long
+    /// paying positive funding; negative = received). Also recorded in
+    /// `fees_paid` so the report's total cost reflects funding.
+    pub fn apply_funding(&mut self, payment: f64) {
+        self.cash -= payment;
+        self.fees_paid += payment;
+    }
+
     /// Open a long of `qty` at `price`, paying `fee`.
     pub fn enter(&mut self, qty: f64, price: f64, time: i64, fee: f64) {
         self.cash -= qty * price + fee;

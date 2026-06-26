@@ -16,8 +16,9 @@
 //! `max_position_pct`; without `max_leverage` the cap is 1x equity — no leverage
 //! by default). Execution latency (`latency_bars`) delays every fill, and
 //! volume-participation partial fills (`partial_fills` + `max_participation`)
-//! cap an entry to a fraction of the bar's volume. Perp funding and liquidation
-//! come in a later phase.
+//! cap an entry to a fraction of the bar's volume. Perpetual funding
+//! (`costs.funding`) is charged each bar to an open position from the
+//! derivatives feed. Liquidation comes in a later phase.
 
 use std::collections::BTreeMap;
 
@@ -527,6 +528,15 @@ impl<'a> StreamingBacktest<'a> {
                 let fee = self.pf.qty.abs() * price * self.taker;
                 self.pf.exit(price, candle.time, fee, reason);
                 self.entry_bar = None;
+            }
+        }
+
+        // 3b. Charge perpetual funding to the open position from the feed.
+        if self.spec.costs.funding && self.pf.in_position() {
+            if let Some(d) = deriv {
+                // Longs (qty > 0) pay when the rate is positive; shorts receive.
+                let payment = self.pf.qty * d.mark_price * d.funding_rate;
+                self.pf.apply_funding(payment);
             }
         }
 
@@ -1579,6 +1589,37 @@ mod tests {
 
         let without_feed = run_with_capital(&spec, &candles, 10_000.0).unwrap();
         assert_eq!(without_feed.metrics.num_trades, 0);
+    }
+
+    #[test]
+    fn funding_charges_an_open_long() {
+        let with_funding = StrategySpec::parse(
+            r#"{"symbol":"x","timeframe":"1h","indicators":{},
+                "entry":{"gt":[{"price":"close"},0]},
+                "exit":{"in_position":false},
+                "sizing":{"type":"fixed_qty","qty":1},
+                "costs":{"funding":true}}"#,
+        )
+        .unwrap();
+        let candles = [
+            bar(0, 100.0, 100.0, 100.0, 100.0),
+            bar(1, 100.0, 100.0, 100.0, 100.0),
+            bar(2, 100.0, 100.0, 100.0, 100.0),
+        ];
+        let derivs = vec![sample_tick(0.01); 3]; // funding 1% of mark 100 = 1.0/bar
+
+        let funded = run_with_deriv(&with_funding, &candles, &derivs, 10_000.0).unwrap();
+        assert!(funded.fees_paid > 0.0); // a long paid funding
+
+        let no_funding = StrategySpec::parse(
+            r#"{"symbol":"x","timeframe":"1h","indicators":{},
+                "entry":{"gt":[{"price":"close"},0]},
+                "exit":{"in_position":false},
+                "sizing":{"type":"fixed_qty","qty":1}}"#,
+        )
+        .unwrap();
+        let unfunded = run_with_deriv(&no_funding, &candles, &derivs, 10_000.0).unwrap();
+        assert!(funded.equity.last().unwrap().equity < unfunded.equity.last().unwrap().equity);
     }
 
     #[test]
