@@ -91,6 +91,13 @@ to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
   schema (generated from the spec types with schemars), committed as
   `schema/strategy_spec.schema.json` for editor/tooling validation. A test pins
   the committed file to the generated schema.
+- Unified JSON entry point (`run_json` / `RunRequest`): a single JSON document
+  bundles the spec, candles, capital and any optional per-bar feeds (reference,
+  derivatives, order book, trades, cross-section); `run_json` deserializes it,
+  threads the present feeds through the engine and returns the report JSON. This
+  is the uniform surface the language bindings wrap, so every binding can run any
+  feed combination by passing one JSON string. Each feed must match the candle
+  count.
 - Streaming API (`StreamingBacktest`): feed bars one at a time with `step` and
   finalize with `finish`. The historical `run` / `run_with_capital` is exactly
   this fed from a slice, so backtest and live share one code path — pointing
