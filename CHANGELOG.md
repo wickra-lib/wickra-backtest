@@ -108,6 +108,12 @@ to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ### Changed
 
+- Order-book feed: the registry now includes the 7 order-book
+  (`Input = OrderBook`) indicators (top-of-book / full-depth imbalance,
+  microprice, quoted spread, depth slope, order-flow imbalance), fed the bar's
+  order-book snapshot. The per-bar feeds are now bundled in a `Feeds` struct;
+  `run_with_orderbook` (and `StreamingBacktest::step_with_feeds(candle, &Feeds)`)
+  drive a backtest with an order-book feed. Registry: 462 → **469**.
 - Derivatives feed: the registry now includes the 17 derivatives
   (`Input = DerivativesTick`) indicators (funding rate, open-interest delta /
   momentum, long-short ratio, taker buy/sell ratio, perpetual premium, …), fed

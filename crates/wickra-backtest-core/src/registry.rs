@@ -19,14 +19,16 @@
 
 use wickra_core::{
     self as wc, Candle as CoreCandle, DerivativesTick as CoreDerivativesTick, Indicator,
+    OrderBook as CoreOrderBook,
 };
 
 use crate::data::Candle;
 use crate::error::{BacktestError, Result};
 
 /// Everything an indicator may consume on one bar. Single-instrument indicators
-/// use `candle`; pairwise indicators also use `reference`; derivatives
-/// indicators use `deriv`. Feeds that are absent are `None`.
+/// use `candle`; pairwise indicators also use `reference`; derivatives and
+/// order-book indicators use `deriv` / `orderbook`. Feeds that are absent are
+/// `None`.
 pub struct BarInput<'a> {
     /// The current bar.
     pub candle: &'a Candle,
@@ -34,6 +36,8 @@ pub struct BarInput<'a> {
     pub reference: Option<f64>,
     /// The derivatives tick for this bar (for derivatives indicators).
     pub deriv: Option<CoreDerivativesTick>,
+    /// The order-book snapshot for this bar (for order-book indicators).
+    pub orderbook: Option<&'a CoreOrderBook>,
 }
 
 /// A uniform, object-safe indicator the engine drives one bar at a time.
@@ -114,6 +118,25 @@ where
 {
     fn update(&mut self, input: &BarInput) -> Option<f64> {
         input.deriv.and_then(|d| self.0.update(d))
+    }
+    fn fields(&self) -> Vec<(&'static str, f64)> {
+        Vec::new()
+    }
+    fn warmup(&self) -> usize {
+        self.0.warmup_period()
+    }
+}
+
+/// Wraps an order-book (`Input = OrderBook`) single-output indicator. Without an
+/// order-book feed it yields `None`.
+struct OrderBookIn<I>(I);
+
+impl<I> EvalIndicator for OrderBookIn<I>
+where
+    I: Indicator<Input = CoreOrderBook, Output = f64> + Send,
+{
+    fn update(&mut self, input: &BarInput) -> Option<f64> {
+        input.orderbook.and_then(|ob| self.0.update(ob.clone()))
     }
     fn fields(&self) -> Vec<(&'static str, f64)> {
         Vec::new()
@@ -1969,6 +1992,20 @@ pub fn build(kind: &str, params: &[f64]) -> Result<Box<dyn EvalIndicator>> {
         "LiquidationFeatures" => Ok(Box::new(LiquidationFeaturesWrap::wrap(
             wc::LiquidationFeatures::new(),
         ))),
+        // --- order-book indicators, fed the bar's OrderBook ---
+        "DepthSlope" => Ok(Box::new(OrderBookIn(wc::DepthSlope::new()))),
+        "Microprice" => Ok(Box::new(OrderBookIn(wc::Microprice::new()))),
+        "OrderBookImbalanceFull" => Ok(Box::new(OrderBookIn(wc::OrderBookImbalanceFull::new()))),
+        "OrderBookImbalanceTop1" => Ok(Box::new(OrderBookIn(wc::OrderBookImbalanceTop1::new()))),
+        "OrderBookImbalanceTopN" => Ok(Box::new(OrderBookIn(map_new(
+            kind,
+            wc::OrderBookImbalanceTopN::new(p(0)?),
+        )?))),
+        "OrderFlowImbalance" => Ok(Box::new(OrderBookIn(map_new(
+            kind,
+            wc::OrderFlowImbalance::new(p(0)?),
+        )?))),
+        "QuotedSpread" => Ok(Box::new(OrderBookIn(wc::QuotedSpread::new()))),
         // --- friendly aliases ---
         "Macd" => build("MacdIndicator", params),
         "Bollinger" => build("BollingerBands", params),
@@ -1976,7 +2013,7 @@ pub fn build(kind: &str, params: &[f64]) -> Result<Box<dyn EvalIndicator>> {
     }
 }
 
-/// Every registered indicator with valid default parameters (462 indicators).
+/// Every registered indicator with valid default parameters (469 indicators).
 #[cfg(test)]
 const ALL_SPECS: &[(&str, &[f64])] = &[
     ("AdaptiveCycle", &[]),
@@ -2441,6 +2478,13 @@ const ALL_SPECS: &[(&str, &[f64])] = &[
     ("TakerBuySellRatio", &[]),
     ("TermStructureBasis", &[]),
     ("LiquidationFeatures", &[]),
+    ("DepthSlope", &[]),
+    ("Microprice", &[]),
+    ("OrderBookImbalanceFull", &[]),
+    ("OrderBookImbalanceTop1", &[]),
+    ("OrderBookImbalanceTopN", &[14.0]),
+    ("OrderFlowImbalance", &[14.0]),
+    ("QuotedSpread", &[]),
 ];
 
 #[cfg(test)]
@@ -2463,6 +2507,7 @@ mod tests {
             candle: c,
             reference: None,
             deriv: None,
+            orderbook: None,
         }
     }
 

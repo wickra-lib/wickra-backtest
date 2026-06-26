@@ -113,15 +113,17 @@ HEAD = r'''//! Indicator registry: constructs `wickra-core` indicators by name a
 //! the spec as `"name.field"`.
 
 use wickra_core::{
-    self as wc, Candle as CoreCandle, DerivativesTick as CoreDerivativesTick, Indicator,
+    self as wc, Candle as CoreCandle, DerivativesTick as CoreDerivativesTick,
+    OrderBook as CoreOrderBook, Indicator,
 };
 
 use crate::data::Candle;
 use crate::error::{BacktestError, Result};
 
 /// Everything an indicator may consume on one bar. Single-instrument indicators
-/// use `candle`; pairwise indicators also use `reference`; derivatives
-/// indicators use `deriv`. Feeds that are absent are `None`.
+/// use `candle`; pairwise indicators also use `reference`; derivatives and
+/// order-book indicators use `deriv` / `orderbook`. Feeds that are absent are
+/// `None`.
 pub struct BarInput<'a> {
     /// The current bar.
     pub candle: &'a Candle,
@@ -129,6 +131,8 @@ pub struct BarInput<'a> {
     pub reference: Option<f64>,
     /// The derivatives tick for this bar (for derivatives indicators).
     pub deriv: Option<CoreDerivativesTick>,
+    /// The order-book snapshot for this bar (for order-book indicators).
+    pub orderbook: Option<&'a CoreOrderBook>,
 }
 
 /// A uniform, object-safe indicator the engine drives one bar at a time.
@@ -209,6 +213,25 @@ where
 {
     fn update(&mut self, input: &BarInput) -> Option<f64> {
         input.deriv.and_then(|d| self.0.update(d))
+    }
+    fn fields(&self) -> Vec<(&'static str, f64)> {
+        Vec::new()
+    }
+    fn warmup(&self) -> usize {
+        self.0.warmup_period()
+    }
+}
+
+/// Wraps an order-book (`Input = OrderBook`) single-output indicator. Without an
+/// order-book feed it yields `None`.
+struct OrderBookIn<I>(I);
+
+impl<I> EvalIndicator for OrderBookIn<I>
+where
+    I: Indicator<Input = CoreOrderBook, Output = f64> + Send,
+{
+    fn update(&mut self, input: &BarInput) -> Option<f64> {
+        input.orderbook.and_then(|ob| self.0.update(ob.clone()))
     }
     fn fields(&self) -> Vec<(&'static str, f64)> {
         Vec::new()
@@ -431,6 +454,7 @@ mod tests {
             candle: c,
             reference: None,
             deriv: None,
+            orderbook: None,
         }
     }
 
@@ -525,13 +549,14 @@ def main():
     pair_multis = []  # (ty, args, is_result, fields) for pairwise struct output
     deriv_scalars = []  # (ty, args, is_result) for Input = DerivativesTick, f64 out
     deriv_multis = []   # (ty, args, is_result, fields) for derivatives struct out
+    ob_scalars = []     # (ty, args, is_result) for Input = OrderBook, f64 out
     skip = Counter()
 
     for text in files.values():
         for m in re.finditer(r"\nimpl\s+Indicator\s+for\s+(\w+)\b", text):
             ty = m.group(1)
             inp, out = assoc_types(text, ty)
-            if inp not in ("f64", "Candle", "(f64,f64)", "DerivativesTick"):
+            if inp not in ("f64", "Candle", "(f64,f64)", "DerivativesTick", "OrderBook"):
                 if inp:
                     skip[f"input {inp}"] += 1
                 continue
@@ -564,6 +589,12 @@ def main():
                     else:
                         skip[f"derivatives no f64 fields ({out})"] += 1
                 continue
+            if inp == "OrderBook":
+                if out == "f64":
+                    ob_scalars.append((ty, argtypes, is_result))
+                else:
+                    skip[f"order-book non-scalar ({out})"] += 1
+                continue
             if out == "f64":
                 scalars.append((ty, inp, argtypes, is_result))
             else:
@@ -579,6 +610,7 @@ def main():
     pair_multis.sort()
     deriv_scalars.sort()
     deriv_multis.sort()
+    ob_scalars.sort()
 
     # Emit multi-wrapper macro invocations.
     wraps = []
@@ -660,6 +692,13 @@ def main():
         seen.add(ty)
         specs.append((ty, default_for(ty, argtypes)))
 
+    arms.append("        // --- order-book indicators, fed the bar's OrderBook ---")
+    for ty, argtypes, is_result in ob_scalars:
+        arm = f'        "{ty}" => Ok(Box::new(OrderBookIn({ctor_expr(ty, argtypes, is_result)}))),'
+        arms.append(arm)
+        seen.add(ty)
+        specs.append((ty, default_for(ty, argtypes)))
+
     arms.append("        // --- friendly aliases ---")
     for alias, canon in ALIASES.items():
         if canon in seen:
@@ -690,8 +729,8 @@ def main():
     print(f"registry: {len(seen)} indicators ({len(scalars)} scalar + "
           f"{len(multis)} multi + {len(pairs)} pairwise + "
           f"{len(pair_multis)} pairwise-multi + "
-          f"{len(deriv_scalars) + len(deriv_multis)} derivatives) "
-          f"+ {len(ALIASES)} aliases -> {args.out}")
+          f"{len(deriv_scalars) + len(deriv_multis)} derivatives + "
+          f"{len(ob_scalars)} order-book) + {len(ALIASES)} aliases -> {args.out}")
     print("skipped (structurally out of scope):")
     for k, v in skip.most_common():
         print(f"  {v:3} {k}")

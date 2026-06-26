@@ -21,7 +21,7 @@
 
 use std::collections::BTreeMap;
 
-use crate::data::{Candle, DerivativesTick};
+use crate::data::{Candle, DerivativesTick, OrderBook};
 use crate::error::{BacktestError, Result};
 use crate::metrics;
 use crate::portfolio::Portfolio;
@@ -187,6 +187,19 @@ fn execute_exit(
     *entry_bar = None;
 }
 
+/// The optional non-OHLCV feeds for one bar: a reference-series close (pairwise),
+/// a derivatives tick (derivatives) and an order-book snapshot (order-book).
+/// Absent feeds are `None`; indicators that need a missing feed yield nothing.
+#[derive(Default)]
+pub struct Feeds<'a> {
+    /// Reference-series close for pairwise indicators.
+    pub reference: Option<f64>,
+    /// Derivatives tick for derivatives indicators.
+    pub deriv: Option<&'a DerivativesTick>,
+    /// Order-book snapshot for order-book indicators.
+    pub orderbook: Option<&'a OrderBook>,
+}
+
 /// Run a backtest of `spec` over `candles` with the default capital.
 pub fn run(spec: &StrategySpec, candles: &[Candle]) -> Result<BacktestReport> {
     run_with_capital(spec, candles, DEFAULT_CAPITAL)
@@ -255,7 +268,44 @@ pub fn run_with_deriv(
     }
     let mut bt = StreamingBacktest::new(spec, capital)?;
     for (candle, d) in candles.iter().zip(derivs) {
-        bt.step_with_feeds(candle, None, Some(d))?;
+        bt.step_with_feeds(
+            candle,
+            &Feeds {
+                deriv: Some(d),
+                ..Default::default()
+            },
+        )?;
+    }
+    Ok(bt.finish())
+}
+
+/// Run a backtest with a per-bar order-book feed for order-book indicators
+/// (imbalance, microprice, quoted spread, …). `books` must be the same length
+/// as `candles`.
+pub fn run_with_orderbook(
+    spec: &StrategySpec,
+    candles: &[Candle],
+    books: &[OrderBook],
+    capital: f64,
+) -> Result<BacktestReport> {
+    spec.validate()?;
+    if candles.is_empty() {
+        return Err(BacktestError::InvalidData("no candles".into()));
+    }
+    if books.len() != candles.len() {
+        return Err(BacktestError::InvalidData(
+            "order-book feed must have the same length as the candles".into(),
+        ));
+    }
+    let mut bt = StreamingBacktest::new(spec, capital)?;
+    for (candle, ob) in candles.iter().zip(books) {
+        bt.step_with_feeds(
+            candle,
+            &Feeds {
+                orderbook: Some(ob),
+                ..Default::default()
+            },
+        )?;
     }
     Ok(bt.finish())
 }
@@ -321,26 +371,29 @@ impl<'a> StreamingBacktest<'a> {
     /// Process one bar: fill the working order, update indicators, check intrabar
     /// stops, mark equity and decide the next action. Look-ahead-free.
     pub fn step(&mut self, candle: &Candle) -> Result<()> {
-        self.step_with_feeds(candle, None, None)
+        self.step_with_feeds(candle, &Feeds::default())
     }
 
     /// Like [`StreamingBacktest::step`], but also supplies the reference series'
     /// close for this bar, which pairwise indicators consume as their second
     /// input. Single-instrument indicators ignore it.
     pub fn step_with_ref(&mut self, candle: &Candle, reference: Option<f64>) -> Result<()> {
-        self.step_with_feeds(candle, reference, None)
+        self.step_with_feeds(
+            candle,
+            &Feeds {
+                reference,
+                ..Default::default()
+            },
+        )
     }
 
-    /// Process one bar with its optional reference close and derivatives tick.
-    /// Pairwise indicators consume the reference; derivatives indicators consume
-    /// the tick; other indicators ignore both.
-    pub fn step_with_feeds(
-        &mut self,
-        candle: &Candle,
-        reference: Option<f64>,
-        deriv: Option<&DerivativesTick>,
-    ) -> Result<()> {
-        let deriv = deriv.and_then(|d| d.to_core().ok());
+    /// Process one bar with its optional non-OHLCV [`Feeds`]. Pairwise indicators
+    /// consume the reference; derivatives / order-book indicators consume the
+    /// tick / snapshot; other indicators ignore them.
+    pub fn step_with_feeds(&mut self, candle: &Candle, feeds: &Feeds) -> Result<()> {
+        let reference = feeds.reference;
+        let deriv = feeds.deriv.and_then(|d| d.to_core().ok());
+        let orderbook = feeds.orderbook.and_then(|ob| ob.to_core().ok());
         let t = self.history.len();
         self.last = Some((candle.time, candle.close));
 
@@ -401,6 +454,7 @@ impl<'a> StreamingBacktest<'a> {
                 candle,
                 reference,
                 deriv,
+                orderbook: orderbook.as_ref(),
             };
             if let Some(v) = ind.update(&input) {
                 values.insert(name.clone(), v);
@@ -1359,6 +1413,7 @@ mod tests {
                 candle: &c,
                 reference: Some(px * 0.9),
                 deriv: None,
+                orderbook: None,
             };
             if ind.update(&input).is_some() {
                 names = ind.fields().iter().map(|(n, _)| *n).collect();
@@ -1417,6 +1472,40 @@ mod tests {
         assert!(with_feed.metrics.num_trades >= 1);
 
         // Without a derivatives feed the indicator yields nothing → no entry.
+        let without_feed = run_with_capital(&spec, &candles, 10_000.0).unwrap();
+        assert_eq!(without_feed.metrics.num_trades, 0);
+    }
+
+    #[test]
+    fn order_book_indicator_uses_feed() {
+        use crate::data::Level;
+        let spec = StrategySpec::parse(
+            r#"{"symbol":"x","timeframe":"1h",
+                "indicators":{"i":{"type":"OrderBookImbalanceTop1","params":[]}},
+                "entry":{"gt":["i",0.0]},
+                "exit":{"lt":["i",-2.0]},
+                "sizing":{"type":"fixed_qty","qty":1}}"#,
+        )
+        .unwrap();
+        let candles: Vec<Candle> = (0i64..5)
+            .map(|t| bar(t, 100.0, 100.0, 100.0, 100.0))
+            .collect();
+        // A bid-heavy book → positive top-of-book imbalance → entry.
+        let book = OrderBook {
+            bids: vec![Level {
+                price: 100.0,
+                size: 9.0,
+            }],
+            asks: vec![Level {
+                price: 101.0,
+                size: 1.0,
+            }],
+        };
+        let books = vec![book; 5];
+
+        let with_feed = run_with_orderbook(&spec, &candles, &books, 10_000.0).unwrap();
+        assert!(with_feed.metrics.num_trades >= 1);
+
         let without_feed = run_with_capital(&spec, &candles, 10_000.0).unwrap();
         assert_eq!(without_feed.metrics.num_trades, 0);
     }

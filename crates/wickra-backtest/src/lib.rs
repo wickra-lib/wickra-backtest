@@ -19,9 +19,9 @@ pub use wickra_backtest_core as core;
 pub use wickra_backtest_data as data;
 
 pub use wickra_backtest_core::{
-    run, run_with_capital, run_with_deriv, run_with_ref, strategy_spec_schema, BacktestError,
-    BacktestReport, Candle, DerivativesTick, OrderBook, Result, StrategySpec, StreamingBacktest,
-    TradePrint,
+    run, run_with_capital, run_with_deriv, run_with_orderbook, run_with_ref, strategy_spec_schema,
+    BacktestError, BacktestReport, Candle, DerivativesTick, OrderBook, Result, StrategySpec,
+    StreamingBacktest, TradePrint,
 };
 
 /// The crate version, surfaced for diagnostics.
