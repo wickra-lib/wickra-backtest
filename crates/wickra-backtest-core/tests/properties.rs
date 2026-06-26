@@ -52,6 +52,27 @@ proptest! {
         let _ = run_json(&s);
     }
 
+    /// The engine never panics on ARBITRARY candles — including NaN, ±inf and
+    /// inverted high/low — which the data fuzz targets feed it. Invalid candles
+    /// surface as an `Err`; nothing panics. This is the stable-toolchain
+    /// equivalent of the `engine_run` / `fill_model` fuzz targets.
+    #[test]
+    fn engine_never_panics_on_arbitrary_candles(
+        raw in proptest::collection::vec(
+            (any::<f64>(), any::<f64>(), any::<f64>(), any::<f64>(), any::<f64>()), 1..40)
+    ) {
+        let candles: Vec<Candle> = raw
+            .into_iter()
+            .enumerate()
+            .map(|(i, (o, h, l, c, v))| Candle {
+                time: i64::try_from(i).unwrap(), open: o, high: h, low: l, close: c, volume: v,
+            })
+            .collect();
+        let spec = price_threshold_spec();
+        // Returns Ok or Err, never panics.
+        let _ = run_with_capital(&spec, &candles, 10_000.0);
+    }
+
     /// The engine never panics on any sequence of valid candles, and every
     /// reported metric is finite.
     #[test]

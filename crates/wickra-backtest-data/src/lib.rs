@@ -434,6 +434,18 @@ mod tests {
         assert!(resample_by_interval(&four_bars(), 0).is_err());
     }
 
+    proptest::proptest! {
+        /// The loaders never panic on arbitrary text — the stable-toolchain
+        /// equivalent of the `data_loader` fuzz target. Any input produces a
+        /// parsed result or a typed `Err`, never a crash.
+        #[test]
+        fn loaders_never_panic(s in ".*") {
+            let _ = parse_csv(&s);
+            let _ = parse_jsonl(&s);
+            let _ = parse_json_array(&s);
+        }
+    }
+
     fn rising_closes(prices: &[f64]) -> Vec<Candle> {
         prices
             .iter()

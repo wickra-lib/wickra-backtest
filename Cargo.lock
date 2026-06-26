@@ -1716,6 +1716,7 @@ dependencies = [
  "arrow-array",
  "arrow-schema",
  "parquet",
+ "proptest",
  "serde_json",
  "wickra-backtest-core",
  "wickra-core",

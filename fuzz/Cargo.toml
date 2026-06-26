@@ -1,0 +1,52 @@
+[package]
+name = "wickra-backtest-fuzz"
+version = "0.0.0"
+publish = false
+edition = "2021"
+
+[package.metadata]
+cargo-fuzz = true
+
+[dependencies]
+libfuzzer-sys = "0.4"
+wickra-backtest-core = { path = "../crates/wickra-backtest-core" }
+wickra-backtest-data = { path = "../crates/wickra-backtest-data" }
+
+# Detach this crate from the parent workspace — cargo-fuzz builds it on its
+# own with sanitizer flags.
+[workspace]
+
+[[bin]]
+name = "spec_parse"
+path = "fuzz_targets/spec_parse.rs"
+test = false
+doc = false
+bench = false
+
+[[bin]]
+name = "run_json"
+path = "fuzz_targets/run_json.rs"
+test = false
+doc = false
+bench = false
+
+[[bin]]
+name = "engine_run"
+path = "fuzz_targets/engine_run.rs"
+test = false
+doc = false
+bench = false
+
+[[bin]]
+name = "fill_model"
+path = "fuzz_targets/fill_model.rs"
+test = false
+doc = false
+bench = false
+
+[[bin]]
+name = "data_loader"
+path = "fuzz_targets/data_loader.rs"
+test = false
+doc = false
+bench = false

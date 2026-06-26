@@ -16,6 +16,9 @@ members = [
     "bindings/wasm",
     "bindings/c",
 ]
+# The fuzz crate is its own (detached) workspace — cargo-fuzz builds it on its
+# own with sanitizer flags on a nightly toolchain.
+exclude = ["fuzz"]
 
 [workspace.package]
 version = "0.1.0"
