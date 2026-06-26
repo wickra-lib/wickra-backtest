@@ -1,0 +1,22 @@
+cff-version: 1.2.0
+message: "If you use this software, please cite it as below."
+title: "wickra-backtest"
+abstract: >-
+  A streaming-native, event-driven backtester built on the Wickra indicator
+  core. A strategy is a JSON spec, so the same strategy runs identically across
+  ten languages and a backtest matches a live run by construction.
+type: software
+authors:
+  - alias: kingchenc
+    website: "https://wickra.org"
+repository-code: "https://github.com/wickra-lib/wickra-backtest"
+url: "https://wickra.org"
+license:
+  - MIT
+  - Apache-2.0
+keywords:
+  - backtesting
+  - trading
+  - technical-analysis
+  - quant
+  - streaming

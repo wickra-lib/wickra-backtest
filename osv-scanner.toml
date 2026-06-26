@@ -1,0 +1,8 @@
+# OSV-Scanner suppressions (VEX record). Consumed by OSV-Scanner and the
+# OpenSSF Scorecard Vulnerabilities check. Each entry is an advisory assessed as
+# not affecting wickra-backtest; this mirrors the cargo-deny `ignore` list in
+# deny.toml at the OSV layer.
+#
+# There are currently no suppressed advisories. Add an [[IgnoredVulns]] entry
+# here (with an `id` and a `reason`) only after assessing that the advisory does
+# not affect this project, and keep it in lock-step with deny.toml.

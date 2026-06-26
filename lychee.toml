@@ -1,0 +1,26 @@
+# Configuration for the lychee link checker (used by the links CI workflow).
+
+# Treat these as success in addition to 2xx.
+accept = [200, 206, 429]
+
+# Retry transient failures.
+max_retries = 3
+retry_wait_time = 2
+
+# Don't hammer hosts.
+max_concurrency = 8
+
+# Skip checking anchors within pages (heading fragments) — too noisy.
+include_fragments = false
+
+# Exclude links that are not meant to resolve at check time: localhost,
+# example/placeholder hosts, and the package-registry URLs that 404 until a
+# release is published.
+exclude = [
+    "^https?://localhost",
+    "^https?://127\\.0\\.0\\.1",
+    "example\\.com",
+    "^https?://crates\\.io/crates/wickra-backtest",
+    "^https?://pypi\\.org/project/wickra-backtest",
+    "^https?://www\\.npmjs\\.com/package/wickra-backtest",
+]
