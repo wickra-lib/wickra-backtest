@@ -64,6 +64,11 @@ to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
   `WKBT_INC` / `WKBT_LIB` environment variables.
 - Data loaders (`wickra-backtest-data`): CSV (`time,open,high,low,close[,volume]`,
   optional header), JSON Lines and JSON-array candle files, dispatched by extension.
+- Property tests (`tests/properties.rs`, proptest): the parser and engine never
+  panic on any input — `StrategySpec::parse` and `run_json` always return a
+  `Result` for arbitrary text, and the engine runs any sequence of valid candles
+  with finite metrics. This gives fuzz-like coverage on the stable toolchain,
+  guarding the promise that no strategy input can crash the backtester.
 - Alternative-chart bar transforms (`to_renko`, `to_kagi`, `to_pnf`): rebuild a
   candle stream into Renko bricks, Kagi segments or Point-and-Figure columns
   using `wickra-core`'s `BarBuilder` types (so the bars match live Wickra), each
