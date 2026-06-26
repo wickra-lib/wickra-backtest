@@ -7,7 +7,10 @@
 //! when a bar's range brackets both). Equity is marked to market at every close.
 //!
 //! Supports long and short positions, market orders, a taker fee and fixed-bps
-//! slippage. Leverage, perp funding and liquidation come in a later phase.
+//! slippage, and leverage / position sizing (fixed fraction / cash / quantity
+//! and risk-per-trade, capped by `max_leverage` and `max_position_pct`; without
+//! `max_leverage` the cap is 1x equity — no leverage by default). Limit / stop
+//! orders, perp funding and liquidation come in a later phase.
 
 use std::collections::BTreeMap;
 
@@ -84,7 +87,7 @@ pub fn run_with_capital(
                     Side::Short => -1.0,
                 };
                 let fill = candle.open * (1.0 + dir * slip);
-                if let Some(base) = size(spec.sizing, pf.cash, fill)? {
+                if let Some(base) = size(spec.sizing, &spec.risk, pf.cash, fill)? {
                     if base > 0.0 {
                         let fee = base * fill * taker;
                         pf.enter(dir * base, fill, candle.time, fee);
@@ -190,22 +193,50 @@ pub fn run_with_capital(
     })
 }
 
-/// Base (unsigned) quantity for the sizing model, given cash and fill price.
-fn size(sizing: Sizing, cash: f64, price: f64) -> Result<Option<f64>> {
-    if price <= 0.0 {
+/// Base (unsigned) quantity for the sizing model.
+///
+/// `equity` is the account equity at entry (the position is opened from flat, so
+/// equity equals cash). The resulting notional is capped by the leverage and
+/// position limits: without `risk.max_leverage` the cap is 1x equity — no
+/// leverage by default — so an order can never exceed what the account can fund.
+fn size(sizing: Sizing, risk: &Risk, equity: f64, price: f64) -> Result<Option<f64>> {
+    if price <= 0.0 || equity <= 0.0 {
         return Ok(None);
     }
     let qty = match sizing {
-        Sizing::FixedFraction { fraction } => (cash * fraction) / price,
-        Sizing::FixedCash { cash: notional } => notional.min(cash) / price,
+        Sizing::FixedFraction { fraction } => (equity * fraction) / price,
+        Sizing::FixedCash { cash: notional } => notional / price,
         Sizing::FixedQty { qty } => qty,
-        Sizing::VolTarget { .. } | Sizing::RiskPerTrade { .. } => {
+        Sizing::RiskPerTrade { risk_pct } => {
+            // Size so a stop-loss hit loses `risk_pct` of equity: the per-unit
+            // loss is `price * stop_loss_pct`, so qty = risk_cash / per-unit loss.
+            let stop = risk.stop_loss_pct.ok_or_else(|| {
+                BacktestError::InvalidSpec(
+                    "risk_per_trade sizing requires risk.stop_loss_pct".into(),
+                )
+            })?;
+            if stop <= 0.0 {
+                return Ok(None);
+            }
+            (equity * risk_pct / 100.0) / (price * stop / 100.0)
+        }
+        Sizing::VolTarget { .. } => {
             return Err(BacktestError::InvalidSpec(
-                "vol_target / risk_per_trade sizing is not supported yet".into(),
+                "vol_target sizing is not supported yet".into(),
             ));
         }
     };
-    Ok(Some(qty))
+    if qty <= 0.0 {
+        return Ok(None);
+    }
+    // Cap the notional by the leverage and position limits.
+    let max_leverage = risk.max_leverage.unwrap_or(1.0);
+    let mut max_notional = equity * max_leverage;
+    if let Some(max_pct) = risk.max_position_pct {
+        max_notional = max_notional.min(equity * max_pct / 100.0);
+    }
+    let capped = (qty * price).min(max_notional) / price;
+    Ok(Some(capped))
 }
 
 /// Intrabar stop-loss / trailing-stop / take-profit fill against the bar's OHLC.
@@ -533,5 +564,104 @@ mod tests {
             bar(1, 11.0, 11.0, 11.0, 11.0),
         ];
         assert!(run(&spec, &candles).is_err());
+    }
+
+    #[test]
+    fn risk_per_trade_sizes_from_stop() {
+        // equity 10_000, risk 1% = 100 cash; stop 2% of price 100 = 2 per unit
+        // => 50 units (notional 5_000, under the 1x cap).
+        let risk = Risk {
+            stop_loss_pct: Some(2.0),
+            ..Default::default()
+        };
+        let q = size(
+            Sizing::RiskPerTrade { risk_pct: 1.0 },
+            &risk,
+            10_000.0,
+            100.0,
+        )
+        .unwrap()
+        .unwrap();
+        assert!((q - 50.0).abs() < 1e-9);
+    }
+
+    #[test]
+    fn risk_per_trade_requires_stop() {
+        assert!(size(
+            Sizing::RiskPerTrade { risk_pct: 1.0 },
+            &Risk::default(),
+            10_000.0,
+            100.0
+        )
+        .is_err());
+    }
+
+    #[test]
+    fn default_leverage_caps_at_equity() {
+        // fixed_cash 50_000 but equity 10_000 and no max_leverage => capped to 1x.
+        let q = size(
+            Sizing::FixedCash { cash: 50_000.0 },
+            &Risk::default(),
+            10_000.0,
+            100.0,
+        )
+        .unwrap()
+        .unwrap();
+        assert!((q - 100.0).abs() < 1e-9);
+    }
+
+    #[test]
+    fn max_leverage_allows_more_than_equity() {
+        let risk = Risk {
+            max_leverage: Some(3.0),
+            ..Default::default()
+        };
+        let q = size(Sizing::FixedCash { cash: 50_000.0 }, &risk, 10_000.0, 100.0)
+            .unwrap()
+            .unwrap();
+        assert!((q - 300.0).abs() < 1e-9); // 3x equity / price
+    }
+
+    #[test]
+    fn max_position_pct_caps_notional() {
+        let risk = Risk {
+            max_leverage: Some(5.0),
+            max_position_pct: Some(20.0),
+            ..Default::default()
+        };
+        // 5x would allow 50_000, but 20% of equity = 2_000 notional => 20 units.
+        let q = size(Sizing::FixedCash { cash: 50_000.0 }, &risk, 10_000.0, 100.0)
+            .unwrap()
+            .unwrap();
+        assert!((q - 20.0).abs() < 1e-9);
+    }
+
+    #[test]
+    fn leverage_flows_through_run() {
+        let candles = [
+            bar(0, 100.0, 100.0, 100.0, 100.0),
+            bar(1, 100.0, 100.0, 100.0, 100.0), // enter @ open 100
+            bar(2, 100.0, 100.0, 100.0, 100.0),
+        ];
+        let no_lev = StrategySpec::parse(
+            r#"{"symbol":"x","timeframe":"1h","indicators":{},
+                "entry":{"gt":[{"price":"close"},0]},
+                "exit":{"in_position":false},
+                "sizing":{"type":"fixed_cash","cash":50000}}"#,
+        )
+        .unwrap();
+        let r0 = run_with_capital(&no_lev, &candles, 10_000.0).unwrap();
+        assert!((r0.trades[0].qty - 100.0).abs() < 1e-9); // capped to 1x equity
+
+        let levered = StrategySpec::parse(
+            r#"{"symbol":"x","timeframe":"1h","indicators":{},
+                "entry":{"gt":[{"price":"close"},0]},
+                "exit":{"in_position":false},
+                "sizing":{"type":"fixed_cash","cash":50000},
+                "risk":{"max_leverage":3}}"#,
+        )
+        .unwrap();
+        let r1 = run_with_capital(&levered, &candles, 10_000.0).unwrap();
+        assert!((r1.trades[0].qty - 300.0).abs() < 1e-9); // 3x equity
     }
 }
