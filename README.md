@@ -27,15 +27,17 @@ sources, so it stays in lock-step with the kernel.
 Why it is different from vectorbt / backtrader:
 
 - **O(1) per tick** — years of tick data in seconds, not hours (no recompute-on-every-tick).
-- **Backtest = live, value-identical across 10 languages** — no reimplementation drift.
-- **Microstructure** — backtest strategies on order-book imbalance, footprint, funding and open interest, not just OHLCV.
+- **Backtest = live, value-identical across 10 languages** — no reimplementation drift, pinned by a shared golden corpus.
 - **Polyglot** — the same `StrategySpec` runs from Rust, Python, Node, the browser (WASM), Go, C#, Java, C/C++ and R.
+- **Realistic execution** — long/short, market/limit/stop orders, leverage and position caps, five sizing models, intrabar stop-loss / take-profit / trailing stops, fees, slippage and execution latency.
 
 ## Status
 
-**Alpha / work in progress** — Phase 0 scaffold (see `handoff-20`). The workspace
-compiles; the engine, strategy spec, execution model and bindings land over the
-following phases. Not yet released to any registry.
+**Alpha / work in progress.** The engine, the data-driven `StrategySpec`, the
+execution model and all ten language bindings are implemented and tested; a
+shared [golden corpus](golden/) pins the cross-language equality. Order-book /
+microstructure feeds, perp funding and liquidation are on the roadmap. Not yet
+released to any registry.
 
 ## Workspace
 
@@ -83,6 +85,26 @@ See [`examples/`](examples/) for the full files and how to write the report and
 trade/equity streams.
 
 From Rust, the same thing is `wickra_backtest::run(&spec, &candles)`.
+
+## Run the same spec in any language
+
+Every binding takes the same OHLCV arrays and JSON spec and returns the same
+report — byte-identical (a dict in Python). Each has a quickstart:
+
+| Language | Binding | Quickstart |
+|----------|---------|------------|
+| Rust     | `wickra-backtest` crate | this README |
+| Python   | PyO3 / maturin | [bindings/python](bindings/python/README.md) |
+| Node.js  | napi-rs | [bindings/node](bindings/node/README.md) |
+| WASM     | wasm-bindgen | [bindings/wasm](bindings/wasm/README.md) |
+| C / C++  | C ABI (cbindgen) | [bindings/c](bindings/c/README.md) |
+| C#       | P/Invoke | [bindings/csharp](bindings/csharp/README.md) |
+| Go       | cgo | [bindings/go](bindings/go/README.md) |
+| Java     | FFM / Panama | [bindings/java](bindings/java/README.md) |
+| R        | `.Call` | [bindings/r](bindings/r/README.md) |
+
+The C, C++, C#, Go, Java and R bindings all call through the same C ABI hub; the
+[golden corpus](golden/) asserts every language produces the same report.
 
 ## Performance
 
