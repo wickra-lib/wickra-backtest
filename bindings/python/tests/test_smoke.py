@@ -55,6 +55,40 @@ def test_ema_cross_runs():
     assert report["schema_version"] == 1
 
 
+def test_run_json_request_bundle():
+    # The unified request entry point bundles candles, spec and capital and
+    # matches the array-based run() above by construction.
+    request = {
+        "capital": 1000.0,
+        "spec": PRICE_SPEC,
+        "candles": [
+            {"time": 0, "open": 100, "high": 101, "low": 100, "close": 101},
+            {"time": 1, "open": 102, "high": 103, "low": 102, "close": 103},
+            {"time": 2, "open": 104, "high": 104, "low": 99, "close": 99},
+            {"time": 3, "open": 98, "high": 98, "low": 97, "close": 97},
+        ],
+    }
+    report = wbt.run_json(request)
+    assert report["metrics"]["num_trades"] == 1
+    assert math.isclose(report["trades"][0]["entry_price"], 102.0)
+    assert math.isclose(report["trades"][0]["exit_price"], 98.0)
+
+
+def test_run_json_accepts_a_json_string():
+    request = (
+        '{"capital":1000,"spec":{"symbol":"x","timeframe":"1h","indicators":{},'
+        '"entry":{"gt":[{"price":"close"},100]},'
+        '"exit":{"lt":[{"price":"close"},100]},'
+        '"sizing":{"type":"fixed_qty","qty":1}},'
+        '"candles":[{"time":0,"open":100,"high":101,"low":100,"close":101},'
+        '{"time":1,"open":102,"high":103,"low":102,"close":103},'
+        '{"time":2,"open":104,"high":104,"low":99,"close":99},'
+        '{"time":3,"open":98,"high":98,"low":97,"close":97}]}'
+    )
+    report = wbt.run_json(request)
+    assert report["metrics"]["num_trades"] == 1
+
+
 def test_bad_spec_raises():
     import pytest
 

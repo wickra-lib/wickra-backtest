@@ -310,7 +310,8 @@ if (!nativeBinding) {
   throw new Error(`Failed to load native binding`)
 }
 
-const { run, version } = nativeBinding
+const { run, runJson, version } = nativeBinding
 
 module.exports.run = run
+module.exports.runJson = runJson
 module.exports.version = version

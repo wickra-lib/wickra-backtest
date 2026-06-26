@@ -10,7 +10,9 @@
 use napi::bindgen_prelude::*;
 use napi_derive::napi;
 
-use wickra_backtest_core::{run_with_capital, Candle, StrategySpec, DEFAULT_CAPITAL};
+use wickra_backtest_core::{
+    run_json as core_run_json, run_with_capital, Candle, StrategySpec, DEFAULT_CAPITAL,
+};
 
 fn to_napi<E: std::fmt::Display>(e: E) -> Error {
     Error::from_reason(e.to_string())
@@ -59,6 +61,13 @@ pub fn run(
     let report =
         run_with_capital(&spec, &candles, capital.unwrap_or(DEFAULT_CAPITAL)).map_err(to_napi)?;
     serde_json::to_string(&report).map_err(to_napi)
+}
+
+/// Run a backtest from a single JSON request bundling candles, spec and optional
+/// feeds. Returns the report as a JSON string.
+#[napi]
+pub fn run_json(request_json: String) -> Result<String> {
+    core_run_json(&request_json).map_err(to_napi)
 }
 
 /// The crate version.

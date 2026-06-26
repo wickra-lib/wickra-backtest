@@ -24,9 +24,9 @@ from __future__ import annotations
 
 import json
 
-from ._wickra_backtest import __version__, run as _run
+from ._wickra_backtest import __version__, run as _run, run_json as _run_json
 
-__all__ = ["run", "__version__"]
+__all__ = ["run", "run_json", "__version__"]
 
 
 def run(open, high, low, close, volume=None, time=None, *, spec, capital=10_000.0):
@@ -46,3 +46,12 @@ def run(open, high, low, close, volume=None, time=None, *, spec, capital=10_000.
     t = [int(x) for x in time] if time is not None else list(range(n))
     spec_json = spec if isinstance(spec, str) else json.dumps(spec)
     return json.loads(_run(o, h, lo, c, v, t, spec_json, float(capital)))
+
+
+def run_json(request):
+    """Run a backtest from a single request bundle: ``candles``, ``spec``,
+    optional ``capital`` and optional ``reference`` / ``derivs`` / ``books`` /
+    ``trades`` / ``sections`` feeds. ``request`` is a dict or JSON string.
+    Returns the report as a dict."""
+    request_json = request if isinstance(request, str) else json.dumps(request)
+    return json.loads(_run_json(request_json))

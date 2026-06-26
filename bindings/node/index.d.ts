@@ -5,5 +5,10 @@
 
 /** Run a backtest. Returns the report as a JSON string. */
 export declare function run(open: Array<number>, high: Array<number>, low: Array<number>, close: Array<number>, volume: Array<number>, time: Array<number>, specJson: string, capital?: number | undefined | null): string
+/**
+ * Run a backtest from a single JSON request bundling candles, spec and optional
+ * feeds. Returns the report as a JSON string.
+ */
+export declare function runJson(requestJson: string): string
 /** The crate version. */
 export declare function version(): string

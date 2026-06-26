@@ -7,7 +7,7 @@
 
 use wasm_bindgen::prelude::*;
 
-use wickra_backtest_core::{run_with_capital, Candle, StrategySpec};
+use wickra_backtest_core::{run_json as core_run_json, run_with_capital, Candle, StrategySpec};
 
 fn to_js<E: std::fmt::Display>(e: E) -> JsError {
     JsError::new(&e.to_string())
@@ -55,6 +55,13 @@ pub fn run(
     let spec = StrategySpec::parse(spec_json).map_err(to_js)?;
     let report = run_with_capital(&spec, &candles, capital).map_err(to_js)?;
     serde_json::to_string(&report).map_err(to_js)
+}
+
+/// Run a backtest from a single JSON request bundling candles, spec and optional
+/// feeds. Returns the report as a JSON string.
+#[wasm_bindgen]
+pub fn run_json(request_json: &str) -> Result<String, JsError> {
+    core_run_json(request_json).map_err(to_js)
 }
 
 /// The crate version.

@@ -8,7 +8,7 @@
 use pyo3::exceptions::PyValueError;
 use pyo3::prelude::*;
 
-use wickra_backtest_core::{run_with_capital, Candle, StrategySpec};
+use wickra_backtest_core::{run_json as core_run_json, run_with_capital, Candle, StrategySpec};
 
 /// Run a backtest. Returns the report as a JSON string.
 #[pyfunction]
@@ -56,9 +56,17 @@ fn run(
     serde_json::to_string(&report).map_err(|e| PyValueError::new_err(e.to_string()))
 }
 
+/// Run a backtest from a single JSON request bundling candles, spec and optional
+/// feeds. Returns the report as a JSON string.
+#[pyfunction]
+fn run_json(request_json: &str) -> PyResult<String> {
+    core_run_json(request_json).map_err(|e| PyValueError::new_err(e.to_string()))
+}
+
 #[pymodule]
 fn _wickra_backtest(m: &Bound<'_, PyModule>) -> PyResult<()> {
     m.add("__version__", env!("CARGO_PKG_VERSION"))?;
     m.add_function(wrap_pyfunction!(run, m)?)?;
+    m.add_function(wrap_pyfunction!(run_json, m)?)?;
     Ok(())
 }
