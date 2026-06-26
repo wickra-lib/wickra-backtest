@@ -126,6 +126,17 @@ to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
   each bar from the derivatives feed (`payment = qty * mark_price * funding_rate`
   — longs pay when the rate is positive, shorts receive), reflected in `cash`,
   equity and `fees_paid`. Requires a derivatives feed; default off.
+- Cross-section (market-breadth) feed: the registry now includes the 15
+  cross-section (`Input = CrossSection`) breadth indicators (advance/decline and
+  ratio, McClellan oscillator / summation, TRIN, breadth thrust, new highs/lows,
+  high-low index, up/down volume, …), fed a per-bar market panel of
+  `CrossSectionMember`s. `run_with_cross_section(spec, candles, sections,
+  capital)` drives the feed; `CrossSection` / `CrossSectionMember` are new data
+  types. The `above_ma` / `on_buy_signal` member flags are not settable through
+  wickra-core's non-exhaustive `Member`, so the two indicators reading them
+  (`PercentAboveMa`, `BullishPercentIndex`) see them as `false`. Registry: 480 →
+  **495** — the complete backtestable wickra-core catalog (the remaining types
+  are bar-builders and profile outputs, not single-value indicators).
 - Trade-quote feed: the registry now includes the 3 trade-quote
   (`Input = TradeQuote`) indicators (effective spread, realized spread, Kyle's
   lambda), fed each bar trade paired with the prevailing mid (the order book's

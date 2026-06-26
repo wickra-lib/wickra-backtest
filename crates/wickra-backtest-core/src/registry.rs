@@ -18,8 +18,9 @@
 //! the spec as `"name.field"`.
 
 use wickra_core::{
-    self as wc, Candle as CoreCandle, DerivativesTick as CoreDerivativesTick, Indicator,
-    OrderBook as CoreOrderBook, Trade as CoreTrade, TradeQuote as CoreTradeQuote,
+    self as wc, Candle as CoreCandle, CrossSection as CoreCrossSection,
+    DerivativesTick as CoreDerivativesTick, Indicator, OrderBook as CoreOrderBook,
+    Trade as CoreTrade, TradeQuote as CoreTradeQuote,
 };
 
 use crate::data::Candle;
@@ -41,6 +42,8 @@ pub struct BarInput<'a> {
     /// The trades that printed within this bar (for trade-flow indicators),
     /// replayed in order; empty when there is no trade feed.
     pub trades: &'a [CoreTrade],
+    /// The market cross-section for this bar (for breadth indicators).
+    pub cross_section: Option<&'a CoreCrossSection>,
 }
 
 /// A uniform, object-safe indicator the engine drives one bar at a time.
@@ -197,6 +200,25 @@ where
             }
         }
         last
+    }
+    fn fields(&self) -> Vec<(&'static str, f64)> {
+        Vec::new()
+    }
+    fn warmup(&self) -> usize {
+        self.0.warmup_period()
+    }
+}
+
+/// Wraps a cross-section (`Input = CrossSection`) single-output breadth
+/// indicator. Without a cross-section feed it yields `None`.
+struct CrossSectionIn<I>(I);
+
+impl<I> EvalIndicator for CrossSectionIn<I>
+where
+    I: Indicator<Input = CoreCrossSection, Output = f64> + Send,
+{
+    fn update(&mut self, input: &BarInput) -> Option<f64> {
+        input.cross_section.and_then(|cs| self.0.update(cs.clone()))
     }
     fn fields(&self) -> Vec<(&'static str, f64)> {
         Vec::new()
@@ -2100,6 +2122,30 @@ pub fn build(kind: &str, params: &[f64]) -> Result<Box<dyn EvalIndicator>> {
             kind,
             wc::RealizedSpread::new(p(0)?),
         )?))),
+        // --- market-breadth indicators, fed the cross-section ---
+        "AbsoluteBreadthIndex" => Ok(Box::new(CrossSectionIn(wc::AbsoluteBreadthIndex::new()))),
+        "AdVolumeLine" => Ok(Box::new(CrossSectionIn(wc::AdVolumeLine::new()))),
+        "AdvanceDecline" => Ok(Box::new(CrossSectionIn(wc::AdvanceDecline::new()))),
+        "AdvanceDeclineRatio" => Ok(Box::new(CrossSectionIn(wc::AdvanceDeclineRatio::new()))),
+        "BreadthThrust" => Ok(Box::new(CrossSectionIn(map_new(
+            kind,
+            wc::BreadthThrust::new(p(0)?),
+        )?))),
+        "BullishPercentIndex" => Ok(Box::new(CrossSectionIn(wc::BullishPercentIndex::new()))),
+        "CumulativeVolumeIndex" => Ok(Box::new(CrossSectionIn(wc::CumulativeVolumeIndex::new()))),
+        "HighLowIndex" => Ok(Box::new(CrossSectionIn(map_new(
+            kind,
+            wc::HighLowIndex::new(p(0)?),
+        )?))),
+        "McClellanOscillator" => Ok(Box::new(CrossSectionIn(wc::McClellanOscillator::new()))),
+        "McClellanSummationIndex" => {
+            Ok(Box::new(CrossSectionIn(wc::McClellanSummationIndex::new())))
+        }
+        "NewHighsNewLows" => Ok(Box::new(CrossSectionIn(wc::NewHighsNewLows::new()))),
+        "PercentAboveMa" => Ok(Box::new(CrossSectionIn(wc::PercentAboveMa::new()))),
+        "TickIndex" => Ok(Box::new(CrossSectionIn(wc::TickIndex::new()))),
+        "Trin" => Ok(Box::new(CrossSectionIn(wc::Trin::new()))),
+        "UpDownVolumeRatio" => Ok(Box::new(CrossSectionIn(wc::UpDownVolumeRatio::new()))),
         // --- friendly aliases ---
         "Macd" => build("MacdIndicator", params),
         "Bollinger" => build("BollingerBands", params),
@@ -2107,7 +2153,7 @@ pub fn build(kind: &str, params: &[f64]) -> Result<Box<dyn EvalIndicator>> {
     }
 }
 
-/// Every registered indicator with valid default parameters (480 indicators).
+/// Every registered indicator with valid default parameters (495 indicators).
 #[cfg(test)]
 const ALL_SPECS: &[(&str, &[f64])] = &[
     ("AdaptiveCycle", &[]),
@@ -2590,6 +2636,21 @@ const ALL_SPECS: &[(&str, &[f64])] = &[
     ("EffectiveSpread", &[]),
     ("KylesLambda", &[14.0]),
     ("RealizedSpread", &[14.0]),
+    ("AbsoluteBreadthIndex", &[]),
+    ("AdVolumeLine", &[]),
+    ("AdvanceDecline", &[]),
+    ("AdvanceDeclineRatio", &[]),
+    ("BreadthThrust", &[14.0]),
+    ("BullishPercentIndex", &[]),
+    ("CumulativeVolumeIndex", &[]),
+    ("HighLowIndex", &[14.0]),
+    ("McClellanOscillator", &[]),
+    ("McClellanSummationIndex", &[]),
+    ("NewHighsNewLows", &[]),
+    ("PercentAboveMa", &[]),
+    ("TickIndex", &[]),
+    ("Trin", &[]),
+    ("UpDownVolumeRatio", &[]),
 ];
 
 #[cfg(test)]
@@ -2614,6 +2675,7 @@ mod tests {
             deriv: None,
             orderbook: None,
             trades: &[],
+            cross_section: None,
         }
     }
 

@@ -12,9 +12,9 @@ Single source of truth: the wickra-core indicator sources themselves
 Every indicator whose input is a single instrument's price (`f64`, fed the
 close) or candle (`Candle`) and whose output is a scalar `f64` or a struct of
 `f64` fields is emitted, plus pairwise `(f64, f64)` scalar-output indicators
-fed `(close, reference_close)` from the reference series. Derivatives, order-book, trade and trade-quote inputs are wired through the
-feed wrappers. Cross-section (multi-asset) inputs and pairwise multi-output
-with no f64 fields are skipped (and reported).
+fed `(close, reference_close)` from the reference series. Derivatives, order-book, trade, trade-quote and cross-section inputs are wired
+through the feed wrappers. Bar-builder / profile (Vec) outputs and pairwise
+multi-output with no f64 fields are skipped (and reported).
 
 Default constructor parameters for the build-all test come from the wickra
 golden manifests, joined by canonical name.
@@ -114,7 +114,8 @@ HEAD = r'''//! Indicator registry: constructs `wickra-core` indicators by name a
 
 use wickra_core::{
     self as wc, Candle as CoreCandle, DerivativesTick as CoreDerivativesTick,
-    OrderBook as CoreOrderBook, Trade as CoreTrade, TradeQuote as CoreTradeQuote, Indicator,
+    CrossSection as CoreCrossSection, OrderBook as CoreOrderBook, Trade as CoreTrade,
+    TradeQuote as CoreTradeQuote, Indicator,
 };
 
 use crate::data::Candle;
@@ -136,6 +137,8 @@ pub struct BarInput<'a> {
     /// The trades that printed within this bar (for trade-flow indicators),
     /// replayed in order; empty when there is no trade feed.
     pub trades: &'a [CoreTrade],
+    /// The market cross-section for this bar (for breadth indicators).
+    pub cross_section: Option<&'a CoreCrossSection>,
 }
 
 /// A uniform, object-safe indicator the engine drives one bar at a time.
@@ -292,6 +295,25 @@ where
             }
         }
         last
+    }
+    fn fields(&self) -> Vec<(&'static str, f64)> {
+        Vec::new()
+    }
+    fn warmup(&self) -> usize {
+        self.0.warmup_period()
+    }
+}
+
+/// Wraps a cross-section (`Input = CrossSection`) single-output breadth
+/// indicator. Without a cross-section feed it yields `None`.
+struct CrossSectionIn<I>(I);
+
+impl<I> EvalIndicator for CrossSectionIn<I>
+where
+    I: Indicator<Input = CoreCrossSection, Output = f64> + Send,
+{
+    fn update(&mut self, input: &BarInput) -> Option<f64> {
+        input.cross_section.and_then(|cs| self.0.update(cs.clone()))
     }
     fn fields(&self) -> Vec<(&'static str, f64)> {
         Vec::new()
@@ -516,6 +538,7 @@ mod tests {
             deriv: None,
             orderbook: None,
             trades: &[],
+            cross_section: None,
         }
     }
 
@@ -613,6 +636,7 @@ def main():
     ob_scalars = []     # (ty, args, is_result) for Input = OrderBook, f64 out
     trade_scalars = []  # (ty, args, is_result) for Input = Trade, f64 out
     tq_scalars = []     # (ty, args, is_result) for Input = TradeQuote, f64 out
+    cs_scalars = []     # (ty, args, is_result) for Input = CrossSection, f64 out
     skip = Counter()
 
     for text in files.values():
@@ -627,6 +651,7 @@ def main():
                 "OrderBook",
                 "Trade",
                 "TradeQuote",
+                "CrossSection",
             ):
                 if inp:
                     skip[f"input {inp}"] += 1
@@ -678,6 +703,12 @@ def main():
                 else:
                     skip[f"trade-quote non-scalar ({out})"] += 1
                 continue
+            if inp == "CrossSection":
+                if out == "f64":
+                    cs_scalars.append((ty, argtypes, is_result))
+                else:
+                    skip[f"cross-section non-scalar ({out})"] += 1
+                continue
             if out == "f64":
                 scalars.append((ty, inp, argtypes, is_result))
             else:
@@ -696,6 +727,7 @@ def main():
     ob_scalars.sort()
     trade_scalars.sort()
     tq_scalars.sort()
+    cs_scalars.sort()
 
     # Emit multi-wrapper macro invocations.
     wraps = []
@@ -798,6 +830,13 @@ def main():
         seen.add(ty)
         specs.append((ty, default_for(ty, argtypes)))
 
+    arms.append("        // --- market-breadth indicators, fed the cross-section ---")
+    for ty, argtypes, is_result in cs_scalars:
+        arm = f'        "{ty}" => Ok(Box::new(CrossSectionIn({ctor_expr(ty, argtypes, is_result)}))),'
+        arms.append(arm)
+        seen.add(ty)
+        specs.append((ty, default_for(ty, argtypes)))
+
     arms.append("        // --- friendly aliases ---")
     for alias, canon in ALIASES.items():
         if canon in seen:
@@ -830,7 +869,7 @@ def main():
           f"{len(pair_multis)} pairwise-multi + "
           f"{len(deriv_scalars) + len(deriv_multis)} derivatives + "
           f"{len(ob_scalars)} order-book + {len(trade_scalars)} trade + "
-          f"{len(tq_scalars)} trade-quote) "
+          f"{len(tq_scalars)} trade-quote + {len(cs_scalars)} cross-section) "
           f"+ {len(ALIASES)} aliases -> {args.out}")
     print("skipped (structurally out of scope):")
     for k, v in skip.most_common():

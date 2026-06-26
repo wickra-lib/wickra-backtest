@@ -8,8 +8,9 @@
 
 use serde::{Deserialize, Serialize};
 use wickra_core::{
-    Candle as CoreCandle, DerivativesTick as CoreDerivativesTick, Level as CoreLevel,
-    OrderBook as CoreOrderBook, Side as CoreSide, Trade as CoreTrade,
+    Candle as CoreCandle, CrossSection as CoreCrossSection, DerivativesTick as CoreDerivativesTick,
+    Level as CoreLevel, Member as CoreMember, OrderBook as CoreOrderBook, Side as CoreSide,
+    Trade as CoreTrade,
 };
 
 use crate::error::{BacktestError, Result};
@@ -193,6 +194,50 @@ impl DerivativesTick {
             self.timestamp,
         )
         .map_err(|e| BacktestError::InvalidData(e.to_string()))
+    }
+}
+
+/// One symbol's breadth signals within a [`CrossSection`].
+#[derive(Debug, Clone, Copy, PartialEq, Serialize, Deserialize)]
+pub struct CrossSectionMember {
+    /// Price change versus the previous close (sign classifies advance/decline).
+    pub change: f64,
+    /// Period volume for the symbol (non-negative).
+    pub volume: f64,
+    /// Whether the symbol printed a new period high.
+    #[serde(default)]
+    pub new_high: bool,
+    /// Whether the symbol printed a new period low.
+    #[serde(default)]
+    pub new_low: bool,
+}
+
+impl CrossSectionMember {
+    fn to_core(self) -> CoreMember {
+        // `above_ma` / `on_buy_signal` are not settable through wickra-core's
+        // non-exhaustive `Member`, so they default to false.
+        CoreMember::new(self.change, self.volume, self.new_high, self.new_low)
+    }
+}
+
+/// A market-wide cross-section (a panel of [`CrossSectionMember`]s at one tick),
+/// fed to the market-breadth indicators (advance/decline, `McClellan`, TRIN, …).
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+pub struct CrossSection {
+    /// Per-symbol members of the universe for this tick.
+    pub members: Vec<CrossSectionMember>,
+    /// Tick timestamp (engine-defined epoch unit).
+    #[serde(default)]
+    pub timestamp: i64,
+}
+
+impl CrossSection {
+    /// Convert into a `wickra-core` cross-section, validating the member
+    /// invariants (finite change, non-negative volume, non-empty).
+    pub fn to_core(&self) -> Result<CoreCrossSection> {
+        let members: Vec<CoreMember> = self.members.iter().map(|m| m.to_core()).collect();
+        CoreCrossSection::new(members, self.timestamp)
+            .map_err(|e| BacktestError::InvalidData(e.to_string()))
     }
 }
 

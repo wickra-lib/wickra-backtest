@@ -26,7 +26,7 @@ use std::collections::BTreeMap;
 
 use wickra_core::OrderBook as CoreOrderBook;
 
-use crate::data::{Candle, DerivativesTick, OrderBook, TradePrint};
+use crate::data::{Candle, CrossSection, DerivativesTick, OrderBook, TradePrint};
 use crate::error::{BacktestError, Result};
 use crate::metrics;
 use crate::portfolio::Portfolio;
@@ -260,6 +260,8 @@ pub struct Feeds<'a> {
     pub orderbook: Option<&'a OrderBook>,
     /// Trades that printed within this bar, for trade-flow indicators.
     pub trades: Option<&'a [TradePrint]>,
+    /// Market cross-section for this bar, for breadth indicators.
+    pub cross_section: Option<&'a CrossSection>,
 }
 
 /// Run a backtest of `spec` over `candles` with the default capital.
@@ -403,6 +405,37 @@ pub fn run_with_trades(
     Ok(bt.finish())
 }
 
+/// Run a backtest with a per-bar market cross-section for breadth indicators
+/// (advance/decline, `McClellan`, TRIN, …). `sections` must be the same length as
+/// `candles`.
+pub fn run_with_cross_section(
+    spec: &StrategySpec,
+    candles: &[Candle],
+    sections: &[CrossSection],
+    capital: f64,
+) -> Result<BacktestReport> {
+    spec.validate()?;
+    if candles.is_empty() {
+        return Err(BacktestError::InvalidData("no candles".into()));
+    }
+    if sections.len() != candles.len() {
+        return Err(BacktestError::InvalidData(
+            "cross-section feed must have one panel per candle".into(),
+        ));
+    }
+    let mut bt = StreamingBacktest::new(spec, capital)?;
+    for (candle, cs) in candles.iter().zip(sections) {
+        bt.step_with_feeds(
+            candle,
+            &Feeds {
+                cross_section: Some(cs),
+                ..Default::default()
+            },
+        )?;
+    }
+    Ok(bt.finish())
+}
+
 /// A streaming backtest: feed bars one at a time with [`StreamingBacktest::step`],
 /// then [`StreamingBacktest::finish`]. The historical runner is exactly this fed
 /// from a slice, so **backtest and live share one code path** — point `step` at
@@ -483,6 +516,7 @@ impl<'a> StreamingBacktest<'a> {
         let reference = feeds.reference;
         let deriv = feeds.deriv.and_then(|d| d.to_core().ok());
         let orderbook = feeds.orderbook.and_then(|ob| ob.to_core().ok());
+        let cross_section = feeds.cross_section.and_then(|cs| cs.to_core().ok());
         let trades: Vec<_> = feeds
             .trades
             .unwrap_or(&[])
@@ -555,6 +589,7 @@ impl<'a> StreamingBacktest<'a> {
                 deriv,
                 orderbook: orderbook.as_ref(),
                 trades: &trades,
+                cross_section: cross_section.as_ref(),
             };
             if let Some(v) = ind.update(&input) {
                 values.insert(name.clone(), v);
@@ -1540,6 +1575,7 @@ mod tests {
                 deriv: None,
                 orderbook: None,
                 trades: &[],
+                cross_section: None,
             };
             if ind.update(&input).is_some() {
                 names = ind.fields().iter().map(|(n, _)| *n).collect();
@@ -1831,6 +1867,46 @@ mod tests {
         let trades: Vec<Vec<TradePrint>> = (0..5).map(|_| vec![trade]).collect();
 
         let with_feed = run_with_trades(&spec, &candles, &trades, 10_000.0).unwrap();
+        assert!(with_feed.metrics.num_trades >= 1);
+
+        let without_feed = run_with_capital(&spec, &candles, 10_000.0).unwrap();
+        assert_eq!(without_feed.metrics.num_trades, 0);
+    }
+
+    #[test]
+    fn cross_section_breadth_indicator_uses_feed() {
+        use crate::data::{CrossSection, CrossSectionMember};
+        let spec = StrategySpec::parse(
+            r#"{"symbol":"x","timeframe":"1h",
+                "indicators":{"ad":{"type":"AdvanceDecline","params":[]}},
+                "entry":{"gt":["ad",0.0]},
+                "exit":{"lt":["ad",-100.0]},
+                "sizing":{"type":"fixed_qty","qty":1}}"#,
+        )
+        .unwrap();
+        let candles: Vec<Candle> = (0i64..4)
+            .map(|t| bar(t, 100.0, 100.0, 100.0, 100.0))
+            .collect();
+        let advancer = CrossSectionMember {
+            change: 1.0,
+            volume: 100.0,
+            new_high: false,
+            new_low: false,
+        };
+        let decliner = CrossSectionMember {
+            change: -1.0,
+            volume: 100.0,
+            new_high: false,
+            new_low: false,
+        };
+        // Three advancing vs one declining -> positive advance-decline.
+        let section = CrossSection {
+            members: vec![advancer, advancer, advancer, decliner],
+            timestamp: 0,
+        };
+        let sections = vec![section; 4];
+
+        let with_feed = run_with_cross_section(&spec, &candles, &sections, 10_000.0).unwrap();
         assert!(with_feed.metrics.num_trades >= 1);
 
         let without_feed = run_with_capital(&spec, &candles, 10_000.0).unwrap();
