@@ -18,35 +18,41 @@ backtest and a live run over the same spec produce identical signals, across
 every Wickra language binding. The same engine, fed live instead of historical
 bars, becomes the live bot: **backtest ≡ live, by construction.**
 
-The strategy spec can reference **421 `wickra-core` indicators** by name — every
-single-instrument scalar and candle indicator, plus the multi-output families
-whose fields are addressed as `"name.field"` (`macd.signal`, `bb.upper`,
-`adx.plus_di`, …). The registry is generated directly from the wickra-core
-sources, so it stays in lock-step with the kernel.
+The strategy spec can reference **495 `wickra-core` indicators** by name — every
+backtestable scalar, candle, multi-output, pairwise, derivatives, order-book,
+trade, trade-quote and cross-section indicator, with multi-output fields
+addressed as `"name.field"` (`macd.signal`, `bb.upper`, `adx.plus_di`, …). The
+registry is generated directly from the wickra-core sources, so it stays in
+lock-step with the kernel.
 
 Why it is different from vectorbt / backtrader:
 
 - **O(1) per tick** — years of tick data in seconds, not hours (no recompute-on-every-tick).
-- **Backtest = live, value-identical across 10 languages** — no reimplementation drift, pinned by a shared golden corpus.
+- **Backtest = live, value-identical across 10 languages** — no reimplementation drift, pinned by a shared golden corpus for the OHLCV path *and* every microstructure feed.
+- **Microstructure backtesting** — replay the order book, trades, perpetual funding and open interest as strategy inputs; off-the-shelf backtesters can't.
+- **Realistic execution** — long/short, market/limit/stop orders, leverage and position caps, five sizing models, intrabar stop-loss / take-profit / trailing stops, maker/taker fees, three slippage models, perpetual funding, liquidation and execution latency.
 - **Polyglot** — the same `StrategySpec` runs from Rust, Python, Node, the browser (WASM), Go, C#, Java, C/C++ and R.
-- **Realistic execution** — long/short, market/limit/stop orders, leverage and position caps, five sizing models, intrabar stop-loss / take-profit / trailing stops, fees, slippage and execution latency.
 
 ## Status
 
 **Alpha / work in progress.** The engine, the data-driven `StrategySpec`, the
-execution model and all ten language bindings are implemented and tested; a
-shared [golden corpus](golden/) pins the cross-language equality. Order-book /
-microstructure feeds, perp funding and liquidation are on the roadmap. Not yet
-released to any registry.
+full execution and cost model, the microstructure feeds and all ten language
+bindings are implemented and tested; a shared [golden corpus](golden/) pins the
+cross-language equality byte-for-byte. Not yet released to any registry.
 
-## Workspace
+## Documentation
 
-| Crate | Role |
-|-------|------|
-| `wickra-backtest-core` | feed-agnostic engine: strategy spec, rules, sizing, execution, portfolio, report |
-| `wickra-backtest-data` | data loaders (CSV / JSON Lines / JSON) |
-| `wickra-backtest` | facade: re-exports the engine + the historical backtest runner |
-| `wickra-backtest-cli` | the `wkbt` command-line backtester |
+- **[Strategy spec reference](docs/STRATEGY_SPEC.md)** — the full DSL: operands,
+  conditions, sizing, costs, slippage, risk, execution and the report shape.
+- **[Cookbook](docs/COOKBOOK.md)** — six ready-to-run strategies (RSI mean
+  reversion, MACD trend, Bollinger breakout, Donchian breakout, funding carry,
+  order-book imbalance), each validated against the engine.
+- **[Architecture](ARCHITECTURE.md)** — crates, data flow and design decisions.
+- **[Benchmarks](BENCHMARKS.md)** — throughput methodology and caveats.
+- **[Examples](examples/)** — runnable specs and a sample dataset.
+- The JSON Schema for the spec is at
+  [`schema/strategy_spec.schema.json`](schema/strategy_spec.schema.json) and is
+  printed by `wkbt schema`.
 
 ## Quickstart
 
@@ -81,20 +87,20 @@ A spec declares named indicators and entry/exit rules over them:
 }
 ```
 
-See [`examples/`](examples/) for the full files and how to write the report and
-trade/equity streams. The [strategy spec reference](docs/STRATEGY_SPEC.md)
-documents the full DSL and the [cookbook](docs/COOKBOOK.md) walks through ready
--to-run strategies (mean reversion, MACD trend, Bollinger breakout, Donchian
-breakout, funding carry, order-book imbalance).
+See the [cookbook](docs/COOKBOOK.md) and [`examples/`](examples/) for complete
+strategies, and the [spec reference](docs/STRATEGY_SPEC.md) for the full grammar.
 
 From Rust, the same thing is `wickra_backtest::run(&spec, &candles)`. For live
 use, `StreamingBacktest::new(&spec, capital)` then `step(candle)` per bar feeds
-the **same engine** one bar at a time — backtest and live are one code path.
+the **same engine** one bar at a time — backtest and live are one code path. A
+single `run_json` request bundles candles, the spec and any feeds, and is the
+uniform entry point every binding wraps.
 
 ## Run the same spec in any language
 
-Every binding takes the same OHLCV arrays and JSON spec and returns the same
-report — byte-identical (a dict in Python). Each has a quickstart:
+Every binding takes the same OHLCV arrays (or a `run_json` request) and JSON spec
+and returns the same report — byte-identical (a dict in Python). Each has a
+quickstart:
 
 | Language | Binding | Quickstart |
 |----------|---------|------------|
@@ -109,12 +115,75 @@ report — byte-identical (a dict in Python). Each has a quickstart:
 | R        | `.Call` | [bindings/r](bindings/r/README.md) |
 
 The C, C++, C#, Go, Java and R bindings all call through the same C ABI hub; the
-[golden corpus](golden/) asserts every language produces the same report.
+[golden corpus](golden/) asserts every language produces the same report, for
+both the plain OHLCV path and the order-book / trade / derivatives /
+cross-section feed paths.
 
 ## Performance
 
 O(1) per bar — about **1.7M bars/second** on one core (a year of 1-minute bars in
 ~0.3 s). See [BENCHMARKS.md](BENCHMARKS.md) for the methodology and caveats.
+
+## Project layout
+
+```
+wickra-backtest/
+├── crates/
+│   ├── wickra-backtest-core/   engine: spec DSL, registry, rules, execution, portfolio, metrics, report
+│   ├── wickra-backtest-data/   loaders (CSV / JSON / JSONL / Parquet) + resampling + Renko/Kagi/PnF
+│   ├── wickra-backtest/        facade crate (re-exports the engine + runners)
+│   ├── wickra-backtest-cli/    the `wkbt` command-line backtester
+│   └── wickra-backtest-bench/  criterion throughput benchmarks
+├── bindings/
+│   ├── python/   PyO3 + maturin          ├── csharp/  P/Invoke over the C ABI
+│   ├── node/     napi-rs                 ├── go/      cgo over the C ABI
+│   ├── wasm/     wasm-bindgen            ├── java/    FFM over the C ABI
+│   ├── c/        C ABI (cdylib/staticlib + generated header)
+│   └── r/        .Call over the C ABI
+├── golden/       shared cross-language parity corpus (cases + feed requests)
+├── schema/       generated JSON Schema for the strategy spec
+├── examples/     runnable strategies + a sample dataset
+├── docs/         strategy spec reference + cookbook
+└── fuzz/         cargo-fuzz targets (nightly)
+```
+
+## Building from source
+
+```bash
+# Rust core + tests + lints
+cargo test --workspace --all-features
+cargo clippy --workspace --all-targets --all-features -- -D warnings
+cargo bench -p wickra-backtest-bench
+
+# Python binding (requires a Rust toolchain + maturin)
+cd bindings/python && maturin develop --release && pytest
+
+# Node binding (requires @napi-rs/cli)
+cd bindings/node && npm install && npm run build && npm test
+
+# WASM binding (requires wasm-pack)
+cd bindings/wasm && wasm-pack build --target nodejs --out-dir pkg && node --test tests/
+
+# C ABI (cdylib + staticlib + generated header)
+cargo build -p wickra-backtest-c --release
+
+# C# binding (requires the .NET 8 SDK; links the C ABI above)
+dotnet test bindings/csharp/Wickra.Backtest.Tests/Wickra.Backtest.Tests.csproj
+
+# Go binding (requires a C compiler for cgo; links the C ABI above)
+cd bindings/go && go test ./...
+
+# Java binding (requires JDK 22+ and Maven; links the C ABI above)
+mvn -f bindings/java test
+
+# R binding (requires a C toolchain / Rtools; links the C ABI above)
+WKBT_INC="$PWD/bindings/c/include" WKBT_LIB="$PWD/target/debug" R CMD INSTALL bindings/r
+```
+
+The Go, Java and R bindings load the C ABI shared library at run time; put
+`target/debug` (or `target/release`) on the library path. Fuzzing requires a
+nightly toolchain — see [`fuzz/`](fuzz/); the same never-panic invariants are
+covered on stable by the property tests.
 
 ## License
 
