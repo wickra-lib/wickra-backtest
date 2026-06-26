@@ -18,7 +18,8 @@
 //! volume-participation partial fills (`partial_fills` + `max_participation`)
 //! cap an entry to a fraction of the bar's volume. Perpetual funding
 //! (`costs.funding`) is charged each bar to an open position from the
-//! derivatives feed. Liquidation comes in a later phase.
+//! derivatives feed, and a leveraged position is liquidated intrabar at its
+//! bankruptcy price when `risk.liquidation` is set.
 
 use std::collections::BTreeMap;
 
@@ -528,6 +529,19 @@ impl<'a> StreamingBacktest<'a> {
                 let fee = self.pf.qty.abs() * price * self.taker;
                 self.pf.exit(price, candle.time, fee, reason);
                 self.entry_bar = None;
+            } else if self.spec.risk.liquidation {
+                // Bankruptcy price: account equity (cash + qty * price) reaches 0.
+                let p_liq = -self.pf.cash / self.pf.qty;
+                let breached = if self.pf.is_long() {
+                    candle.low <= p_liq
+                } else {
+                    candle.high >= p_liq
+                };
+                if p_liq > 0.0 && breached {
+                    let fee = self.pf.qty.abs() * p_liq * self.taker;
+                    self.pf.exit(p_liq, candle.time, fee, "liquidation");
+                    self.entry_bar = None;
+                }
             }
         }
 
@@ -1620,6 +1634,30 @@ mod tests {
         .unwrap();
         let unfunded = run_with_deriv(&no_funding, &candles, &derivs, 10_000.0).unwrap();
         assert!(funded.equity.last().unwrap().equity < unfunded.equity.last().unwrap().equity);
+    }
+
+    #[test]
+    fn leverage_liquidation_closes_at_bankruptcy() {
+        // 5x long: capital 1000, notional 5000 → qty 50, cash -4000, bankruptcy
+        // price -(-4000)/50 = 80.
+        let spec = StrategySpec::parse(
+            r#"{"symbol":"x","timeframe":"1h","indicators":{},
+                "entry":{"gt":[{"price":"close"},0]},
+                "exit":{"in_position":false},
+                "sizing":{"type":"fixed_cash","cash":5000},
+                "risk":{"max_leverage":5,"liquidation":true}}"#,
+        )
+        .unwrap();
+        let candles = [
+            bar(0, 100.0, 100.0, 100.0, 100.0), // signal
+            bar(1, 100.0, 100.0, 95.0, 98.0),   // enter @ open 100; low 95 > 80: safe
+            bar(2, 90.0, 90.0, 70.0, 75.0),     // low 70 <= 80: liquidate @ 80
+        ];
+        let r = run_with_capital(&spec, &candles, 1000.0).unwrap();
+        assert_eq!(r.trades.len(), 1);
+        assert_eq!(r.trades[0].reason, "liquidation");
+        assert!((r.trades[0].exit_price - 80.0).abs() < 1e-9);
+        assert!(r.equity.last().unwrap().equity.abs() < 1e-6); // account wiped out
     }
 
     #[test]

@@ -80,6 +80,7 @@
     "risk": {
       "description": "Risk controls.",
       "default": {
+        "liquidation": false,
         "max_leverage": null,
         "max_position_pct": null,
         "stop_loss_pct": null,
@@ -989,6 +990,11 @@
       "description": "Risk controls (all optional).",
       "type": "object",
       "properties": {
+        "liquidation": {
+          "description": "Liquidate a leveraged position intrabar at its bankruptcy price (where account equity reaches zero). Only bites above 1x leverage; default off.",
+          "default": false,
+          "type": "boolean"
+        },
         "max_leverage": {
           "description": "Maximum leverage.",
           "default": null,

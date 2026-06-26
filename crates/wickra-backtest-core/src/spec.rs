@@ -355,6 +355,10 @@ pub struct Risk {
     /// Maximum position as a percent of equity.
     #[serde(default)]
     pub max_position_pct: Option<f64>,
+    /// Liquidate a leveraged position intrabar at its bankruptcy price (where
+    /// account equity reaches zero). Only bites above 1x leverage; default off.
+    #[serde(default)]
+    pub liquidation: bool,
 }
 
 /// Execution model.

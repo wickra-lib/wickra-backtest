@@ -108,6 +108,12 @@ to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ### Changed
 
+- Liquidation: with `risk.liquidation` set, a leveraged position is force-closed
+  intrabar at its bankruptcy price (where account equity reaches zero,
+  `-cash / qty`) — checked against the bar's adverse extreme, after stop-loss /
+  take-profit. Only bites above 1x leverage; the trade's reason is
+  `"liquidation"`. Completes the perpetual trio (leverage + funding +
+  liquidation).
 - Perpetual funding cost: `costs.funding` charges funding to an open position
   each bar from the derivatives feed (`payment = qty * mark_price * funding_rate`
   — longs pay when the rate is positive, shorts receive), reflected in `cash`,
