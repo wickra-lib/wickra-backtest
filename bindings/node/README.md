@@ -45,6 +45,17 @@ console.log(report.metrics);
 `BacktestReport` as a JSON string (`metrics`, `trades`, `equity`, `fees_paid`,
 `initial_capital`); `capital` defaults to 10,000. An invalid spec throws.
 
+For strategies that use microstructure feeds, `runJson(requestJson)` takes one
+request bundle (candles + spec + optional order-book / trade / derivatives /
+cross-section / reference feeds) and returns the same report JSON:
+
+```js
+const { runJson } = require('.');
+const report = JSON.parse(runJson(JSON.stringify({ capital: 1000, spec, candles, books })));
+```
+
+See the [microstructure guide](../../docs/MICROSTRUCTURE.md) for the feed shapes.
+
 ## Test
 
 ```bash

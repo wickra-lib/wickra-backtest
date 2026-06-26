@@ -46,6 +46,11 @@ console.log(report.metrics);
 `BacktestReport` JSON string. Inputs are `Float64Array`s of equal length; an
 invalid spec throws a `JsError`.
 
+For strategies that use microstructure feeds, `run_json(requestJson)` takes one
+request bundle (candles + spec + optional order-book / trade / derivatives /
+cross-section / reference feeds) and returns the same report JSON. See the
+[microstructure guide](../../docs/MICROSTRUCTURE.md) for the feed shapes.
+
 ## Test
 
 ```bash
