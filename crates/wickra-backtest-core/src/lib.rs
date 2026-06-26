@@ -31,8 +31,8 @@ pub mod spec;
 
 pub use data::{Candle, DerivativesTick, Level, OrderBook, TradePrint, TradeSide};
 pub use engine::{
-    run, run_with_capital, run_with_deriv, run_with_orderbook, run_with_ref, Feeds,
-    StreamingBacktest, DEFAULT_CAPITAL,
+    run, run_with_capital, run_with_deriv, run_with_orderbook, run_with_ref, run_with_trades,
+    Feeds, StreamingBacktest, DEFAULT_CAPITAL,
 };
 pub use error::{BacktestError, Result};
 pub use metrics::Metrics;

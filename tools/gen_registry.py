@@ -114,16 +114,16 @@ HEAD = r'''//! Indicator registry: constructs `wickra-core` indicators by name a
 
 use wickra_core::{
     self as wc, Candle as CoreCandle, DerivativesTick as CoreDerivativesTick,
-    OrderBook as CoreOrderBook, Indicator,
+    OrderBook as CoreOrderBook, Trade as CoreTrade, Indicator,
 };
 
 use crate::data::Candle;
 use crate::error::{BacktestError, Result};
 
 /// Everything an indicator may consume on one bar. Single-instrument indicators
-/// use `candle`; pairwise indicators also use `reference`; derivatives and
-/// order-book indicators use `deriv` / `orderbook`. Feeds that are absent are
-/// `None`.
+/// use `candle`; pairwise indicators also use `reference`; derivatives,
+/// order-book and trade indicators use `deriv` / `orderbook` / `trades`. Feeds
+/// that are absent are `None` / empty.
 pub struct BarInput<'a> {
     /// The current bar.
     pub candle: &'a Candle,
@@ -133,6 +133,9 @@ pub struct BarInput<'a> {
     pub deriv: Option<CoreDerivativesTick>,
     /// The order-book snapshot for this bar (for order-book indicators).
     pub orderbook: Option<&'a CoreOrderBook>,
+    /// The trades that printed within this bar (for trade-flow indicators),
+    /// replayed in order; empty when there is no trade feed.
+    pub trades: &'a [CoreTrade],
 }
 
 /// A uniform, object-safe indicator the engine drives one bar at a time.
@@ -232,6 +235,30 @@ where
 {
     fn update(&mut self, input: &BarInput) -> Option<f64> {
         input.orderbook.and_then(|ob| self.0.update(ob.clone()))
+    }
+    fn fields(&self) -> Vec<(&'static str, f64)> {
+        Vec::new()
+    }
+    fn warmup(&self) -> usize {
+        self.0.warmup_period()
+    }
+}
+
+/// Wraps a trade (`Input = Trade`) single-output indicator: replays the bar's
+/// trades in order, returning the value after the last. With no trades it yields
+/// `None`.
+struct TradeIn<I>(I);
+
+impl<I> EvalIndicator for TradeIn<I>
+where
+    I: Indicator<Input = CoreTrade, Output = f64> + Send,
+{
+    fn update(&mut self, input: &BarInput) -> Option<f64> {
+        let mut last = None;
+        for &t in input.trades {
+            last = self.0.update(t);
+        }
+        last
     }
     fn fields(&self) -> Vec<(&'static str, f64)> {
         Vec::new()
@@ -455,6 +482,7 @@ mod tests {
             reference: None,
             deriv: None,
             orderbook: None,
+            trades: &[],
         }
     }
 
@@ -550,13 +578,14 @@ def main():
     deriv_scalars = []  # (ty, args, is_result) for Input = DerivativesTick, f64 out
     deriv_multis = []   # (ty, args, is_result, fields) for derivatives struct out
     ob_scalars = []     # (ty, args, is_result) for Input = OrderBook, f64 out
+    trade_scalars = []  # (ty, args, is_result) for Input = Trade, f64 out
     skip = Counter()
 
     for text in files.values():
         for m in re.finditer(r"\nimpl\s+Indicator\s+for\s+(\w+)\b", text):
             ty = m.group(1)
             inp, out = assoc_types(text, ty)
-            if inp not in ("f64", "Candle", "(f64,f64)", "DerivativesTick", "OrderBook"):
+            if inp not in ("f64", "Candle", "(f64,f64)", "DerivativesTick", "OrderBook", "Trade"):
                 if inp:
                     skip[f"input {inp}"] += 1
                 continue
@@ -595,6 +624,12 @@ def main():
                 else:
                     skip[f"order-book non-scalar ({out})"] += 1
                 continue
+            if inp == "Trade":
+                if out == "f64":
+                    trade_scalars.append((ty, argtypes, is_result))
+                else:
+                    skip[f"trade non-scalar ({out})"] += 1
+                continue
             if out == "f64":
                 scalars.append((ty, inp, argtypes, is_result))
             else:
@@ -611,6 +646,7 @@ def main():
     deriv_scalars.sort()
     deriv_multis.sort()
     ob_scalars.sort()
+    trade_scalars.sort()
 
     # Emit multi-wrapper macro invocations.
     wraps = []
@@ -699,6 +735,13 @@ def main():
         seen.add(ty)
         specs.append((ty, default_for(ty, argtypes)))
 
+    arms.append("        // --- trade-flow indicators, fed the bar's trades ---")
+    for ty, argtypes, is_result in trade_scalars:
+        arm = f'        "{ty}" => Ok(Box::new(TradeIn({ctor_expr(ty, argtypes, is_result)}))),'
+        arms.append(arm)
+        seen.add(ty)
+        specs.append((ty, default_for(ty, argtypes)))
+
     arms.append("        // --- friendly aliases ---")
     for alias, canon in ALIASES.items():
         if canon in seen:
@@ -730,7 +773,8 @@ def main():
           f"{len(multis)} multi + {len(pairs)} pairwise + "
           f"{len(pair_multis)} pairwise-multi + "
           f"{len(deriv_scalars) + len(deriv_multis)} derivatives + "
-          f"{len(ob_scalars)} order-book) + {len(ALIASES)} aliases -> {args.out}")
+          f"{len(ob_scalars)} order-book + {len(trade_scalars)} trade) "
+          f"+ {len(ALIASES)} aliases -> {args.out}")
     print("skipped (structurally out of scope):")
     for k, v in skip.most_common():
         print(f"  {v:3} {k}")

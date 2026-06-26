@@ -19,16 +19,16 @@
 
 use wickra_core::{
     self as wc, Candle as CoreCandle, DerivativesTick as CoreDerivativesTick, Indicator,
-    OrderBook as CoreOrderBook,
+    OrderBook as CoreOrderBook, Trade as CoreTrade,
 };
 
 use crate::data::Candle;
 use crate::error::{BacktestError, Result};
 
 /// Everything an indicator may consume on one bar. Single-instrument indicators
-/// use `candle`; pairwise indicators also use `reference`; derivatives and
-/// order-book indicators use `deriv` / `orderbook`. Feeds that are absent are
-/// `None`.
+/// use `candle`; pairwise indicators also use `reference`; derivatives,
+/// order-book and trade indicators use `deriv` / `orderbook` / `trades`. Feeds
+/// that are absent are `None` / empty.
 pub struct BarInput<'a> {
     /// The current bar.
     pub candle: &'a Candle,
@@ -38,6 +38,9 @@ pub struct BarInput<'a> {
     pub deriv: Option<CoreDerivativesTick>,
     /// The order-book snapshot for this bar (for order-book indicators).
     pub orderbook: Option<&'a CoreOrderBook>,
+    /// The trades that printed within this bar (for trade-flow indicators),
+    /// replayed in order; empty when there is no trade feed.
+    pub trades: &'a [CoreTrade],
 }
 
 /// A uniform, object-safe indicator the engine drives one bar at a time.
@@ -137,6 +140,30 @@ where
 {
     fn update(&mut self, input: &BarInput) -> Option<f64> {
         input.orderbook.and_then(|ob| self.0.update(ob.clone()))
+    }
+    fn fields(&self) -> Vec<(&'static str, f64)> {
+        Vec::new()
+    }
+    fn warmup(&self) -> usize {
+        self.0.warmup_period()
+    }
+}
+
+/// Wraps a trade (`Input = Trade`) single-output indicator: replays the bar's
+/// trades in order, returning the value after the last. With no trades it yields
+/// `None`.
+struct TradeIn<I>(I);
+
+impl<I> EvalIndicator for TradeIn<I>
+where
+    I: Indicator<Input = CoreTrade, Output = f64> + Send,
+{
+    fn update(&mut self, input: &BarInput) -> Option<f64> {
+        let mut last = None;
+        for &t in input.trades {
+            last = self.0.update(t);
+        }
+        last
     }
     fn fields(&self) -> Vec<(&'static str, f64)> {
         Vec::new()
@@ -2006,6 +2033,30 @@ pub fn build(kind: &str, params: &[f64]) -> Result<Box<dyn EvalIndicator>> {
             wc::OrderFlowImbalance::new(p(0)?),
         )?))),
         "QuotedSpread" => Ok(Box::new(OrderBookIn(wc::QuotedSpread::new()))),
+        // --- trade-flow indicators, fed the bar's trades ---
+        "AmihudIlliquidity" => Ok(Box::new(TradeIn(map_new(
+            kind,
+            wc::AmihudIlliquidity::new(p(0)?),
+        )?))),
+        "CumulativeVolumeDelta" => Ok(Box::new(TradeIn(wc::CumulativeVolumeDelta::new()))),
+        "Pin" => Ok(Box::new(TradeIn(map_new(kind, wc::Pin::new(p(0)?))?))),
+        "RollMeasure" => Ok(Box::new(TradeIn(map_new(
+            kind,
+            wc::RollMeasure::new(p(0)?),
+        )?))),
+        "SignedVolume" => Ok(Box::new(TradeIn(wc::SignedVolume::new()))),
+        "TradeImbalance" => Ok(Box::new(TradeIn(map_new(
+            kind,
+            wc::TradeImbalance::new(p(0)?),
+        )?))),
+        "TradeSignAutocorrelation" => Ok(Box::new(TradeIn(map_new(
+            kind,
+            wc::TradeSignAutocorrelation::new(p(0)?),
+        )?))),
+        "Vpin" => Ok(Box::new(TradeIn(map_new(
+            kind,
+            wc::Vpin::new(float_param(params, 0, kind)?, p(1)?),
+        )?))),
         // --- friendly aliases ---
         "Macd" => build("MacdIndicator", params),
         "Bollinger" => build("BollingerBands", params),
@@ -2013,7 +2064,7 @@ pub fn build(kind: &str, params: &[f64]) -> Result<Box<dyn EvalIndicator>> {
     }
 }
 
-/// Every registered indicator with valid default parameters (469 indicators).
+/// Every registered indicator with valid default parameters (477 indicators).
 #[cfg(test)]
 const ALL_SPECS: &[(&str, &[f64])] = &[
     ("AdaptiveCycle", &[]),
@@ -2485,6 +2536,14 @@ const ALL_SPECS: &[(&str, &[f64])] = &[
     ("OrderBookImbalanceTopN", &[14.0]),
     ("OrderFlowImbalance", &[14.0]),
     ("QuotedSpread", &[]),
+    ("AmihudIlliquidity", &[14.0]),
+    ("CumulativeVolumeDelta", &[]),
+    ("Pin", &[14.0]),
+    ("RollMeasure", &[14.0]),
+    ("SignedVolume", &[]),
+    ("TradeImbalance", &[14.0]),
+    ("TradeSignAutocorrelation", &[14.0]),
+    ("Vpin", &[2.0, 14.0]),
 ];
 
 #[cfg(test)]
@@ -2508,6 +2567,7 @@ mod tests {
             reference: None,
             deriv: None,
             orderbook: None,
+            trades: &[],
         }
     }
 

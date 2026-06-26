@@ -21,7 +21,7 @@
 
 use std::collections::BTreeMap;
 
-use crate::data::{Candle, DerivativesTick, OrderBook};
+use crate::data::{Candle, DerivativesTick, OrderBook, TradePrint};
 use crate::error::{BacktestError, Result};
 use crate::metrics;
 use crate::portfolio::Portfolio;
@@ -198,6 +198,8 @@ pub struct Feeds<'a> {
     pub deriv: Option<&'a DerivativesTick>,
     /// Order-book snapshot for order-book indicators.
     pub orderbook: Option<&'a OrderBook>,
+    /// Trades that printed within this bar, for trade-flow indicators.
+    pub trades: Option<&'a [TradePrint]>,
 }
 
 /// Run a backtest of `spec` over `candles` with the default capital.
@@ -310,6 +312,37 @@ pub fn run_with_orderbook(
     Ok(bt.finish())
 }
 
+/// Run a backtest with a per-bar trade feed for trade-flow indicators (CVD,
+/// trade imbalance, VPIN, signed volume, …). `trades[i]` is the list of trades
+/// that printed within bar `i`; the outer length must match `candles`.
+pub fn run_with_trades(
+    spec: &StrategySpec,
+    candles: &[Candle],
+    trades: &[Vec<TradePrint>],
+    capital: f64,
+) -> Result<BacktestReport> {
+    spec.validate()?;
+    if candles.is_empty() {
+        return Err(BacktestError::InvalidData("no candles".into()));
+    }
+    if trades.len() != candles.len() {
+        return Err(BacktestError::InvalidData(
+            "trade feed must have one trade list per candle".into(),
+        ));
+    }
+    let mut bt = StreamingBacktest::new(spec, capital)?;
+    for (candle, bar_trades) in candles.iter().zip(trades) {
+        bt.step_with_feeds(
+            candle,
+            &Feeds {
+                trades: Some(bar_trades.as_slice()),
+                ..Default::default()
+            },
+        )?;
+    }
+    Ok(bt.finish())
+}
+
 /// A streaming backtest: feed bars one at a time with [`StreamingBacktest::step`],
 /// then [`StreamingBacktest::finish`]. The historical runner is exactly this fed
 /// from a slice, so **backtest and live share one code path** — point `step` at
@@ -394,6 +427,12 @@ impl<'a> StreamingBacktest<'a> {
         let reference = feeds.reference;
         let deriv = feeds.deriv.and_then(|d| d.to_core().ok());
         let orderbook = feeds.orderbook.and_then(|ob| ob.to_core().ok());
+        let trades: Vec<_> = feeds
+            .trades
+            .unwrap_or(&[])
+            .iter()
+            .filter_map(|tp| tp.to_core().ok())
+            .collect();
         let t = self.history.len();
         self.last = Some((candle.time, candle.close));
 
@@ -455,6 +494,7 @@ impl<'a> StreamingBacktest<'a> {
                 reference,
                 deriv,
                 orderbook: orderbook.as_ref(),
+                trades: &trades,
             };
             if let Some(v) = ind.update(&input) {
                 values.insert(name.clone(), v);
@@ -1414,6 +1454,7 @@ mod tests {
                 reference: Some(px * 0.9),
                 deriv: None,
                 orderbook: None,
+                trades: &[],
             };
             if ind.update(&input).is_some() {
                 names = ind.fields().iter().map(|(n, _)| *n).collect();
@@ -1504,6 +1545,36 @@ mod tests {
         let books = vec![book; 5];
 
         let with_feed = run_with_orderbook(&spec, &candles, &books, 10_000.0).unwrap();
+        assert!(with_feed.metrics.num_trades >= 1);
+
+        let without_feed = run_with_capital(&spec, &candles, 10_000.0).unwrap();
+        assert_eq!(without_feed.metrics.num_trades, 0);
+    }
+
+    #[test]
+    fn trade_indicator_replays_bar_trades() {
+        use crate::data::{TradePrint, TradeSide};
+        let spec = StrategySpec::parse(
+            r#"{"symbol":"x","timeframe":"1h",
+                "indicators":{"cvd":{"type":"CumulativeVolumeDelta","params":[]}},
+                "entry":{"gt":["cvd",0.0]},
+                "exit":{"lt":["cvd",-1.0]},
+                "sizing":{"type":"fixed_qty","qty":1}}"#,
+        )
+        .unwrap();
+        let candles: Vec<Candle> = (0i64..5)
+            .map(|t| bar(t, 100.0, 100.0, 100.0, 100.0))
+            .collect();
+        let buy = TradePrint {
+            price: 100.0,
+            size: 5.0,
+            side: TradeSide::Buy,
+            timestamp: 0,
+        };
+        // Two buy trades per bar → cumulative volume delta grows positive.
+        let trades: Vec<Vec<TradePrint>> = (0..5).map(|_| vec![buy, buy]).collect();
+
+        let with_feed = run_with_trades(&spec, &candles, &trades, 10_000.0).unwrap();
         assert!(with_feed.metrics.num_trades >= 1);
 
         let without_feed = run_with_capital(&spec, &candles, 10_000.0).unwrap();

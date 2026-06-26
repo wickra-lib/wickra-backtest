@@ -108,6 +108,12 @@ to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ### Changed
 
+- Trade feed: the registry now includes the 8 trade-flow (`Input = Trade`)
+  indicators (cumulative volume delta, trade imbalance, signed volume, VPIN,
+  Amihud illiquidity, Roll measure, PIN, trade-sign autocorrelation), fed the
+  bar's trades. The `TradeIn` wrapper replays each bar's trades in order and
+  returns the value after the last; `run_with_trades(spec, candles, trades,
+  capital)` takes one trade list per bar. Registry: 469 → **477**.
 - Order-book feed: the registry now includes the 7 order-book
   (`Input = OrderBook`) indicators (top-of-book / full-depth imbalance,
   microprice, quoted spread, depth slope, order-flow imbalance), fed the bar's
