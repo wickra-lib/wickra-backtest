@@ -65,8 +65,11 @@ to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
   the first open, closes at the last close, takes the extreme high/low and sums
   volume.
 - `wkbt` command-line backtester (`wickra-backtest-cli`): `wkbt run --data … --spec …
-  [--capital N] [--report …] [--trades …] [--equity …]` prints a metrics summary
-  and optionally writes the report (JSON) and trade/equity streams (JSON Lines).
+  [--capital N] [--resample-count N | --resample-interval I] [--report …]
+  [--trades …] [--equity …]` prints a metrics summary and optionally writes the
+  report (JSON) and trade/equity streams (JSON Lines); `--resample-*` aggregates
+  the data to a coarser timeframe first. `wkbt schema` prints the strategy-spec
+  JSON Schema.
 - Registry expansion to ~26 indicators: single-output (`Wma`, `Dema`, `Tema`,
   `Hma`, `Roc`, `Mom`, `Cmo`, `Trix`, `Trima`, `Kama`, `Cci`, `WilliamsR`,
   `Mfi`, `Vwap`, `Obv`) and multi-output (`Macd`, `Bollinger`, `Stochastic`,
