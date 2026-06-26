@@ -35,7 +35,7 @@ pub use data::{
     TradeSide,
 };
 pub use engine::{
-    run, run_with_capital, run_with_cross_section, run_with_deriv, run_with_orderbook,
+    run, run_stream, run_with_capital, run_with_cross_section, run_with_deriv, run_with_orderbook,
     run_with_ref, run_with_trades, Feeds, StreamingBacktest, DEFAULT_CAPITAL,
 };
 pub use error::{BacktestError, Result};

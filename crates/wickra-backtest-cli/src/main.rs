@@ -5,17 +5,22 @@
 //!          [--resample-count N | --resample-interval I |
 //!           --renko BOX | --kagi REVERSAL | --pnf BOX:REVERSAL]
 //!          [--report report.json] [--trades trades.jsonl] [--equity equity.jsonl]
+//!          [--stream]
 //! wkbt schema   # print the strategy-spec JSON Schema
 //! ```
 
 #![forbid(unsafe_code)]
 
+use std::fs::File;
+use std::io::{BufWriter, Write};
 use std::path::{Path, PathBuf};
 use std::process::ExitCode;
 
 use clap::{Parser, Subcommand};
 use serde::Serialize;
-use wickra_backtest_core::{run_with_capital, strategy_spec_schema, StrategySpec, DEFAULT_CAPITAL};
+use wickra_backtest_core::{
+    run_stream, run_with_capital, strategy_spec_schema, StrategySpec, DEFAULT_CAPITAL,
+};
 use wickra_backtest_data::{
     load_candles, resample_by_count, resample_by_interval, to_kagi, to_pnf, to_renko,
 };
@@ -74,6 +79,11 @@ enum Command {
         /// Write the equity curve as JSON Lines to this path.
         #[arg(long)]
         equity: Option<PathBuf>,
+        /// Drive the engine one bar at a time (the live/streaming path) and emit
+        /// each equity point to `--equity` as it is produced, instead of in one
+        /// batch. The result is identical; this exercises the live code path.
+        #[arg(long)]
+        stream: bool,
     },
     /// Print the JSON Schema for the strategy spec.
     Schema,
@@ -107,6 +117,7 @@ fn dispatch(cli: Cli) -> Result<(), String> {
             report,
             trades,
             equity,
+            stream,
         } => {
             let mut candles = load_candles(&data).map_err(|e| e.to_string())?;
             // At most one transform applies (enforced by the `transform` group).
@@ -125,8 +136,39 @@ fn dispatch(cli: Cli) -> Result<(), String> {
             let spec_json = std::fs::read_to_string(&spec)
                 .map_err(|e| format!("reading {}: {e}", spec.display()))?;
             let strategy = StrategySpec::parse(&spec_json).map_err(|e| e.to_string())?;
-            let result =
-                run_with_capital(&strategy, &candles, capital).map_err(|e| e.to_string())?;
+
+            // In `--stream` mode the engine is driven one bar at a time (the live
+            // code path) and each equity point is written to `--equity` as it is
+            // produced; the resulting report is identical to the batch run.
+            let equity_streamed = stream && equity.is_some();
+            let result = if stream {
+                let mut writer = match &equity {
+                    Some(path) => Some(open_jsonl(path)?),
+                    None => None,
+                };
+                let mut write_err: Option<String> = None;
+                let r = run_stream(&strategy, &candles, capital, |_, bt| {
+                    if write_err.is_some() {
+                        return;
+                    }
+                    if let (Some(w), Some(point)) = (writer.as_mut(), bt.latest_equity()) {
+                        if let Err(e) = write_jsonl_line(w, &point) {
+                            write_err = Some(e);
+                        }
+                    }
+                })
+                .map_err(|e| e.to_string())?;
+                if let Some(e) = write_err {
+                    return Err(e);
+                }
+                if let Some(mut w) = writer {
+                    w.flush()
+                        .map_err(|e| format!("flushing equity stream: {e}"))?;
+                }
+                r
+            } else {
+                run_with_capital(&strategy, &candles, capital).map_err(|e| e.to_string())?
+            };
 
             let m = &result.metrics;
             println!("bars       {}", result.equity.len());
@@ -144,8 +186,11 @@ fn dispatch(cli: Cli) -> Result<(), String> {
             if let Some(path) = trades {
                 write_jsonl(&path, &result.trades)?;
             }
+            // In stream mode the equity file was already written incrementally.
             if let Some(path) = equity {
-                write_jsonl(&path, &result.equity)?;
+                if !equity_streamed {
+                    write_jsonl(&path, &result.equity)?;
+                }
             }
             Ok(())
         }
@@ -180,4 +225,17 @@ fn write_jsonl<T: Serialize>(path: &Path, items: &[T]) -> Result<(), String> {
         buf.push('\n');
     }
     std::fs::write(path, buf).map_err(|e| format!("writing {}: {e}", path.display()))
+}
+
+/// Open a JSON Lines file for incremental (streaming) writes.
+fn open_jsonl(path: &Path) -> Result<BufWriter<File>, String> {
+    File::create(path)
+        .map(BufWriter::new)
+        .map_err(|e| format!("creating {}: {e}", path.display()))
+}
+
+/// Append one item as a JSON line to an open writer.
+fn write_jsonl_line<T: Serialize>(writer: &mut BufWriter<File>, item: &T) -> Result<(), String> {
+    let line = serde_json::to_string(item).map_err(|e| e.to_string())?;
+    writeln!(writer, "{line}").map_err(|e| format!("writing equity stream: {e}"))
 }

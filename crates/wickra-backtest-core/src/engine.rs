@@ -286,6 +286,35 @@ pub fn run_with_capital(
     Ok(bt.finish())
 }
 
+/// Run a backtest over a candle stream, invoking `on_bar` with the streaming
+/// state after each bar — the streaming entry point for a live tail or for
+/// emitting the equity curve incrementally.
+///
+/// This is exactly the same step loop as [`run_with_capital`], so the returned
+/// report is byte-identical; `on_bar` simply observes the state after each
+/// [`StreamingBacktest::step`] (e.g. to read [`StreamingBacktest::latest_equity`]).
+/// Pointing the same loop at a live feed turns the engine into the live bot.
+pub fn run_stream<F>(
+    spec: &StrategySpec,
+    candles: &[Candle],
+    capital: f64,
+    mut on_bar: F,
+) -> Result<BacktestReport>
+where
+    F: FnMut(usize, &StreamingBacktest),
+{
+    spec.validate()?;
+    if candles.is_empty() {
+        return Err(BacktestError::InvalidData("no candles".into()));
+    }
+    let mut bt = StreamingBacktest::new(spec, capital)?;
+    for (i, candle) in candles.iter().enumerate() {
+        bt.step(candle)?;
+        on_bar(i, &bt);
+    }
+    Ok(bt.finish())
+}
+
 /// Run a backtest with a reference price series for pairwise indicators. The
 /// reference candle at each index supplies the second input (its close) to
 /// pairwise indicators such as correlation, beta or spread. `reference` must be
@@ -494,6 +523,23 @@ impl<'a> StreamingBacktest<'a> {
     /// stops, mark equity and decide the next action. Look-ahead-free.
     pub fn step(&mut self, candle: &Candle) -> Result<()> {
         self.step_with_feeds(candle, &Feeds::default())
+    }
+
+    /// The equity points produced so far, oldest first. Readable after each
+    /// `step` for a live tail of the equity curve.
+    pub fn equity(&self) -> &[EquityPoint] {
+        &self.equity
+    }
+
+    /// The most recent equity point, or `None` before the first bar is marked.
+    /// This is the value to emit per bar in a streaming / live run.
+    pub fn latest_equity(&self) -> Option<EquityPoint> {
+        self.equity.last().copied()
+    }
+
+    /// The number of completed trades so far.
+    pub fn num_trades(&self) -> usize {
+        self.pf.trades.len()
     }
 
     /// Like [`StreamingBacktest::step`], but also supplies the reference series'
@@ -1569,6 +1615,46 @@ mod tests {
             (batch.equity.last().unwrap().equity - streamed.equity.last().unwrap().equity).abs()
                 < 1e-12
         );
+    }
+
+    #[test]
+    fn run_stream_matches_batch_and_tails_equity() {
+        // The streaming entry point yields a byte-identical report to the batch
+        // runner, and the per-bar hook sees the equity curve grow one point at a
+        // time — the live-tail path.
+        let spec = StrategySpec::parse(
+            r#"{"symbol":"x","timeframe":"1h",
+                "indicators":{"f":{"type":"Ema","params":[3]}},
+                "entry":{"cross_above":[{"price":"close"},"f"]},
+                "exit":{"cross_below":[{"price":"close"},"f"]},
+                "sizing":{"type":"fixed_qty","qty":1}}"#,
+        )
+        .unwrap();
+        let candles: Vec<Candle> = (0..30i64)
+            .map(|i| {
+                let px = 100.0 + ((i as f64) * 0.5).sin() * 5.0;
+                bar(i, px, px + 0.5, px - 0.5, px)
+            })
+            .collect();
+
+        let batch = run_with_capital(&spec, &candles, 10_000.0).unwrap();
+
+        let mut tail: Vec<EquityPoint> = Vec::new();
+        let streamed = run_stream(&spec, &candles, 10_000.0, |i, bt| {
+            // The equity curve has exactly one point per processed bar.
+            assert_eq!(bt.equity().len(), i + 1);
+            tail.push(bt.latest_equity().expect("a bar was marked"));
+        })
+        .unwrap();
+
+        assert_eq!(tail.len(), candles.len());
+        assert_eq!(streamed.equity.len(), batch.equity.len());
+        // The tailed points equal the report's equity series exactly.
+        for (got, want) in tail.iter().zip(&streamed.equity) {
+            assert_eq!(got.time, want.time);
+            assert!((got.equity - want.equity).abs() < 1e-12);
+        }
+        assert_eq!(streamed.metrics.num_trades, batch.metrics.num_trades);
     }
 
     #[test]
