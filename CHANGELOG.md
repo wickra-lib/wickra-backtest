@@ -108,6 +108,11 @@ to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ### Changed
 
+- Spread and volume-impact slippage: the `spread` model moves the fill by the
+  order book's half-spread relative to the mid (needs an order-book feed), and
+  `volume_impact` by `coef * order_qty / bar_volume`. Both are now applied
+  per-fill (slippage is computed at fill time from the bar's feeds instead of a
+  fixed scalar), completing the three slippage models. `fixed_bps` is unchanged.
 - Maker / taker fees: a resting limit-order fill now pays `costs.maker_bps`
   (it provides liquidity), while market and stop fills pay `costs.taker_bps`.
   Previously `maker_bps` was unused and every fill paid the taker fee.

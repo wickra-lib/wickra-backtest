@@ -11,8 +11,8 @@
 //! Supports long and short positions; market, limit and stop entry orders (a
 //! limit/stop rests at a percent offset from the signal close and fills when a
 //! later bar reaches it, otherwise it keeps working); maker/taker fees (resting
-//! limit fills pay maker, market/stop fills pay taker) and fixed-bps
-//! slippage; and leverage / position sizing (fixed fraction / cash / quantity,
+//! limit fills pay maker, market/stop fills pay taker) and fixed-bps, order-book-spread or
+//! volume-impact slippage; and leverage / position sizing (fixed fraction / cash / quantity,
 //! risk-per-trade and vol-target, capped by `max_leverage` and
 //! `max_position_pct`; without `max_leverage` the cap is 1x equity — no leverage
 //! by default). Execution latency (`latency_bars`) delays every fill, and
@@ -23,6 +23,8 @@
 //! bankruptcy price when `risk.liquidation` is set.
 
 use std::collections::BTreeMap;
+
+use wickra_core::OrderBook as CoreOrderBook;
 
 use crate::data::{Candle, DerivativesTick, OrderBook, TradePrint};
 use crate::error::{BacktestError, Result};
@@ -123,14 +125,46 @@ fn realized_vol(history: &[BarRow], lookback: usize) -> Option<f64> {
     (sd > 0.0).then_some(sd)
 }
 
+/// Slippage rate (a fraction of price): fixed basis points, the order book's
+/// half-spread relative to the mid, or a linear function of the order's share of
+/// the bar volume. Missing inputs (no book / zero volume) yield zero.
+fn slippage_rate(
+    slippage: Slippage,
+    orderbook: Option<&CoreOrderBook>,
+    qty: f64,
+    volume: f64,
+) -> f64 {
+    match slippage {
+        Slippage::FixedBps { bps } => bps / 10_000.0,
+        Slippage::Spread => orderbook.map_or(0.0, |ob| match (ob.best_bid(), ob.best_ask()) {
+            (Some(bid), Some(ask)) => {
+                let mid = f64::midpoint(ask.price, bid.price);
+                if mid > 0.0 {
+                    (ask.price - bid.price) / 2.0 / mid
+                } else {
+                    0.0
+                }
+            }
+            _ => 0.0,
+        }),
+        Slippage::VolumeImpact { coef } => {
+            if volume > 0.0 {
+                coef * qty.abs() / volume
+            } else {
+                0.0
+            }
+        }
+    }
+}
+
 /// Context an entry/exit fill needs from the run loop.
 struct FillCtx<'a> {
     spec: &'a StrategySpec,
     candle: &'a Candle,
     history: &'a [BarRow],
+    orderbook: Option<&'a CoreOrderBook>,
     maker: f64,
     taker: f64,
-    slip: f64,
     bar: usize,
 }
 
@@ -150,11 +184,24 @@ fn execute_entry(
         Side::Long => 1.0,
         Side::Short => -1.0,
     };
-    let fill = raw_price * (1.0 + dir * ctx.slip);
     let rv = match ctx.spec.sizing {
         Sizing::VolTarget { lookback, .. } => realized_vol(ctx.history, lookback as usize),
         _ => None,
     };
+    // Volume-impact slippage needs the order size; probe it at the raw price.
+    let probe_qty = match ctx.spec.costs.slippage {
+        Slippage::VolumeImpact { .. } => {
+            size(ctx.spec.sizing, &ctx.spec.risk, pf.cash, raw_price, rv)?.unwrap_or(0.0)
+        }
+        _ => 0.0,
+    };
+    let slip = slippage_rate(
+        ctx.spec.costs.slippage,
+        ctx.orderbook,
+        probe_qty,
+        ctx.candle.volume,
+    );
+    let fill = raw_price * (1.0 + dir * slip);
     if let Some(base) = size(ctx.spec.sizing, &ctx.spec.risk, pf.cash, fill, rv)? {
         // Immediate-or-cancel partial fills: take at most a participation cap of
         // the bar's volume.
@@ -188,7 +235,13 @@ fn execute_exit(
     }
     // Long exit sells (fills lower), short exit buys (fills higher).
     let dir = if pf.is_long() { -1.0 } else { 1.0 };
-    let fill = raw_price * (1.0 + dir * ctx.slip);
+    let slip = slippage_rate(
+        ctx.spec.costs.slippage,
+        ctx.orderbook,
+        pf.qty,
+        ctx.candle.volume,
+    );
+    let fill = raw_price * (1.0 + dir * slip);
     let fee = pf.qty.abs() * fill * ctx.taker;
     pf.exit(fill, ctx.candle.time, fee, reason);
     *entry_bar = None;
@@ -359,7 +412,6 @@ pub struct StreamingBacktest<'a> {
     capital: f64,
     maker: f64,
     taker: f64,
-    slip: f64,
     warmup: usize,
     indicators: BTreeMap<String, Box<dyn EvalIndicator>>,
     pf: Portfolio,
@@ -388,17 +440,11 @@ impl<'a> StreamingBacktest<'a> {
         let warmup = spec.warmup.map_or(max_warmup, |w| w as usize);
         let maker = spec.costs.maker_bps / 10_000.0;
         let taker = spec.costs.taker_bps / 10_000.0;
-        let slip = match spec.costs.slippage {
-            Slippage::FixedBps { bps } => bps / 10_000.0,
-            // Spread / volume-impact slippage need feeds the engine does not model yet.
-            Slippage::Spread | Slippage::VolumeImpact { .. } => 0.0,
-        };
         Ok(Self {
             spec,
             capital,
             maker,
             taker,
-            slip,
             warmup,
             indicators,
             pf: Portfolio::new(capital),
@@ -461,7 +507,7 @@ impl<'a> StreamingBacktest<'a> {
                     history: &self.history,
                     maker: self.maker,
                     taker: self.taker,
-                    slip: self.slip,
+                    orderbook: orderbook.as_ref(),
                     bar: t,
                 };
                 let keep_working = match &order.action {
@@ -599,7 +645,7 @@ impl<'a> StreamingBacktest<'a> {
                         history: &self.history,
                         maker: self.maker,
                         taker: self.taker,
-                        slip: self.slip,
+                        orderbook: orderbook.as_ref(),
                         bar: t,
                     };
                     execute_exit(
@@ -641,7 +687,7 @@ impl<'a> StreamingBacktest<'a> {
                         history: &self.history,
                         maker: self.maker,
                         taker: self.taker,
-                        slip: self.slip,
+                        orderbook: orderbook.as_ref(),
                         bar: t,
                     };
                     execute_entry(
@@ -1705,6 +1751,60 @@ mod tests {
             .unwrap()
             .fees_paid;
         assert!(limit_fees < market_fees); // maker (0) saved versus taker on entry
+    }
+
+    #[test]
+    fn volume_impact_slippage_worsens_the_fill() {
+        let spec = StrategySpec::parse(
+            r#"{"symbol":"x","timeframe":"1h","indicators":{},
+                "entry":{"gt":[{"price":"close"},0]},"exit":{"in_position":false},
+                "sizing":{"type":"fixed_qty","qty":10},
+                "costs":{"slippage":{"type":"volume_impact","coef":0.5}}}"#,
+        )
+        .unwrap();
+        let vbar = |t, vol| Candle {
+            time: t,
+            open: 100.0,
+            high: 100.0,
+            low: 100.0,
+            close: 100.0,
+            volume: vol,
+        };
+        let candles = [vbar(0, 1000.0), vbar(1, 1000.0), vbar(2, 1000.0)];
+        let r = run_with_capital(&spec, &candles, 1_000_000.0).unwrap();
+        // slip = coef * qty / volume = 0.5 * 10 / 1000 = 0.005 -> fill 100 * 1.005
+        assert!((r.trades[0].entry_price - 100.5).abs() < 1e-9);
+    }
+
+    #[test]
+    fn spread_slippage_uses_the_order_book() {
+        use crate::data::Level;
+        let spec = StrategySpec::parse(
+            r#"{"symbol":"x","timeframe":"1h","indicators":{},
+                "entry":{"gt":[{"price":"close"},0]},"exit":{"in_position":false},
+                "sizing":{"type":"fixed_qty","qty":1},
+                "costs":{"slippage":{"type":"spread"}}}"#,
+        )
+        .unwrap();
+        let candles = [
+            bar(0, 100.0, 100.0, 100.0, 100.0),
+            bar(1, 100.0, 100.0, 100.0, 100.0),
+            bar(2, 100.0, 100.0, 100.0, 100.0),
+        ];
+        let book = OrderBook {
+            bids: vec![Level {
+                price: 99.0,
+                size: 1.0,
+            }],
+            asks: vec![Level {
+                price: 101.0,
+                size: 1.0,
+            }],
+        };
+        let books = vec![book; 3];
+        let r = run_with_orderbook(&spec, &candles, &books, 10_000.0).unwrap();
+        // half-spread / mid = 1 / 100 = 0.01 -> long entry fill 100 * 1.01 = 101
+        assert!((r.trades[0].entry_price - 101.0).abs() < 1e-9);
     }
 
     #[test]
