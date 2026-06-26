@@ -140,6 +140,9 @@ All fields are optional:
 
 Stops and targets are evaluated **intrabar** along the conservative O→H→L→C
 path: when both a stop and a target could be hit in the same bar, the stop wins.
+Fills are **gap-aware** — if a bar opens beyond the level (a gap), the fill is
+the open (the worse price for a stop, the better for a take-profit), not the
+unreachable level.
 
 ## Execution
 
