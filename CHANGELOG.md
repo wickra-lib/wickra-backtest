@@ -97,7 +97,12 @@ to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
   threads the present feeds through the engine and returns the report JSON. This
   is the uniform surface the language bindings wrap, so every binding can run any
   feed combination by passing one JSON string. Each feed must match the candle
-  count.
+  count. The entry point is now exposed through every binding — Python
+  `run_json`, Node.js `runJson`, WASM `run_json`, C `wickra_backtest_run_json`,
+  C# `RunJson`, Go `RunJSON`, Java `runJson` and R `backtest_run_json` — each
+  with a round-trip test, so any feed combination is reachable from all ten
+  languages by passing one request document instead of marshalling variable
+  per-bar feed arrays across the FFI.
 - Streaming API (`StreamingBacktest`): feed bars one at a time with `step` and
   finalize with `finish`. The historical `run` / `run_with_capital` is exactly
   this fed from a slice, so backtest and live share one code path — pointing
