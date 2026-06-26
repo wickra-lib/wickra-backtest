@@ -71,3 +71,33 @@ func TestInvalidSpecReturnsError(t *testing.T) {
 		t.Fatal("expected error for invalid spec")
 	}
 }
+
+func TestRunJSONRequestBundle(t *testing.T) {
+	request := `{"capital":1000,"spec":` + priceSpec + `,"candles":[` +
+		`{"time":0,"open":100,"high":101,"low":100,"close":101},` +
+		`{"time":1,"open":102,"high":103,"low":102,"close":103},` +
+		`{"time":2,"open":104,"high":104,"low":99,"close":99},` +
+		`{"time":3,"open":98,"high":98,"low":97,"close":97}]}`
+
+	out, err := RunJSON(request)
+	if err != nil {
+		t.Fatalf("RunJSON failed: %v", err)
+	}
+	var report struct {
+		Metrics struct {
+			NumTrades int `json:"num_trades"`
+		} `json:"metrics"`
+		Trades []struct {
+			EntryPrice float64 `json:"entry_price"`
+		} `json:"trades"`
+	}
+	if err := json.Unmarshal([]byte(out), &report); err != nil {
+		t.Fatalf("bad report json: %v", err)
+	}
+	if report.Metrics.NumTrades != 1 {
+		t.Fatalf("num_trades = %d, want 1", report.Metrics.NumTrades)
+	}
+	if math.Abs(report.Trades[0].EntryPrice-102.0) > 1e-9 {
+		t.Errorf("entry_price = %v, want 102", report.Trades[0].EntryPrice)
+	}
+}

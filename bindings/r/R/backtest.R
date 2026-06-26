@@ -41,3 +41,23 @@ backtest_run <- function(open, high, low, close, volume = NULL, time = NULL,
   }
   json
 }
+
+#' Run a backtest from a single request bundle.
+#'
+#' The request is a JSON document carrying the candles, the spec, the starting
+#' capital and any optional feeds. Returns the report as a JSON string,
+#' byte-identical to the other language bindings.
+#'
+#' @param request The request bundle as a JSON string.
+#' @return The backtest report as a JSON string.
+#' @export
+backtest_run_json <- function(request) {
+  res <- .Call("wkbt_run_json", as.character(request)[1],
+               PACKAGE = "wickrabacktest")
+  code <- res[[1]]
+  json <- res[[2]]
+  if (code != 0) {
+    stop(sprintf("wickra_backtest_run_json failed (code %d): %s", code, json))
+  }
+  json
+}

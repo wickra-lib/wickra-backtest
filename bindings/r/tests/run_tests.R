@@ -31,4 +31,16 @@ err <- tryCatch({
 }, error = function(e) "error")
 stopifnot(identical(err, "error"))
 
+# The unified request bundle matches the array-based run by construction.
+request <- paste0(
+  '{"capital":1000,"spec":', spec, ',"candles":[',
+  '{"time":0,"open":100,"high":101,"low":100,"close":101},',
+  '{"time":1,"open":102,"high":103,"low":102,"close":103},',
+  '{"time":2,"open":104,"high":104,"low":99,"close":99},',
+  '{"time":3,"open":98,"high":98,"low":97,"close":97}]}'
+)
+json2 <- backtest_run_json(request)
+stopifnot(grepl('"num_trades":1', json2, fixed = TRUE))
+stopifnot(grepl('"entry_price":102.0', json2, fixed = TRUE))
+
 cat("R binding: all checks passed\n")

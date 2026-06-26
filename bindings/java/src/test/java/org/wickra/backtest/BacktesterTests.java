@@ -44,6 +44,23 @@ class BacktesterTests {
     }
 
     @Test
+    void runJsonRequestBundle() {
+        String request =
+                "{\"capital\":1000,\"spec\":" + PRICE_SPEC + ",\"candles\":["
+                + "{\"time\":0,\"open\":100,\"high\":101,\"low\":100,\"close\":101},"
+                + "{\"time\":1,\"open\":102,\"high\":103,\"low\":102,\"close\":103},"
+                + "{\"time\":2,\"open\":104,\"high\":104,\"low\":99,\"close\":99},"
+                + "{\"time\":3,\"open\":98,\"high\":98,\"low\":97,\"close\":97}]}";
+
+        String json = Backtester.runJson(request);
+        JSONObject root = new JSONObject(json);
+
+        assertEquals(1, root.getJSONObject("metrics").getInt("num_trades"));
+        JSONObject trade = root.getJSONArray("trades").getJSONObject(0);
+        assertEquals(102.0, trade.getDouble("entry_price"), 1e-9);
+    }
+
+    @Test
     void invalidSpecThrows() {
         double[] one = {1.0};
         assertThrows(IllegalStateException.class, () ->

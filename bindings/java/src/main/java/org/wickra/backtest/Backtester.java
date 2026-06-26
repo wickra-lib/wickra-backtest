@@ -25,6 +25,7 @@ public final class Backtester {
     private static final Linker LINKER = Linker.nativeLinker();
     private static final SymbolLookup LOOKUP;
     private static final MethodHandle RUN;
+    private static final MethodHandle RUN_JSON;
     private static final MethodHandle FREE;
     private static final MethodHandle VERSION;
 
@@ -39,6 +40,11 @@ public final class Backtester {
                         ValueLayout.ADDRESS, ValueLayout.ADDRESS, ValueLayout.ADDRESS,
                         ValueLayout.JAVA_LONG, ValueLayout.ADDRESS, ValueLayout.JAVA_DOUBLE,
                         ValueLayout.ADDRESS));
+        RUN_JSON = LINKER.downcallHandle(
+                symbol("wickra_backtest_run_json"),
+                FunctionDescriptor.of(
+                        ValueLayout.JAVA_INT,
+                        ValueLayout.ADDRESS, ValueLayout.ADDRESS));
         FREE = LINKER.downcallHandle(
                 symbol("wickra_backtest_free_string"),
                 FunctionDescriptor.ofVoid(ValueLayout.ADDRESS));
@@ -121,6 +127,40 @@ public final class Backtester {
             throw e;
         } catch (Throwable t) {
             throw new RuntimeException("wickra_backtest_run failed", t);
+        }
+    }
+
+    /**
+     * Run a backtest from a single request bundle: a JSON document carrying the
+     * candles, the spec, the starting capital and any optional feeds.
+     *
+     * @param requestJson the request bundle as JSON
+     * @return the backtest report as a JSON string
+     * @throws IllegalStateException if the request is rejected
+     */
+    public static String runJson(String requestJson) {
+        try (Arena arena = Arena.ofConfined()) {
+            MemorySegment pReq = arena.allocateFrom(requestJson);
+            MemorySegment pOut = arena.allocate(ValueLayout.ADDRESS);
+
+            int code = (int) RUN_JSON.invokeExact(pReq, pOut);
+
+            MemorySegment outPtr = pOut.get(ValueLayout.ADDRESS, 0);
+            if (MemorySegment.NULL.equals(outPtr)) {
+                throw new IllegalStateException(
+                        "wickra_backtest_run_json returned code " + code + " with no message");
+            }
+            String json = outPtr.reinterpret(Long.MAX_VALUE).getString(0);
+            FREE.invokeExact(outPtr);
+            if (code != 0) {
+                throw new IllegalStateException(
+                        "wickra_backtest_run_json failed (code " + code + "): " + json);
+            }
+            return json;
+        } catch (RuntimeException e) {
+            throw e;
+        } catch (Throwable t) {
+            throw new RuntimeException("wickra_backtest_run_json failed", t);
         }
     }
 

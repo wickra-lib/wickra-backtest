@@ -1,3 +1,4 @@
 useDynLib(wickrabacktest, .registration = TRUE)
 export(backtest_run)
+export(backtest_run_json)
 export(backtest_version)

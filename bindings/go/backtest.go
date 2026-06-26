@@ -85,3 +85,25 @@ func Run(open, high, low, close, volume []float64, time []int64, spec string, ca
 func RunSimple(open, high, low, close []float64, spec string, capital float64) (string, error) {
 	return Run(open, high, low, close, nil, nil, spec, capital)
 }
+
+// RunJSON runs a backtest from a single request bundle: a JSON document
+// carrying the candles, the spec, the starting capital and any optional feeds.
+// It returns the report as JSON. The returned error wraps the engine's message
+// for an invalid request; no panic ever crosses the FFI boundary.
+func RunJSON(requestJSON string) (string, error) {
+	creq := C.CString(requestJSON)
+	defer C.free(unsafe.Pointer(creq))
+
+	var out *C.char
+	code := C.wickra_backtest_run_json(creq, &out)
+
+	if out == nil {
+		return "", fmt.Errorf("wickra_backtest_run_json returned code %d with no message", int(code))
+	}
+	json := C.GoString(out)
+	C.wickra_backtest_free_string(out)
+	if code != 0 {
+		return "", fmt.Errorf("wickra_backtest_run_json failed (code %d): %s", int(code), json)
+	}
+	return json, nil
+}

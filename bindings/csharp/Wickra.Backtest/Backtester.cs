@@ -19,6 +19,10 @@ public static class Backtester
         double capital, out IntPtr outJson);
 
     [DllImport(Lib, CallingConvention = CallingConvention.Cdecl)]
+    private static extern int wickra_backtest_run_json(
+        [MarshalAs(UnmanagedType.LPUTF8Str)] string requestJson, out IntPtr outJson);
+
+    [DllImport(Lib, CallingConvention = CallingConvention.Cdecl)]
     private static extern void wickra_backtest_free_string(IntPtr s);
 
     [DllImport(Lib, CallingConvention = CallingConvention.Cdecl)]
@@ -47,6 +51,23 @@ public static class Backtester
         }
 
         int code = wickra_backtest_run(open, high, low, close, volume, time, (nuint)n, spec, capital, out IntPtr ptr);
+        string payload = Marshal.PtrToStringUTF8(ptr) ?? string.Empty;
+        wickra_backtest_free_string(ptr);
+        if (code != 0)
+        {
+            throw new InvalidOperationException($"backtest error ({code}): {payload}");
+        }
+        return payload;
+    }
+
+    /// <summary>
+    /// Run a backtest from a single request bundle: a JSON document carrying the
+    /// candles, the spec, the starting capital and any optional feeds. Returns
+    /// the report as a JSON string.
+    /// </summary>
+    public static string RunJson(string requestJson)
+    {
+        int code = wickra_backtest_run_json(requestJson, out IntPtr ptr);
         string payload = Marshal.PtrToStringUTF8(ptr) ?? string.Empty;
         wickra_backtest_free_string(ptr);
         if (code != 0)

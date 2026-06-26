@@ -42,6 +42,25 @@ public class BacktesterTests
     }
 
     [Fact]
+    public void RunJsonRequestBundle()
+    {
+        string request =
+            "{\"capital\":1000,\"spec\":" + PriceSpec + ",\"candles\":[" +
+            "{\"time\":0,\"open\":100,\"high\":101,\"low\":100,\"close\":101}," +
+            "{\"time\":1,\"open\":102,\"high\":103,\"low\":102,\"close\":103}," +
+            "{\"time\":2,\"open\":104,\"high\":104,\"low\":99,\"close\":99}," +
+            "{\"time\":3,\"open\":98,\"high\":98,\"low\":97,\"close\":97}]}";
+
+        string json = Backtester.RunJson(request);
+        using var doc = JsonDocument.Parse(json);
+        var root = doc.RootElement;
+
+        Assert.Equal(1, root.GetProperty("metrics").GetProperty("num_trades").GetInt32());
+        var trade = root.GetProperty("trades")[0];
+        Assert.True(Math.Abs(trade.GetProperty("entry_price").GetDouble() - 102.0) < 1e-9);
+    }
+
+    [Fact]
     public void InvalidSpecThrows()
     {
         var one = new[] { 1.0 };

@@ -39,8 +39,26 @@ SEXP wkbt_run(SEXP open, SEXP high, SEXP low, SEXP close, SEXP volume,
     return ans;
 }
 
+/* Run a backtest from a single JSON request bundle. Returns list(code, json). */
+SEXP wkbt_run_json(SEXP request) {
+    const char *creq = CHAR(STRING_ELT(request, 0));
+    char *out = NULL;
+    int code = wickra_backtest_run_json(creq, &out);
+
+    SEXP json = PROTECT(mkString(out != NULL ? out : ""));
+    if (out != NULL) {
+        wickra_backtest_free_string(out);
+    }
+    SEXP ans = PROTECT(allocVector(VECSXP, 2));
+    SET_VECTOR_ELT(ans, 0, ScalarInteger(code));
+    SET_VECTOR_ELT(ans, 1, json);
+    UNPROTECT(2);
+    return ans;
+}
+
 static const R_CallMethodDef CallEntries[] = {
     {"wkbt_run", (DL_FUNC) &wkbt_run, 8},
+    {"wkbt_run_json", (DL_FUNC) &wkbt_run_json, 1},
     {"wkbt_version", (DL_FUNC) &wkbt_version, 0},
     {NULL, NULL, 0}
 };
