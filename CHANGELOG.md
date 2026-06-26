@@ -87,6 +87,15 @@ to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
   timestamp. The CLI gains `--renko BOX`, `--kagi REVERSAL` and `--pnf
   BOX:REVERSAL`, mutually exclusive with each other and the resample options, so
   `wkbt run` can backtest a strategy on price-driven bars instead of time bars.
+- Binance importer: `parse_binance_klines` (always available, parses the
+  Binance `klines` REST response — OHLCV-as-strings, millisecond open times) and
+  `fetch_klines(symbol, interval, limit)` behind the `binance` feature, which
+  fetches candles over HTTP. The `wkbt fetch` subcommand (also behind `binance`)
+  writes them to CSV / JSON / JSON Lines. The parser is unit-tested offline; the
+  fetch was verified end-to-end against the live API.
+- Streaming entry point `run_stream` and the `wkbt --stream` mode: drive the
+  engine one bar at a time and emit the equity curve incrementally (the live
+  path), with a report byte-identical to the batch runner.
 - Apache Parquet loading behind the `parquet` feature (`load_parquet`, dispatched
   for `.parquet` files): reads `time, open, high, low, close[, volume]` columns
   (matched case-insensitively, integer or floating-point). The CLI gains a

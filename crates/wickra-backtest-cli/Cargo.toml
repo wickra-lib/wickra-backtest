@@ -25,6 +25,8 @@ clap.workspace = true
 [features]
 # Build `wkbt` with Apache Parquet loading (`wkbt run --data history.parquet`).
 parquet = ["wickra-backtest-data/parquet"]
+# Build `wkbt` with the Binance importer (`wkbt fetch`).
+binance = ["wickra-backtest-data/binance"]
 
 [lints]
 workspace = true

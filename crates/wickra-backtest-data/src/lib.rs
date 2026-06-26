@@ -202,6 +202,69 @@ pub fn parse_json_array(content: &str) -> Result<Vec<Candle>> {
         .map_err(|e| BacktestError::InvalidData(format!("JSON array: {e}")))
 }
 
+/// Parse a Binance `GET /api/v3/klines` response (a JSON array of kline arrays)
+/// into candles. Each kline is `[openTime_ms, "open", "high", "low", "close",
+/// "volume", …]` where the OHLCV fields are JSON strings; the open time is
+/// milliseconds since epoch and is converted to seconds. This is always
+/// available (no HTTP dependency) so the parser can be tested offline.
+pub fn parse_binance_klines(json: &str) -> Result<Vec<Candle>> {
+    let rows: Vec<Vec<serde_json::Value>> = serde_json::from_str(json)
+        .map_err(|e| BacktestError::InvalidData(format!("binance klines: {e}")))?;
+    let mut out = Vec::with_capacity(rows.len());
+    for (i, row) in rows.iter().enumerate() {
+        if row.len() < 6 {
+            return Err(BacktestError::InvalidData(format!(
+                "binance kline {i}: expected at least 6 fields, got {}",
+                row.len()
+            )));
+        }
+        let time_ms = row[0].as_i64().ok_or_else(|| {
+            BacktestError::InvalidData(format!("binance kline {i}: open time is not an integer"))
+        })?;
+        out.push(Candle {
+            time: time_ms / 1000,
+            open: binance_num(&row[1], i)?,
+            high: binance_num(&row[2], i)?,
+            low: binance_num(&row[3], i)?,
+            close: binance_num(&row[4], i)?,
+            volume: binance_num(&row[5], i)?,
+        });
+    }
+    Ok(out)
+}
+
+/// Read a Binance kline numeric field, which may be a JSON string or number.
+fn binance_num(value: &serde_json::Value, kline: usize) -> Result<f64> {
+    match value {
+        serde_json::Value::String(s) => s.parse::<f64>().map_err(|_| {
+            BacktestError::InvalidData(format!("binance kline {kline}: `{s}` is not a number"))
+        }),
+        serde_json::Value::Number(n) => n.as_f64().ok_or_else(|| {
+            BacktestError::InvalidData(format!("binance kline {kline}: non-finite number"))
+        }),
+        _ => Err(BacktestError::InvalidData(format!(
+            "binance kline {kline}: expected a numeric field"
+        ))),
+    }
+}
+
+/// Fetch historical candles from the Binance REST API
+/// (`GET /api/v3/klines`). `interval` is a Binance interval such as `1m`, `1h`
+/// or `1d`; `limit` is the number of bars (Binance caps this at 1000). Requires
+/// the `binance` feature.
+#[cfg(feature = "binance")]
+pub fn fetch_klines(symbol: &str, interval: &str, limit: u32) -> Result<Vec<Candle>> {
+    let url = format!(
+        "https://api.binance.com/api/v3/klines?symbol={symbol}&interval={interval}&limit={limit}"
+    );
+    let body = ureq::get(&url)
+        .call()
+        .map_err(|e| BacktestError::InvalidData(format!("binance request failed: {e}")))?
+        .into_string()
+        .map_err(|e| BacktestError::InvalidData(format!("binance response: {e}")))?;
+    parse_binance_klines(&body)
+}
+
 /// Aggregate one [`Candle`] from a non-empty slice of finer candles: the bucket
 /// opens at the first open, closes at the last close, takes the extreme high/low
 /// and sums the volume. The timestamp is the first candle's time.
@@ -432,6 +495,28 @@ mod tests {
     fn resample_rejects_zero_step() {
         assert!(resample_by_count(&four_bars(), 0).is_err());
         assert!(resample_by_interval(&four_bars(), 0).is_err());
+    }
+
+    #[test]
+    fn binance_klines_parse_with_string_fields() {
+        // Binance returns OHLCV as strings and the open time in milliseconds.
+        // (Trailing fields after volume are ignored.)
+        let json = r#"[
+            [1609459200000,"100.0","102.0","99.5","101.0","1234.5",1609462799999,"0",10,"0","0","0"],
+            [1609462800000,"101.0","103.0","100.0","102.5","2000.0",1609466399999,"0",12,"0","0","0"]
+        ]"#;
+        let c = parse_binance_klines(json).unwrap();
+        assert_eq!(c.len(), 2);
+        assert_eq!(c[0].time, 1_609_459_200); // ms -> s
+        assert!((c[0].open - 100.0).abs() < 1e-9);
+        assert!((c[0].close - 101.0).abs() < 1e-9);
+        assert!((c[1].volume - 2000.0).abs() < 1e-9);
+    }
+
+    #[test]
+    fn binance_klines_reject_short_rows() {
+        assert!(parse_binance_klines(r#"[[1,"1","2","3"]]"#).is_err());
+        assert!(parse_binance_klines("not json").is_err());
     }
 
     proptest::proptest! {

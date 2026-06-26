@@ -17,6 +17,7 @@ wickra-core.workspace = true
 serde_json.workspace = true
 parquet = { workspace = true, optional = true }
 arrow-array = { workspace = true, optional = true }
+ureq = { workspace = true, optional = true }
 
 [dev-dependencies]
 parquet.workspace = true
@@ -28,6 +29,9 @@ proptest.workspace = true
 # Apache Parquet bulk-history loading. Off by default — the arrow / parquet
 # stack is heavy; opt in with `--features parquet` when you need it.
 parquet = ["dep:parquet", "dep:arrow-array"]
+# Fetch historical candles from the Binance REST API. Off by default (pulls an
+# HTTP client). The response *parser* is always available and tested offline.
+binance = ["dep:ureq"]
 
 [lints]
 workspace = true

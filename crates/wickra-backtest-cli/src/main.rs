@@ -6,6 +6,7 @@
 //!           --renko BOX | --kagi REVERSAL | --pnf BOX:REVERSAL]
 //!          [--report report.json] [--trades trades.jsonl] [--equity equity.jsonl]
 //!          [--stream]
+//! wkbt fetch --symbol BTCUSDT --interval 1h --limit 500 --out data.csv  # (binance feature)
 //! wkbt schema   # print the strategy-spec JSON Schema
 //! ```
 
@@ -85,6 +86,23 @@ enum Command {
         #[arg(long)]
         stream: bool,
     },
+    /// Fetch historical candles from Binance and write them to a file
+    /// (requires the `binance` build feature).
+    #[cfg(feature = "binance")]
+    Fetch {
+        /// Trading symbol, e.g. `BTCUSDT`.
+        #[arg(long)]
+        symbol: String,
+        /// Binance interval, e.g. `1m`, `1h`, `1d`.
+        #[arg(long, default_value = "1h")]
+        interval: String,
+        /// Number of bars (Binance caps this at 1000).
+        #[arg(long, default_value_t = 500)]
+        limit: u32,
+        /// Output file (`.csv` / `.jsonl` / `.json` by extension).
+        #[arg(long)]
+        out: PathBuf,
+    },
     /// Print the JSON Schema for the strategy spec.
     Schema,
 }
@@ -103,6 +121,19 @@ fn dispatch(cli: Cli) -> Result<(), String> {
     match cli.command {
         Command::Schema => {
             println!("{}", strategy_spec_schema());
+            Ok(())
+        }
+        #[cfg(feature = "binance")]
+        Command::Fetch {
+            symbol,
+            interval,
+            limit,
+            out,
+        } => {
+            let candles = wickra_backtest_data::fetch_klines(&symbol, &interval, limit)
+                .map_err(|e| e.to_string())?;
+            write_candles(&out, &candles)?;
+            println!("fetched {} bars -> {}", candles.len(), out.display());
             Ok(())
         }
         Command::Run {
@@ -225,6 +256,28 @@ fn write_jsonl<T: Serialize>(path: &Path, items: &[T]) -> Result<(), String> {
         buf.push('\n');
     }
     std::fs::write(path, buf).map_err(|e| format!("writing {}: {e}", path.display()))
+}
+
+/// Write candles to a file, choosing the format by extension
+/// (`.jsonl`/`.ndjson` → JSON Lines, `.json` → JSON array, else CSV).
+#[cfg(feature = "binance")]
+fn write_candles(path: &Path, candles: &[wickra_backtest_core::Candle]) -> Result<(), String> {
+    match path.extension().and_then(|e| e.to_str()) {
+        Some("jsonl" | "ndjson") => write_jsonl(path, candles),
+        Some("json") => write_json(path, &candles),
+        _ => {
+            use std::fmt::Write as _;
+            let mut buf = String::from("time,open,high,low,close,volume\n");
+            for c in candles {
+                let _ = writeln!(
+                    buf,
+                    "{},{},{},{},{},{}",
+                    c.time, c.open, c.high, c.low, c.close, c.volume
+                );
+            }
+            std::fs::write(path, buf).map_err(|e| format!("writing {}: {e}", path.display()))
+        }
+    }
 }
 
 /// Open a JSON Lines file for incremental (streaming) writes.

@@ -18,6 +18,17 @@ allow = [
 ]
 confidence-threshold = 0.93
 
+# Scoped license exceptions for individual permissive / public-domain crates:
+#   - tiny-keccak (CC0-1.0): public-domain hashing, pulled in by the optional
+#     `parquet` feature's arrow stack.
+#   - webpki-roots (CDLA-Permissive-2.0): the Mozilla CA certificate bundle as
+#     data, pulled in by the optional `binance` feature's rustls TLS stack.
+# Both features are off by default; each exception is granted only to its crate.
+exceptions = [
+    { allow = ["CC0-1.0"], crate = "tiny-keccak" },
+    { allow = ["CDLA-Permissive-2.0"], crate = "webpki-roots" },
+]
+
 [bans]
 multiple-versions = "warn"
 wildcards = "deny"
