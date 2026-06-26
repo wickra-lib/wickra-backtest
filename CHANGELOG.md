@@ -64,6 +64,11 @@ to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
   `WKBT_INC` / `WKBT_LIB` environment variables.
 - Data loaders (`wickra-backtest-data`): CSV (`time,open,high,low,close[,volume]`,
   optional header), JSON Lines and JSON-array candle files, dispatched by extension.
+- Apache Parquet loading behind the `parquet` feature (`load_parquet`, dispatched
+  for `.parquet` files): reads `time, open, high, low, close[, volume]` columns
+  (matched case-insensitively, integer or floating-point). The CLI gains a
+  matching `parquet` feature so `wkbt run --data history.parquet` works. The
+  arrow / parquet stack is heavy, so it is opt-in rather than always compiled.
 - Resampling (`wickra-backtest-data`): `resample_by_count` aggregates fixed groups
   of bars (e.g. five 1-minute into one 5-minute) and `resample_by_interval`
   buckets by a timestamp interval (`floor(time / interval)`). Each bucket opens at

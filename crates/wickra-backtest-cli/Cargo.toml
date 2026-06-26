@@ -22,5 +22,9 @@ serde.workspace = true
 serde_json.workspace = true
 clap.workspace = true
 
+[features]
+# Build `wkbt` with Apache Parquet loading (`wkbt run --data history.parquet`).
+parquet = ["wickra-backtest-data/parquet"]
+
 [lints]
 workspace = true

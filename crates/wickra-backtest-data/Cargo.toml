@@ -14,6 +14,18 @@ categories.workspace = true
 [dependencies]
 wickra-backtest-core.workspace = true
 serde_json.workspace = true
+parquet = { workspace = true, optional = true }
+arrow-array = { workspace = true, optional = true }
+
+[dev-dependencies]
+parquet.workspace = true
+arrow-array.workspace = true
+arrow-schema.workspace = true
+
+[features]
+# Apache Parquet bulk-history loading. Off by default — the arrow / parquet
+# stack is heavy; opt in with `--features parquet` when you need it.
+parquet = ["dep:parquet", "dep:arrow-array"]
 
 [lints]
 workspace = true
