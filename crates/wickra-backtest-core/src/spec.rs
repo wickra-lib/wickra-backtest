@@ -550,6 +550,49 @@ mod tests {
     }
 
     #[test]
+    fn execution_validation_rejections() {
+        // Each invalid execution config is rejected at parse (which validates).
+        let base = |exec: &str| {
+            format!(
+                r#"{{"symbol":"x","timeframe":"1h","indicators":{{}},
+                    "entry":{{"gt":[{{"price":"close"}},0]}},
+                    "exit":{{"in_position":true}},
+                    "sizing":{{"type":"fixed_qty","qty":1}},
+                    "execution":{exec}}}"#
+            )
+        };
+        let rejects = |exec: &str| {
+            matches!(
+                StrategySpec::parse(&base(exec)),
+                Err(BacktestError::InvalidSpec(_))
+            )
+        };
+        // Limit without an offset, stop without an offset, stop_limit at all.
+        assert!(rejects(r#"{"order_type":"limit"}"#));
+        assert!(rejects(r#"{"order_type":"stop"}"#));
+        assert!(rejects(r#"{"order_type":"stop_limit"}"#));
+        // Partial fills without a participation cap.
+        assert!(rejects(r#"{"partial_fills":true}"#));
+        // Close fill timing is market-only and latency-free.
+        assert!(rejects(
+            r#"{"fill_timing":"close","order_type":"limit","limit_offset_pct":-0.5}"#
+        ));
+        assert!(rejects(r#"{"fill_timing":"close","latency_bars":1}"#));
+
+        // The valid counterparts pass.
+        assert!(
+            StrategySpec::parse(&base(r#"{"order_type":"limit","limit_offset_pct":-0.5}"#)).is_ok()
+        );
+        assert!(
+            StrategySpec::parse(&base(r#"{"order_type":"stop","stop_offset_pct":0.5}"#)).is_ok()
+        );
+        assert!(
+            StrategySpec::parse(&base(r#"{"partial_fills":true,"max_participation":0.1}"#)).is_ok()
+        );
+        assert!(StrategySpec::parse(&base(r#"{"fill_timing":"close"}"#)).is_ok());
+    }
+
+    #[test]
     fn operand_forms_parse() {
         let op: Operand = serde_json::from_str(r#""ema_fast""#).unwrap();
         assert!(matches!(op, Operand::Ref(_)));
