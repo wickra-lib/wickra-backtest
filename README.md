@@ -47,6 +47,8 @@ cross-language equality byte-for-byte. Not yet released to any registry.
 - **[Cookbook](docs/COOKBOOK.md)** — six ready-to-run strategies (RSI mean
   reversion, MACD trend, Bollinger breakout, Donchian breakout, funding carry,
   order-book imbalance), each validated against the engine.
+- **[Microstructure guide](docs/MICROSTRUCTURE.md)** — backtesting on the order
+  book, trades, perpetual funding and market breadth (the differentiator).
 - **[Architecture](ARCHITECTURE.md)** — crates, data flow and design decisions.
 - **[Benchmarks](BENCHMARKS.md)** — throughput methodology and caveats.
 - **[Examples](examples/)** — runnable specs and a sample dataset.

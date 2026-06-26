@@ -121,5 +121,6 @@ supplied as `books` in a `run_json` request.
 
 Feed bundles (`derivs`, `books`, `trades`, `sections`, `reference`) are passed
 alongside the candles in a single `run_json` request document — see the
-[strategy spec reference](STRATEGY_SPEC.md) and the feed golden requests under
-[`golden/requests/`](../golden/requests/) for the exact shapes.
+[microstructure guide](MICROSTRUCTURE.md) for the feed shapes and worked
+examples, the [strategy spec reference](STRATEGY_SPEC.md) for the grammar, and
+the feed golden requests under [`golden/requests/`](../golden/requests/).
