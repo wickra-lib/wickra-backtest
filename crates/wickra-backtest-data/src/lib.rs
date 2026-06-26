@@ -3,7 +3,8 @@
 //! Loaders that turn market-history files into the [`Candle`] stream the
 //! [`wickra-backtest-core`] engine consumes. CSV (`time,open,high,low,close[,volume]`),
 //! JSON Lines (one [`Candle`] object per line) and a JSON array are supported,
-//! dispatched by file extension.
+//! dispatched by file extension. Candles can also be resampled to a coarser
+//! timeframe by a fixed bar count or a timestamp interval.
 
 #![forbid(unsafe_code)]
 
@@ -85,6 +86,70 @@ pub fn parse_json_array(content: &str) -> Result<Vec<Candle>> {
         .map_err(|e| BacktestError::InvalidData(format!("JSON array: {e}")))
 }
 
+/// Aggregate one [`Candle`] from a non-empty slice of finer candles: the bucket
+/// opens at the first open, closes at the last close, takes the extreme high/low
+/// and sums the volume. The timestamp is the first candle's time.
+fn aggregate(bucket: &[Candle]) -> Candle {
+    let first = &bucket[0];
+    let last = &bucket[bucket.len() - 1];
+    let mut high = first.high;
+    let mut low = first.low;
+    let mut volume = 0.0;
+    for c in bucket {
+        high = high.max(c.high);
+        low = low.min(c.low);
+        volume += c.volume;
+    }
+    Candle {
+        time: first.time,
+        open: first.open,
+        high,
+        low,
+        close: last.close,
+        volume,
+    }
+}
+
+/// Resample candles into fixed groups of `count` (e.g. five 1-minute bars into
+/// one 5-minute bar). A trailing partial group is aggregated as-is. `count` must
+/// be non-zero.
+pub fn resample_by_count(candles: &[Candle], count: usize) -> Result<Vec<Candle>> {
+    if count == 0 {
+        return Err(BacktestError::InvalidData(
+            "resample count must be > 0".into(),
+        ));
+    }
+    Ok(candles.chunks(count).map(aggregate).collect())
+}
+
+/// Resample candles by a timestamp `interval`: candles whose `time` falls in the
+/// same `floor(time / interval)` bucket are aggregated, and the bucket adopts
+/// the floored start time. Input must be time-ordered; `interval` must be
+/// non-zero.
+pub fn resample_by_interval(candles: &[Candle], interval: i64) -> Result<Vec<Candle>> {
+    if interval <= 0 {
+        return Err(BacktestError::InvalidData(
+            "resample interval must be > 0".into(),
+        ));
+    }
+    let mut out: Vec<Candle> = Vec::new();
+    let mut start = 0usize;
+    for i in 0..candles.len() {
+        let bucket = candles[i].time.div_euclid(interval);
+        let next_bucket = candles
+            .get(i + 1)
+            .map(|c| c.time.div_euclid(interval) != bucket);
+        if next_bucket != Some(false) {
+            // i is the last candle of its bucket (or the final candle).
+            let mut bar = aggregate(&candles[start..=i]);
+            bar.time = bucket * interval;
+            out.push(bar);
+            start = i + 1;
+        }
+    }
+    Ok(out)
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -126,5 +191,50 @@ mod tests {
         let json = "[{\"time\":1,\"open\":1,\"high\":2,\"low\":0.5,\"close\":1.5}]";
         let c = parse_json_array(json).unwrap();
         assert_eq!(c.len(), 1);
+    }
+
+    fn four_bars() -> Vec<Candle> {
+        // time,open,high,low,close,volume
+        parse_csv("0,10,12,9,11,100\n1,11,13,10,12,200\n2,12,14,11,13,300\n3,13,15,12,14,400\n")
+            .unwrap()
+    }
+
+    #[test]
+    fn resample_by_count_aggregates_buckets() {
+        let bars = resample_by_count(&four_bars(), 2).unwrap();
+        assert_eq!(bars.len(), 2);
+        assert_eq!(bars[0].time, 0);
+        assert!((bars[0].open - 10.0).abs() < 1e-9);
+        assert!((bars[0].high - 13.0).abs() < 1e-9); // max(12, 13)
+        assert!((bars[0].low - 9.0).abs() < 1e-9); // min(9, 10)
+        assert!((bars[0].close - 12.0).abs() < 1e-9); // last close
+        assert!((bars[0].volume - 300.0).abs() < 1e-9); // 100 + 200
+        assert!((bars[1].close - 14.0).abs() < 1e-9);
+        assert!((bars[1].volume - 700.0).abs() < 1e-9);
+    }
+
+    #[test]
+    fn resample_by_count_keeps_trailing_partial_group() {
+        let bars = resample_by_count(&four_bars(), 3).unwrap();
+        assert_eq!(bars.len(), 2); // [0,1,2] then [3]
+        assert!((bars[1].close - 14.0).abs() < 1e-9);
+        assert!((bars[1].volume - 400.0).abs() < 1e-9);
+    }
+
+    #[test]
+    fn resample_by_interval_buckets_on_time() {
+        let bars = resample_by_interval(&four_bars(), 2).unwrap();
+        assert_eq!(bars.len(), 2);
+        assert_eq!(bars[0].time, 0); // floor(0/2)*2 and floor(1/2)*2 == 0
+        assert!((bars[0].close - 12.0).abs() < 1e-9);
+        assert_eq!(bars[1].time, 2); // floor(2/2)*2 == 2
+        assert!((bars[1].close - 14.0).abs() < 1e-9);
+        assert!((bars[1].volume - 700.0).abs() < 1e-9);
+    }
+
+    #[test]
+    fn resample_rejects_zero_step() {
+        assert!(resample_by_count(&four_bars(), 0).is_err());
+        assert!(resample_by_interval(&four_bars(), 0).is_err());
     }
 }

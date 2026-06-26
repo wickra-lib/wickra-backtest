@@ -59,6 +59,11 @@ to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
   `WKBT_INC` / `WKBT_LIB` environment variables.
 - Data loaders (`wickra-backtest-data`): CSV (`time,open,high,low,close[,volume]`,
   optional header), JSON Lines and JSON-array candle files, dispatched by extension.
+- Resampling (`wickra-backtest-data`): `resample_by_count` aggregates fixed groups
+  of bars (e.g. five 1-minute into one 5-minute) and `resample_by_interval`
+  buckets by a timestamp interval (`floor(time / interval)`). Each bucket opens at
+  the first open, closes at the last close, takes the extreme high/low and sums
+  volume.
 - `wkbt` command-line backtester (`wickra-backtest-cli`): `wkbt run --data … --spec …
   [--capital N] [--report …] [--trades …] [--equity …]` prints a metrics summary
   and optionally writes the report (JSON) and trade/equity streams (JSON Lines).
