@@ -209,6 +209,32 @@ pub fn run_with_capital(
     Ok(bt.finish())
 }
 
+/// Run a backtest with a reference price series for pairwise indicators. The
+/// reference candle at each index supplies the second input (its close) to
+/// pairwise indicators such as correlation, beta or spread. `reference` must be
+/// the same length as `candles`.
+pub fn run_with_ref(
+    spec: &StrategySpec,
+    candles: &[Candle],
+    reference: &[Candle],
+    capital: f64,
+) -> Result<BacktestReport> {
+    spec.validate()?;
+    if candles.is_empty() {
+        return Err(BacktestError::InvalidData("no candles".into()));
+    }
+    if reference.len() != candles.len() {
+        return Err(BacktestError::InvalidData(
+            "reference series must have the same length as the candles".into(),
+        ));
+    }
+    let mut bt = StreamingBacktest::new(spec, capital)?;
+    for (candle, ref_candle) in candles.iter().zip(reference) {
+        bt.step_with_ref(candle, Some(ref_candle.close))?;
+    }
+    Ok(bt.finish())
+}
+
 /// A streaming backtest: feed bars one at a time with [`StreamingBacktest::step`],
 /// then [`StreamingBacktest::finish`]. The historical runner is exactly this fed
 /// from a slice, so **backtest and live share one code path** — point `step` at
@@ -270,6 +296,13 @@ impl<'a> StreamingBacktest<'a> {
     /// Process one bar: fill the working order, update indicators, check intrabar
     /// stops, mark equity and decide the next action. Look-ahead-free.
     pub fn step(&mut self, candle: &Candle) -> Result<()> {
+        self.step_with_ref(candle, None)
+    }
+
+    /// Like [`StreamingBacktest::step`], but also supplies the reference series'
+    /// close for this bar, which pairwise indicators consume as their second
+    /// input. Single-instrument indicators ignore it.
+    pub fn step_with_ref(&mut self, candle: &Candle, reference: Option<f64>) -> Result<()> {
         let t = self.history.len();
         self.last = Some((candle.time, candle.close));
 
@@ -326,7 +359,7 @@ impl<'a> StreamingBacktest<'a> {
         // 2. Update indicators and record the bar.
         let mut values = BTreeMap::new();
         for (name, ind) in &mut self.indicators {
-            if let Some(v) = ind.update(candle) {
+            if let Some(v) = ind.update(candle, reference) {
                 values.insert(name.clone(), v);
                 for (field, fv) in ind.fields() {
                     values.insert(format!("{name}.{field}"), fv);
@@ -1226,5 +1259,51 @@ mod tests {
             (batch.equity.last().unwrap().equity - streamed.equity.last().unwrap().equity).abs()
                 < 1e-12
         );
+    }
+
+    #[test]
+    fn pairwise_indicator_uses_reference_series() {
+        // A pairwise indicator (Pearson correlation) is fed the reference
+        // series' close as its second input via run_with_ref.
+        let spec = StrategySpec::parse(
+            r#"{"symbol":"x","timeframe":"1h",
+                "indicators":{"c":{"type":"PearsonCorrelation","params":[3]}},
+                "entry":{"gt":["c",0.5]},
+                "exit":{"lt":["c",-2.0]},
+                "sizing":{"type":"fixed_qty","qty":1}}"#,
+        )
+        .unwrap();
+        let primary: Vec<Candle> = [100.0, 101.0, 102.0, 101.0, 103.0, 102.0, 104.0, 103.0]
+            .iter()
+            .zip(0i64..)
+            .map(|(&c, i)| bar(i, c, c + 0.5, c - 0.5, c))
+            .collect();
+        // A perfectly correlated reference series → correlation ~1 > 0.5 → entry.
+        let reference: Vec<Candle> = [50.0, 50.5, 51.0, 50.5, 51.5, 51.0, 52.0, 51.5]
+            .iter()
+            .zip(0i64..)
+            .map(|(&c, i)| bar(i, c, c + 0.2, c - 0.2, c))
+            .collect();
+
+        let with_ref = run_with_ref(&spec, &primary, &reference, 10_000.0).unwrap();
+        assert!(with_ref.metrics.num_trades >= 1);
+
+        // Without a reference series the pairwise indicator yields nothing, so
+        // the entry condition never fires.
+        let without_ref = run_with_capital(&spec, &primary, 10_000.0).unwrap();
+        assert_eq!(without_ref.metrics.num_trades, 0);
+    }
+
+    #[test]
+    fn run_with_ref_rejects_length_mismatch() {
+        let spec = StrategySpec::parse(
+            r#"{"symbol":"x","timeframe":"1h","indicators":{},
+                "entry":{"gt":[{"price":"close"},0]},"exit":{"in_position":true},
+                "sizing":{"type":"fixed_qty","qty":1}}"#,
+        )
+        .unwrap();
+        let a = [bar(0, 1.0, 1.0, 1.0, 1.0), bar(1, 1.0, 1.0, 1.0, 1.0)];
+        let b = [bar(0, 1.0, 1.0, 1.0, 1.0)];
+        assert!(run_with_ref(&spec, &a, &b, 10_000.0).is_err());
     }
 }

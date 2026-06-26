@@ -12,8 +12,10 @@
 //! Source of truth: the wickra-core indicator sources (the `Indicator` impls,
 //! `new` signatures and Output structs). Every single-instrument indicator
 //! (`Input = f64` fed the close, or `Input = Candle`) with a scalar `f64` or
-//! all-`f64`-field struct output is registered. Multi-output indicators expose
-//! named fields, referenced in the spec as `"name.field"`.
+//! all-`f64`-field struct output is registered, plus pairwise
+//! (`Input = (f64, f64)`) indicators fed `(close, reference_close)` from the
+//! reference series. Multi-output indicators expose named fields, referenced in
+//! the spec as `"name.field"`.
 
 use wickra_core::{self as wc, Candle as CoreCandle, Indicator};
 
@@ -22,8 +24,9 @@ use crate::error::{BacktestError, Result};
 
 /// A uniform, object-safe indicator the engine drives one bar at a time.
 pub trait EvalIndicator: Send {
-    /// Feed one bar; returns the primary value, or `None` while warming up.
-    fn update(&mut self, candle: &Candle) -> Option<f64>;
+    /// Feed one bar (with the optional reference-series close for pairwise
+    /// indicators); returns the primary value, or `None` while warming up.
+    fn update(&mut self, candle: &Candle, reference: Option<f64>) -> Option<f64>;
     /// Named output fields of the most recent update (empty for single-output).
     fn fields(&self) -> Vec<(&'static str, f64)>;
     /// Number of bars required before the first value.
@@ -37,7 +40,7 @@ impl<I> EvalIndicator for ScalarClose<I>
 where
     I: Indicator<Input = f64, Output = f64> + Send,
 {
-    fn update(&mut self, candle: &Candle) -> Option<f64> {
+    fn update(&mut self, candle: &Candle, _reference: Option<f64>) -> Option<f64> {
         self.0.update(candle.close)
     }
     fn fields(&self) -> Vec<(&'static str, f64)> {
@@ -55,8 +58,27 @@ impl<I> EvalIndicator for CandleIn<I>
 where
     I: Indicator<Input = CoreCandle, Output = f64> + Send,
 {
-    fn update(&mut self, candle: &Candle) -> Option<f64> {
+    fn update(&mut self, candle: &Candle, _reference: Option<f64>) -> Option<f64> {
         candle.to_core().ok().and_then(|c| self.0.update(c))
+    }
+    fn fields(&self) -> Vec<(&'static str, f64)> {
+        Vec::new()
+    }
+    fn warmup(&self) -> usize {
+        self.0.warmup_period()
+    }
+}
+
+/// Wraps a pairwise (`Input = (f64, f64)`) single-output indicator, fed
+/// `(close, reference_close)`. Without a reference series it yields `None`.
+struct PairClose<I>(I);
+
+impl<I> EvalIndicator for PairClose<I>
+where
+    I: Indicator<Input = (f64, f64), Output = f64> + Send,
+{
+    fn update(&mut self, candle: &Candle, reference: Option<f64>) -> Option<f64> {
+        reference.and_then(|r| self.0.update((candle.close, r)))
     }
     fn fields(&self) -> Vec<(&'static str, f64)> {
         Vec::new()
@@ -81,7 +103,7 @@ macro_rules! multi_close {
             }
         }
         impl EvalIndicator for $wrap {
-            fn update(&mut self, candle: &Candle) -> Option<f64> {
+            fn update(&mut self, candle: &Candle, _reference: Option<f64>) -> Option<f64> {
                 let out = self.inner.update(candle.close)?;
                 self.last = vec![$((stringify!($f), out.$f)),+];
                 Some(out.$first)
@@ -109,7 +131,7 @@ macro_rules! multi_candle {
             }
         }
         impl EvalIndicator for $wrap {
-            fn update(&mut self, candle: &Candle) -> Option<f64> {
+            fn update(&mut self, candle: &Candle, _reference: Option<f64>) -> Option<f64> {
                 let c = candle.to_core().ok()?;
                 let out = self.inner.update(c)?;
                 self.last = vec![$((stringify!($f), out.$f)),+];
@@ -1688,6 +1710,80 @@ pub fn build(kind: &str, params: &[f64]) -> Result<Box<dyn EvalIndicator>> {
             kind,
             wc::ZigZag::new(float_param(params, 0, kind)?),
         )?))),
+        // --- pairwise indicators, fed (close, reference_close) ---
+        "Alpha" => Ok(Box::new(PairClose(map_new(
+            kind,
+            wc::Alpha::new(p(0)?, float_param(params, 1, kind)?),
+        )?))),
+        "Beta" => Ok(Box::new(PairClose(map_new(kind, wc::Beta::new(p(0)?))?))),
+        "BetaNeutralSpread" => Ok(Box::new(PairClose(map_new(
+            kind,
+            wc::BetaNeutralSpread::new(p(0)?),
+        )?))),
+        "DistanceSsd" => Ok(Box::new(PairClose(map_new(
+            kind,
+            wc::DistanceSsd::new(p(0)?),
+        )?))),
+        "GrangerCausality" => Ok(Box::new(PairClose(map_new(
+            kind,
+            wc::GrangerCausality::new(p(0)?, p(1)?),
+        )?))),
+        "HasbrouckInformationShare" => Ok(Box::new(PairClose(map_new(
+            kind,
+            wc::HasbrouckInformationShare::new(p(0)?),
+        )?))),
+        "InformationRatio" => Ok(Box::new(PairClose(map_new(
+            kind,
+            wc::InformationRatio::new(p(0)?),
+        )?))),
+        "KendallTau" => Ok(Box::new(PairClose(map_new(
+            kind,
+            wc::KendallTau::new(p(0)?),
+        )?))),
+        "OuHalfLife" => Ok(Box::new(PairClose(map_new(
+            kind,
+            wc::OuHalfLife::new(p(0)?),
+        )?))),
+        "PairSpreadZScore" => Ok(Box::new(PairClose(map_new(
+            kind,
+            wc::PairSpreadZScore::new(p(0)?, p(1)?),
+        )?))),
+        "PairwiseBeta" => Ok(Box::new(PairClose(map_new(
+            kind,
+            wc::PairwiseBeta::new(p(0)?),
+        )?))),
+        "PearsonCorrelation" => Ok(Box::new(PairClose(map_new(
+            kind,
+            wc::PearsonCorrelation::new(p(0)?),
+        )?))),
+        "RollingCorrelation" => Ok(Box::new(PairClose(map_new(
+            kind,
+            wc::RollingCorrelation::new(p(0)?),
+        )?))),
+        "RollingCovariance" => Ok(Box::new(PairClose(map_new(
+            kind,
+            wc::RollingCovariance::new(p(0)?),
+        )?))),
+        "SpearmanCorrelation" => Ok(Box::new(PairClose(map_new(
+            kind,
+            wc::SpearmanCorrelation::new(p(0)?),
+        )?))),
+        "SpreadAr1Coefficient" => Ok(Box::new(PairClose(map_new(
+            kind,
+            wc::SpreadAr1Coefficient::new(p(0)?),
+        )?))),
+        "SpreadHurst" => Ok(Box::new(PairClose(map_new(
+            kind,
+            wc::SpreadHurst::new(p(0)?),
+        )?))),
+        "TreynorRatio" => Ok(Box::new(PairClose(map_new(
+            kind,
+            wc::TreynorRatio::new(p(0)?, float_param(params, 1, kind)?),
+        )?))),
+        "VarianceRatio" => Ok(Box::new(PairClose(map_new(
+            kind,
+            wc::VarianceRatio::new(p(0)?, p(1)?),
+        )?))),
         // --- friendly aliases ---
         "Macd" => build("MacdIndicator", params),
         "Bollinger" => build("BollingerBands", params),
@@ -1695,7 +1791,7 @@ pub fn build(kind: &str, params: &[f64]) -> Result<Box<dyn EvalIndicator>> {
     }
 }
 
-/// Every registered indicator with valid default parameters (421 indicators).
+/// Every registered indicator with valid default parameters (440 indicators).
 #[cfg(test)]
 const ALL_SPECS: &[(&str, &[f64])] = &[
     ("AdaptiveCycle", &[]),
@@ -2119,6 +2215,25 @@ const ALL_SPECS: &[(&str, &[f64])] = &[
     ("WoodiePivots", &[]),
     ("ZeroLagMacd", &[3.0, 7.0, 14.0]),
     ("ZigZag", &[0.02]),
+    ("Alpha", &[14.0, 2.0]),
+    ("Beta", &[14.0]),
+    ("BetaNeutralSpread", &[14.0]),
+    ("DistanceSsd", &[14.0]),
+    ("GrangerCausality", &[60.0, 1.0]),
+    ("HasbrouckInformationShare", &[14.0]),
+    ("InformationRatio", &[14.0]),
+    ("KendallTau", &[14.0]),
+    ("OuHalfLife", &[14.0]),
+    ("PairSpreadZScore", &[20.0, 20.0]),
+    ("PairwiseBeta", &[14.0]),
+    ("PearsonCorrelation", &[14.0]),
+    ("RollingCorrelation", &[14.0]),
+    ("RollingCovariance", &[14.0]),
+    ("SpearmanCorrelation", &[14.0]),
+    ("SpreadAr1Coefficient", &[14.0]),
+    ("SpreadHurst", &[14.0]),
+    ("TreynorRatio", &[14.0, 2.0]),
+    ("VarianceRatio", &[60.0, 2.0]),
 ];
 
 #[cfg(test)]
@@ -2180,7 +2295,7 @@ mod tests {
         let mut macd = build("MacdIndicator", &[2.0, 3.0, 2.0]).unwrap();
         let mut last_fields = Vec::new();
         for px in [10.0, 11.0, 12.0, 13.0, 14.0, 15.0, 16.0, 17.0] {
-            if macd.update(&candle(px, px, px)).is_some() {
+            if macd.update(&candle(px, px, px), None).is_some() {
                 last_fields = macd.fields();
             }
         }
@@ -2193,8 +2308,8 @@ mod tests {
     #[test]
     fn single_output_has_no_fields() {
         let mut sma = build("Sma", &[2.0]).unwrap();
-        sma.update(&candle(10.0, 10.0, 10.0));
-        sma.update(&candle(20.0, 20.0, 20.0));
+        sma.update(&candle(10.0, 10.0, 10.0), None);
+        sma.update(&candle(20.0, 20.0, 20.0), None);
         assert!(sma.fields().is_empty());
     }
 }

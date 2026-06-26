@@ -30,7 +30,7 @@ pub mod rules;
 pub mod spec;
 
 pub use data::Candle;
-pub use engine::{run, run_with_capital, StreamingBacktest, DEFAULT_CAPITAL};
+pub use engine::{run, run_with_capital, run_with_ref, StreamingBacktest, DEFAULT_CAPITAL};
 pub use error::{BacktestError, Result};
 pub use metrics::Metrics;
 pub use portfolio::Trade;

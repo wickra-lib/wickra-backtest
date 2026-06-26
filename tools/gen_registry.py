@@ -11,9 +11,10 @@ Single source of truth: the wickra-core indicator sources themselves
 
 Every indicator whose input is a single instrument's price (`f64`, fed the
 close) or candle (`Candle`) and whose output is a scalar `f64` or a struct of
-`f64` fields is emitted. Pairwise `(f64, f64)`, cross-section, derivatives,
-trade, order-book and quote inputs are structurally out of scope for a
-single-instrument bar backtester and are skipped (and reported).
+`f64` fields is emitted, plus pairwise `(f64, f64)` scalar-output indicators
+fed `(close, reference_close)` from the reference series. Cross-section,
+derivatives, trade, order-book and quote inputs (and pairwise multi-output) are
+out of scope here and are skipped (and reported).
 
 Default constructor parameters for the build-all test come from the wickra
 golden manifests, joined by canonical name.
@@ -106,8 +107,10 @@ HEAD = r'''//! Indicator registry: constructs `wickra-core` indicators by name a
 //! Source of truth: the wickra-core indicator sources (the `Indicator` impls,
 //! `new` signatures and Output structs). Every single-instrument indicator
 //! (`Input = f64` fed the close, or `Input = Candle`) with a scalar `f64` or
-//! all-`f64`-field struct output is registered. Multi-output indicators expose
-//! named fields, referenced in the spec as `"name.field"`.
+//! all-`f64`-field struct output is registered, plus pairwise
+//! (`Input = (f64, f64)`) indicators fed `(close, reference_close)` from the
+//! reference series. Multi-output indicators expose named fields, referenced in
+//! the spec as `"name.field"`.
 
 use wickra_core::{self as wc, Candle as CoreCandle, Indicator};
 
@@ -116,8 +119,9 @@ use crate::error::{BacktestError, Result};
 
 /// A uniform, object-safe indicator the engine drives one bar at a time.
 pub trait EvalIndicator: Send {
-    /// Feed one bar; returns the primary value, or `None` while warming up.
-    fn update(&mut self, candle: &Candle) -> Option<f64>;
+    /// Feed one bar (with the optional reference-series close for pairwise
+    /// indicators); returns the primary value, or `None` while warming up.
+    fn update(&mut self, candle: &Candle, reference: Option<f64>) -> Option<f64>;
     /// Named output fields of the most recent update (empty for single-output).
     fn fields(&self) -> Vec<(&'static str, f64)>;
     /// Number of bars required before the first value.
@@ -131,7 +135,7 @@ impl<I> EvalIndicator for ScalarClose<I>
 where
     I: Indicator<Input = f64, Output = f64> + Send,
 {
-    fn update(&mut self, candle: &Candle) -> Option<f64> {
+    fn update(&mut self, candle: &Candle, _reference: Option<f64>) -> Option<f64> {
         self.0.update(candle.close)
     }
     fn fields(&self) -> Vec<(&'static str, f64)> {
@@ -149,8 +153,27 @@ impl<I> EvalIndicator for CandleIn<I>
 where
     I: Indicator<Input = CoreCandle, Output = f64> + Send,
 {
-    fn update(&mut self, candle: &Candle) -> Option<f64> {
+    fn update(&mut self, candle: &Candle, _reference: Option<f64>) -> Option<f64> {
         candle.to_core().ok().and_then(|c| self.0.update(c))
+    }
+    fn fields(&self) -> Vec<(&'static str, f64)> {
+        Vec::new()
+    }
+    fn warmup(&self) -> usize {
+        self.0.warmup_period()
+    }
+}
+
+/// Wraps a pairwise (`Input = (f64, f64)`) single-output indicator, fed
+/// `(close, reference_close)`. Without a reference series it yields `None`.
+struct PairClose<I>(I);
+
+impl<I> EvalIndicator for PairClose<I>
+where
+    I: Indicator<Input = (f64, f64), Output = f64> + Send,
+{
+    fn update(&mut self, candle: &Candle, reference: Option<f64>) -> Option<f64> {
+        reference.and_then(|r| self.0.update((candle.close, r)))
     }
     fn fields(&self) -> Vec<(&'static str, f64)> {
         Vec::new()
@@ -175,7 +198,7 @@ macro_rules! multi_close {
             }
         }
         impl EvalIndicator for $wrap {
-            fn update(&mut self, candle: &Candle) -> Option<f64> {
+            fn update(&mut self, candle: &Candle, _reference: Option<f64>) -> Option<f64> {
                 let out = self.inner.update(candle.close)?;
                 self.last = vec![$((stringify!($f), out.$f)),+];
                 Some(out.$first)
@@ -203,7 +226,7 @@ macro_rules! multi_candle {
             }
         }
         impl EvalIndicator for $wrap {
-            fn update(&mut self, candle: &Candle) -> Option<f64> {
+            fn update(&mut self, candle: &Candle, _reference: Option<f64>) -> Option<f64> {
                 let c = candle.to_core().ok()?;
                 let out = self.inner.update(c)?;
                 self.last = vec![$((stringify!($f), out.$f)),+];
@@ -354,7 +377,7 @@ mod tests {
         let mut macd = build("MacdIndicator", &[2.0, 3.0, 2.0]).unwrap();
         let mut last_fields = Vec::new();
         for px in [10.0, 11.0, 12.0, 13.0, 14.0, 15.0, 16.0, 17.0] {
-            if macd.update(&candle(px, px, px)).is_some() {
+            if macd.update(&candle(px, px, px), None).is_some() {
                 last_fields = macd.fields();
             }
         }
@@ -367,8 +390,8 @@ mod tests {
     #[test]
     fn single_output_has_no_fields() {
         let mut sma = build("Sma", &[2.0]).unwrap();
-        sma.update(&candle(10.0, 10.0, 10.0));
-        sma.update(&candle(20.0, 20.0, 20.0));
+        sma.update(&candle(10.0, 10.0, 10.0), None);
+        sma.update(&candle(20.0, 20.0, 20.0), None);
         assert!(sma.fields().is_empty());
     }
 }
@@ -397,13 +420,14 @@ def main():
 
     scalars = []  # (ty, input, args, is_result)
     multis = []   # (ty, input, args, is_result, fields)
+    pairs = []    # (ty, args, is_result) for Input = (f64, f64), Output = f64
     skip = Counter()
 
     for text in files.values():
         for m in re.finditer(r"\nimpl\s+Indicator\s+for\s+(\w+)\b", text):
             ty = m.group(1)
             inp, out = assoc_types(text, ty)
-            if inp not in ("f64", "Candle"):
+            if inp not in ("f64", "Candle", "(f64,f64)"):
                 if inp:
                     skip[f"input {inp}"] += 1
                 continue
@@ -416,6 +440,12 @@ def main():
             if bad:
                 skip[f"arg {','.join(bad)}"] += 1
                 continue
+            if inp == "(f64,f64)":
+                if out == "f64":
+                    pairs.append((ty, argtypes, is_result))
+                else:
+                    skip[f"pairwise multi-output ({out})"] += 1
+                continue
             if out == "f64":
                 scalars.append((ty, inp, argtypes, is_result))
             else:
@@ -427,6 +457,7 @@ def main():
 
     scalars.sort()
     multis.sort()
+    pairs.sort()
 
     # Emit multi-wrapper macro invocations.
     wraps = []
@@ -476,6 +507,13 @@ def main():
         seen.add(ty)
         specs.append((ty, default_for(ty, argtypes)))
 
+    arms.append("        // --- pairwise indicators, fed (close, reference_close) ---")
+    for ty, argtypes, is_result in pairs:
+        arm = f'        "{ty}" => Ok(Box::new(PairClose({ctor_expr(ty, argtypes, is_result)}))),'
+        arms.append(arm)
+        seen.add(ty)
+        specs.append((ty, default_for(ty, argtypes)))
+
     arms.append("        // --- friendly aliases ---")
     for alias, canon in ALIASES.items():
         if canon in seen:
@@ -503,9 +541,8 @@ def main():
     )
     Path(args.out).write_text(body, encoding="utf-8")
 
-    n_scalar = len(scalars)
-    n_multi = len(multis)
-    print(f"registry: {len(seen)} indicators ({n_scalar} scalar + {n_multi} multi) "
+    print(f"registry: {len(seen)} indicators ({len(scalars)} scalar + "
+          f"{len(multis)} multi + {len(pairs)} pairwise) "
           f"+ {len(ALIASES)} aliases -> {args.out}")
     print("skipped (structurally out of scope):")
     for k, v in skip.most_common():
