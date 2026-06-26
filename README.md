@@ -84,7 +84,9 @@ A spec declares named indicators and entry/exit rules over them:
 See [`examples/`](examples/) for the full files and how to write the report and
 trade/equity streams.
 
-From Rust, the same thing is `wickra_backtest::run(&spec, &candles)`.
+From Rust, the same thing is `wickra_backtest::run(&spec, &candles)`. For live
+use, `StreamingBacktest::new(&spec, capital)` then `step(candle)` per bar feeds
+the **same engine** one bar at a time — backtest and live are one code path.
 
 ## Run the same spec in any language
 

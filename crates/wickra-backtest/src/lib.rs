@@ -20,6 +20,7 @@ pub use wickra_backtest_data as data;
 
 pub use wickra_backtest_core::{
     run, run_with_capital, BacktestError, BacktestReport, Candle, Result, StrategySpec,
+    StreamingBacktest,
 };
 
 /// The crate version, surfaced for diagnostics.

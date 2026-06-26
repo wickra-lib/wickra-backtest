@@ -202,48 +202,92 @@ pub fn run_with_capital(
     if candles.is_empty() {
         return Err(BacktestError::InvalidData("no candles".into()));
     }
-
-    let mut indicators: BTreeMap<String, Box<dyn EvalIndicator>> = BTreeMap::new();
-    let mut max_warmup = 0usize;
-    for (name, ind) in &spec.indicators {
-        let built = registry::build(&ind.kind, &ind.params)?;
-        max_warmup = max_warmup.max(built.warmup());
-        indicators.insert(name.clone(), built);
+    let mut bt = StreamingBacktest::new(spec, capital)?;
+    for candle in candles {
+        bt.step(candle)?;
     }
-    let warmup = spec.warmup.map_or(max_warmup, |w| w as usize);
+    Ok(bt.finish())
+}
 
-    let taker = spec.costs.taker_bps / 10_000.0;
-    let slip = match spec.costs.slippage {
-        Slippage::FixedBps { bps } => bps / 10_000.0,
-        // Spread / volume-impact slippage need feeds the engine does not model yet.
-        Slippage::Spread | Slippage::VolumeImpact { .. } => 0.0,
-    };
-
-    let mut pf = Portfolio::new(capital);
-    let mut history: Vec<BarRow> = Vec::with_capacity(candles.len());
-    let mut equity: Vec<EquityPoint> = Vec::with_capacity(candles.len());
-    let mut pending: Option<Pending> = None;
-    let mut entry_bar: Option<usize> = None;
+/// A streaming backtest: feed bars one at a time with [`StreamingBacktest::step`],
+/// then [`StreamingBacktest::finish`]. The historical runner is exactly this fed
+/// from a slice, so **backtest and live share one code path** — point `step` at
+/// a live feed and the same engine becomes the live bot.
+pub struct StreamingBacktest<'a> {
+    spec: &'a StrategySpec,
+    capital: f64,
+    taker: f64,
+    slip: f64,
+    warmup: usize,
+    indicators: BTreeMap<String, Box<dyn EvalIndicator>>,
+    pf: Portfolio,
+    history: Vec<BarRow>,
+    equity: Vec<EquityPoint>,
+    pending: Option<Pending>,
+    entry_bar: Option<usize>,
     // Most favourable price reached since entry (peak for a long, trough for a
     // short) — the reference for the trailing stop.
-    let mut extreme = 0.0f64;
+    extreme: f64,
+    // (time, close) of the most recent bar, for the final mark-out.
+    last: Option<(i64, f64)>,
+}
 
-    for (t, candle) in candles.iter().enumerate() {
+impl<'a> StreamingBacktest<'a> {
+    /// Build a streaming backtest from a validated spec and starting capital.
+    pub fn new(spec: &'a StrategySpec, capital: f64) -> Result<Self> {
+        spec.validate()?;
+        let mut indicators: BTreeMap<String, Box<dyn EvalIndicator>> = BTreeMap::new();
+        let mut max_warmup = 0usize;
+        for (name, ind) in &spec.indicators {
+            let built = registry::build(&ind.kind, &ind.params)?;
+            max_warmup = max_warmup.max(built.warmup());
+            indicators.insert(name.clone(), built);
+        }
+        let warmup = spec.warmup.map_or(max_warmup, |w| w as usize);
+        let taker = spec.costs.taker_bps / 10_000.0;
+        let slip = match spec.costs.slippage {
+            Slippage::FixedBps { bps } => bps / 10_000.0,
+            // Spread / volume-impact slippage need feeds the engine does not model yet.
+            Slippage::Spread | Slippage::VolumeImpact { .. } => 0.0,
+        };
+        Ok(Self {
+            spec,
+            capital,
+            taker,
+            slip,
+            warmup,
+            indicators,
+            pf: Portfolio::new(capital),
+            history: Vec::new(),
+            equity: Vec::new(),
+            pending: None,
+            entry_bar: None,
+            extreme: 0.0,
+            last: None,
+        })
+    }
+
+    /// Process one bar: fill the working order, update indicators, check intrabar
+    /// stops, mark equity and decide the next action. Look-ahead-free.
+    pub fn step(&mut self, candle: &Candle) -> Result<()> {
+        let t = self.history.len();
+        self.last = Some((candle.time, candle.close));
+
         // 1. Fill the working order against this bar (look-ahead-free). Execution
         //    latency counts down first; then a market order fills at the open and
         //    a resting limit/stop fills only when the bar reaches its level —
         //    otherwise the order keeps working into the next bar.
-        if let Some(mut order) = pending.take() {
+        if let Some(mut order) = self.pending.take() {
             if order.delay > 0 {
                 order.delay -= 1;
-                pending = Some(order); // still waiting on latency
+                self.pending = Some(order); // still waiting on latency
             } else {
                 let ctx = FillCtx {
-                    spec,
+                    spec: self.spec,
                     candle,
-                    history: &history,
-                    taker,
-                    slip,
+                    history: &self.history,
+                    taker: self.taker,
+                    slip: self.slip,
                     bar: t,
                 };
                 let keep_working = match &order.action {
@@ -259,9 +303,9 @@ pub fn run_with_capital(
                                     side,
                                     px,
                                     &ctx,
-                                    &mut pf,
-                                    &mut entry_bar,
-                                    &mut extreme,
+                                    &mut self.pf,
+                                    &mut self.entry_bar,
+                                    &mut self.extreme,
                                 )?;
                                 false
                             }
@@ -269,19 +313,19 @@ pub fn run_with_capital(
                         }
                     }
                     Action::Exit(reason) => {
-                        execute_exit(reason, candle.open, &ctx, &mut pf, &mut entry_bar);
+                        execute_exit(reason, candle.open, &ctx, &mut self.pf, &mut self.entry_bar);
                         false
                     }
                 };
                 if keep_working {
-                    pending = Some(order);
+                    self.pending = Some(order);
                 }
             }
         }
 
         // 2. Update indicators and record the bar.
         let mut values = BTreeMap::new();
-        for (name, ind) in &mut indicators {
+        for (name, ind) in &mut self.indicators {
             if let Some(v) = ind.update(candle) {
                 values.insert(name.clone(), v);
                 for (field, fv) in ind.fields() {
@@ -289,122 +333,148 @@ pub fn run_with_capital(
                 }
             }
         }
-        history.push(BarRow {
+        self.history.push(BarRow {
             candle: *candle,
             values,
         });
-        let idx = history.len() - 1;
+        let idx = self.history.len() - 1;
 
         // 3. Intrabar stop-loss / take-profit / trailing-stop against this bar's OHLC.
-        if pf.in_position() {
+        if self.pf.in_position() {
             // Extend the favourable extreme with this bar before checking the trail.
-            extreme = if pf.is_long() {
-                extreme.max(candle.high)
+            self.extreme = if self.pf.is_long() {
+                self.extreme.max(candle.high)
             } else {
-                extreme.min(candle.low)
+                self.extreme.min(candle.low)
             };
-            if let Some((price, reason)) =
-                intrabar_exit(candle, &spec.risk, pf.entry_price, extreme, pf.is_long())
-            {
-                let fee = pf.qty.abs() * price * taker;
-                pf.exit(price, candle.time, fee, reason);
-                entry_bar = None;
+            if let Some((price, reason)) = intrabar_exit(
+                candle,
+                &self.spec.risk,
+                self.pf.entry_price,
+                self.extreme,
+                self.pf.is_long(),
+            ) {
+                let fee = self.pf.qty.abs() * price * self.taker;
+                self.pf.exit(price, candle.time, fee, reason);
+                self.entry_bar = None;
             }
         }
 
         // 4. Mark equity at the close.
-        equity.push(EquityPoint {
+        self.equity.push(EquityPoint {
             time: candle.time,
-            equity: pf.equity(candle.close),
+            equity: self.pf.equity(candle.close),
         });
 
-        // 5. Decide the next signal action (fills at the next open). Skip warmup.
-        if idx < warmup {
-            continue;
+        // 5. Decide the next signal action. Skip warmup.
+        if idx < self.warmup {
+            return Ok(());
         }
-        let bars_since_entry = entry_bar.map(|e| (idx - e) as u32);
+        let bars_since_entry = self.entry_bar.map(|e| (idx - e) as u32);
         let state = RuleState {
-            in_position: pf.in_position(),
+            in_position: self.pf.in_position(),
             bars_since_entry,
         };
-
         // Close-to-close mode fills on this very bar's close; otherwise the order
         // rests and fills on a later bar (the look-ahead-free default).
-        let close_fill = matches!(spec.execution.fill_timing, FillTiming::Close);
-        let ctx = FillCtx {
-            spec,
-            candle,
-            history: &history,
-            taker,
-            slip,
-            bar: t,
-        };
-        if pf.in_position() {
-            let cond = if pf.is_long() {
-                &spec.exit
+        let close_fill = matches!(self.spec.execution.fill_timing, FillTiming::Close);
+
+        if self.pf.in_position() {
+            let cond = if self.pf.is_long() {
+                &self.spec.exit
             } else {
-                spec.short_exit.as_ref().unwrap_or(&spec.exit)
+                self.spec.short_exit.as_ref().unwrap_or(&self.spec.exit)
             };
-            if eval_condition(cond, &history, idx, state) {
+            if eval_condition(cond, &self.history, idx, state) {
                 if close_fill {
-                    execute_exit("signal", candle.close, &ctx, &mut pf, &mut entry_bar);
+                    let ctx = FillCtx {
+                        spec: self.spec,
+                        candle,
+                        history: &self.history,
+                        taker: self.taker,
+                        slip: self.slip,
+                        bar: t,
+                    };
+                    execute_exit(
+                        "signal",
+                        candle.close,
+                        &ctx,
+                        &mut self.pf,
+                        &mut self.entry_bar,
+                    );
                 } else {
-                    pending = Some(Pending {
+                    self.pending = Some(Pending {
                         action: Action::Exit("signal"),
-                        delay: spec.execution.latency_bars,
+                        delay: self.spec.execution.latency_bars,
                     });
                 }
             }
-        } else if pending.is_none() {
+        } else if self.pending.is_none() {
             // No order working: a new entry signal places one. Its trigger is the
             // signal bar's close shifted by the configured limit/stop offset.
-            let trigger = entry_trigger(&spec.execution, candle.close);
-            let latency = spec.execution.latency_bars;
-            let mut place = |side: Side| -> Result<()> {
+            let entry_fires = eval_condition(&self.spec.entry, &self.history, idx, state);
+            let short_fires = !entry_fires
+                && self
+                    .spec
+                    .short_entry
+                    .as_ref()
+                    .is_some_and(|c| eval_condition(c, &self.history, idx, state));
+            let side = if entry_fires {
+                Some(Side::Long)
+            } else if short_fires {
+                Some(Side::Short)
+            } else {
+                None
+            };
+            if let Some(side) = side {
                 if close_fill {
+                    let ctx = FillCtx {
+                        spec: self.spec,
+                        candle,
+                        history: &self.history,
+                        taker: self.taker,
+                        slip: self.slip,
+                        bar: t,
+                    };
                     execute_entry(
                         side,
                         candle.close,
                         &ctx,
-                        &mut pf,
-                        &mut entry_bar,
-                        &mut extreme,
-                    )
+                        &mut self.pf,
+                        &mut self.entry_bar,
+                        &mut self.extreme,
+                    )?;
                 } else {
-                    pending = Some(Pending {
+                    let trigger = entry_trigger(&self.spec.execution, candle.close);
+                    self.pending = Some(Pending {
                         action: Action::Enter { side, trigger },
-                        delay: latency,
+                        delay: self.spec.execution.latency_bars,
                     });
-                    Ok(())
-                }
-            };
-            if eval_condition(&spec.entry, &history, idx, state) {
-                place(Side::Long)?;
-            } else if let Some(short_entry) = &spec.short_entry {
-                if eval_condition(short_entry, &history, idx, state) {
-                    place(Side::Short)?;
                 }
             }
         }
+        Ok(())
     }
 
-    // Close any position still open at the final close.
-    if pf.in_position() {
-        let last = candles.last().expect("candles is non-empty");
-        let fee = pf.qty.abs() * last.close * taker;
-        pf.exit(last.close, last.time, fee, "end");
+    /// Close any open position at the last bar's close and produce the report.
+    pub fn finish(mut self) -> BacktestReport {
+        if self.pf.in_position() {
+            if let Some((time, close)) = self.last {
+                let fee = self.pf.qty.abs() * close * self.taker;
+                self.pf.exit(close, time, fee, "end");
+            }
+        }
+        let series: Vec<f64> = self.equity.iter().map(|e| e.equity).collect();
+        let metrics = metrics::compute(self.capital, &series, &self.pf.trades);
+        BacktestReport {
+            schema_version: REPORT_SCHEMA_VERSION,
+            metrics,
+            trades: self.pf.trades,
+            equity: self.equity,
+            fees_paid: self.pf.fees_paid,
+            initial_capital: self.capital,
+        }
     }
-
-    let series: Vec<f64> = equity.iter().map(|e| e.equity).collect();
-    let metrics = metrics::compute(capital, &series, &pf.trades);
-    Ok(BacktestReport {
-        schema_version: REPORT_SCHEMA_VERSION,
-        metrics,
-        trades: pf.trades,
-        equity,
-        fees_paid: pf.fees_paid,
-        initial_capital: capital,
-    })
 }
 
 /// Base (unsigned) quantity for the sizing model.
@@ -1119,5 +1189,42 @@ mod tests {
                 "execution":{"fill_timing":"close","latency_bars":1}}"#,
         )
         .is_err());
+    }
+
+    #[test]
+    fn streaming_matches_batch() {
+        // Feeding bars one at a time through the public streaming API produces
+        // the same report as the batch runner — backtest and live are one path.
+        let spec = StrategySpec::parse(
+            r#"{"symbol":"x","timeframe":"1h",
+                "indicators":{"f":{"type":"Ema","params":[3]}},
+                "entry":{"cross_above":[{"price":"close"},"f"]},
+                "exit":{"cross_below":[{"price":"close"},"f"]},
+                "sizing":{"type":"fixed_qty","qty":1}}"#,
+        )
+        .unwrap();
+        let candles: Vec<Candle> = (0..30i64)
+            .map(|i| {
+                let px = 100.0 + ((i as f64) * 0.5).sin() * 5.0;
+                bar(i, px, px + 0.5, px - 0.5, px)
+            })
+            .collect();
+
+        let batch = run_with_capital(&spec, &candles, 10_000.0).unwrap();
+
+        let mut bt = StreamingBacktest::new(&spec, 10_000.0).unwrap();
+        for c in &candles {
+            bt.step(c).unwrap();
+        }
+        let streamed = bt.finish();
+
+        assert!(batch.metrics.num_trades >= 1);
+        assert_eq!(batch.metrics.num_trades, streamed.metrics.num_trades);
+        assert_eq!(batch.trades.len(), streamed.trades.len());
+        assert_eq!(batch.equity.len(), streamed.equity.len());
+        assert!(
+            (batch.equity.last().unwrap().equity - streamed.equity.last().unwrap().equity).abs()
+                < 1e-12
+        );
     }
 }

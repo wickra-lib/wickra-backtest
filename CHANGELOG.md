@@ -74,6 +74,11 @@ to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 - `examples/` (an EMA-crossover spec + a sample CSV) and a README quickstart.
 - A criterion throughput benchmark (`wickra-backtest-bench`) and `BENCHMARKS.md`
   documenting ~1.7M bars/second on one core.
+- Streaming API (`StreamingBacktest`): feed bars one at a time with `step` and
+  finalize with `finish`. The historical `run` / `run_with_capital` is exactly
+  this fed from a slice, so backtest and live share one code path — pointing
+  `step` at a live feed turns the same engine into the live bot. A test asserts
+  the streamed report is identical to the batch report.
 - Golden parity corpus (`golden/`): shared strategy cases (price threshold, EMA
   crossover, RSI mean reversion, MACD long/short) and the canonical report each
   must produce. The Rust integration test (`tests/golden.rs`) is the anchor
