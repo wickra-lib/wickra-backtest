@@ -106,6 +106,20 @@ impl StrategySpec {
                 "partial_fills requires execution.max_participation".into(),
             ));
         }
+        if matches!(self.execution.fill_timing, FillTiming::Close) {
+            // Close fills happen on the signalling bar itself, which the resting
+            // limit/stop and latency models (both next-bar) cannot express.
+            if !matches!(self.execution.order_type, OrderType::Market) {
+                return Err(BacktestError::InvalidSpec(
+                    "fill_timing close requires a market order_type".into(),
+                ));
+            }
+            if self.execution.latency_bars != 0 {
+                return Err(BacktestError::InvalidSpec(
+                    "fill_timing close is incompatible with latency_bars".into(),
+                ));
+            }
+        }
         Ok(())
     }
 }
@@ -390,7 +404,10 @@ pub enum FillTiming {
     /// On the next bar's open — the look-ahead-bias-free default.
     #[default]
     NextOpen,
-    /// On the signalling bar's close (debug only; risks look-ahead).
+    /// On the signalling bar's own close (close-to-close execution). An opt-in,
+    /// deliberately optimistic mode: the fill uses the very close that produced
+    /// the signal, which is not actually tradeable in live execution. Market
+    /// orders only, and incompatible with `latency_bars`.
     Close,
 }
 

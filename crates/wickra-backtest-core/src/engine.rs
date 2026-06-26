@@ -1,7 +1,9 @@
 //! The event-driven backtest loop.
 //!
-//! Look-ahead bias is structurally prevented: signal-driven orders are decided
-//! on a bar's **close** and fill on the **next bar's open**. Stop-loss and
+//! Look-ahead bias is structurally prevented by default: signal-driven orders
+//! are decided on a bar's **close** and fill on the **next bar's open**. An
+//! opt-in `fill_timing: "close"` instead fills market orders on the signalling
+//! bar's own close (close-to-close, deliberately optimistic). Stop-loss and
 //! take-profit are price levels checked **intrabar** against each bar's OHLC and
 //! fill at the level (conservative: the stop is assumed hit before the target
 //! when a bar's range brackets both). Equity is marked to market at every close.
@@ -26,7 +28,7 @@ use crate::portfolio::Portfolio;
 use crate::registry::{self, EvalIndicator};
 use crate::report::{BacktestReport, EquityPoint, REPORT_SCHEMA_VERSION};
 use crate::rules::{eval_condition, BarRow, RuleState};
-use crate::spec::{Execution, OrderType, Risk, Sizing, Slippage, StrategySpec};
+use crate::spec::{Execution, FillTiming, OrderType, Risk, Sizing, Slippage, StrategySpec};
 
 /// Default starting capital for the runner.
 pub const DEFAULT_CAPITAL: f64 = 10_000.0;
@@ -118,6 +120,73 @@ fn realized_vol(history: &[BarRow], lookback: usize) -> Option<f64> {
     (sd > 0.0).then_some(sd)
 }
 
+/// Context an entry/exit fill needs from the run loop.
+struct FillCtx<'a> {
+    spec: &'a StrategySpec,
+    candle: &'a Candle,
+    history: &'a [BarRow],
+    taker: f64,
+    slip: f64,
+    bar: usize,
+}
+
+/// Open a position at `raw_price` (before slippage), honouring the sizing model,
+/// leverage caps and volume-participation partial fills.
+fn execute_entry(
+    side: Side,
+    raw_price: f64,
+    ctx: &FillCtx,
+    pf: &mut Portfolio,
+    entry_bar: &mut Option<usize>,
+    extreme: &mut f64,
+) -> Result<()> {
+    let dir = match side {
+        Side::Long => 1.0,
+        Side::Short => -1.0,
+    };
+    let fill = raw_price * (1.0 + dir * ctx.slip);
+    let rv = match ctx.spec.sizing {
+        Sizing::VolTarget { lookback, .. } => realized_vol(ctx.history, lookback as usize),
+        _ => None,
+    };
+    if let Some(base) = size(ctx.spec.sizing, &ctx.spec.risk, pf.cash, fill, rv)? {
+        // Immediate-or-cancel partial fills: take at most a participation cap of
+        // the bar's volume.
+        let base = if ctx.spec.execution.partial_fills {
+            let cap = ctx.spec.execution.max_participation.unwrap_or(0.0) * ctx.candle.volume;
+            base.min(cap)
+        } else {
+            base
+        };
+        if base > 0.0 {
+            let fee = base * fill * ctx.taker;
+            pf.enter(dir * base, fill, ctx.candle.time, fee);
+            *entry_bar = Some(ctx.bar);
+            *extreme = fill;
+        }
+    }
+    Ok(())
+}
+
+/// Close the open position at `raw_price` (before slippage).
+fn execute_exit(
+    reason: &'static str,
+    raw_price: f64,
+    ctx: &FillCtx,
+    pf: &mut Portfolio,
+    entry_bar: &mut Option<usize>,
+) {
+    if !pf.in_position() {
+        return;
+    }
+    // Long exit sells (fills lower), short exit buys (fills higher).
+    let dir = if pf.is_long() { -1.0 } else { 1.0 };
+    let fill = raw_price * (1.0 + dir * ctx.slip);
+    let fee = pf.qty.abs() * fill * ctx.taker;
+    pf.exit(fill, ctx.candle.time, fee, reason);
+    *entry_bar = None;
+}
+
 /// Run a backtest of `spec` over `candles` with the default capital.
 pub fn run(spec: &StrategySpec, candles: &[Candle]) -> Result<BacktestReport> {
     run_with_capital(spec, candles, DEFAULT_CAPITAL)
@@ -169,57 +238,38 @@ pub fn run_with_capital(
                 order.delay -= 1;
                 pending = Some(order); // still waiting on latency
             } else {
+                let ctx = FillCtx {
+                    spec,
+                    candle,
+                    history: &history,
+                    taker,
+                    slip,
+                    bar: t,
+                };
                 let keep_working = match &order.action {
                     Action::Enter { side, trigger } => {
                         let side = *side;
-                        let dir = match side {
-                            Side::Long => 1.0,
-                            Side::Short => -1.0,
-                        };
                         let level = match trigger {
                             None => Some(candle.open),
                             Some((trig, kind)) => level_fill(side, *trig, *kind, candle),
                         };
-                        if let Some(px) = level {
-                            let fill = px * (1.0 + dir * slip);
-                            // Realized volatility is only needed by vol-target sizing.
-                            let rv = match spec.sizing {
-                                Sizing::VolTarget { lookback, .. } => {
-                                    realized_vol(&history, lookback as usize)
-                                }
-                                _ => None,
-                            };
-                            if let Some(base) = size(spec.sizing, &spec.risk, pf.cash, fill, rv)? {
-                                // Immediate-or-cancel partial fills: an entry takes
-                                // at most a participation cap of the bar's volume.
-                                let base = if spec.execution.partial_fills {
-                                    let cap = spec.execution.max_participation.unwrap_or(0.0)
-                                        * candle.volume;
-                                    base.min(cap)
-                                } else {
-                                    base
-                                };
-                                if base > 0.0 {
-                                    let fee = base * fill * taker;
-                                    pf.enter(dir * base, fill, candle.time, fee);
-                                    entry_bar = Some(t);
-                                    extreme = fill;
-                                }
+                        match level {
+                            Some(px) => {
+                                execute_entry(
+                                    side,
+                                    px,
+                                    &ctx,
+                                    &mut pf,
+                                    &mut entry_bar,
+                                    &mut extreme,
+                                )?;
+                                false
                             }
-                            false
-                        } else {
-                            true // level not reached; the order keeps working
+                            None => true, // level not reached; the order keeps working
                         }
                     }
                     Action::Exit(reason) => {
-                        if pf.in_position() {
-                            // Long exit sells (fills lower), short exit buys (higher).
-                            let dir = if pf.is_long() { -1.0 } else { 1.0 };
-                            let fill = candle.open * (1.0 + dir * slip);
-                            let fee = pf.qty.abs() * fill * taker;
-                            pf.exit(fill, candle.time, fee, reason);
-                            entry_bar = None;
-                        }
+                        execute_exit(reason, candle.open, &ctx, &mut pf, &mut entry_bar);
                         false
                     }
                 };
@@ -278,6 +328,17 @@ pub fn run_with_capital(
             bars_since_entry,
         };
 
+        // Close-to-close mode fills on this very bar's close; otherwise the order
+        // rests and fills on a later bar (the look-ahead-free default).
+        let close_fill = matches!(spec.execution.fill_timing, FillTiming::Close);
+        let ctx = FillCtx {
+            spec,
+            candle,
+            history: &history,
+            taker,
+            slip,
+            bar: t,
+        };
         if pf.in_position() {
             let cond = if pf.is_long() {
                 &spec.exit
@@ -285,33 +346,43 @@ pub fn run_with_capital(
                 spec.short_exit.as_ref().unwrap_or(&spec.exit)
             };
             if eval_condition(cond, &history, idx, state) {
-                pending = Some(Pending {
-                    action: Action::Exit("signal"),
-                    delay: spec.execution.latency_bars,
-                });
+                if close_fill {
+                    execute_exit("signal", candle.close, &ctx, &mut pf, &mut entry_bar);
+                } else {
+                    pending = Some(Pending {
+                        action: Action::Exit("signal"),
+                        delay: spec.execution.latency_bars,
+                    });
+                }
             }
         } else if pending.is_none() {
             // No order working: a new entry signal places one. Its trigger is the
             // signal bar's close shifted by the configured limit/stop offset.
             let trigger = entry_trigger(&spec.execution, candle.close);
             let latency = spec.execution.latency_bars;
-            if eval_condition(&spec.entry, &history, idx, state) {
-                pending = Some(Pending {
-                    action: Action::Enter {
-                        side: Side::Long,
-                        trigger,
-                    },
-                    delay: latency,
-                });
-            } else if let Some(short_entry) = &spec.short_entry {
-                if eval_condition(short_entry, &history, idx, state) {
+            let mut place = |side: Side| -> Result<()> {
+                if close_fill {
+                    execute_entry(
+                        side,
+                        candle.close,
+                        &ctx,
+                        &mut pf,
+                        &mut entry_bar,
+                        &mut extreme,
+                    )
+                } else {
                     pending = Some(Pending {
-                        action: Action::Enter {
-                            side: Side::Short,
-                            trigger,
-                        },
+                        action: Action::Enter { side, trigger },
                         delay: latency,
                     });
+                    Ok(())
+                }
+            };
+            if eval_condition(&spec.entry, &history, idx, state) {
+                place(Side::Long)?;
+            } else if let Some(short_entry) = &spec.short_entry {
+                if eval_condition(short_entry, &history, idx, state) {
+                    place(Side::Short)?;
                 }
             }
         }
@@ -1006,6 +1077,46 @@ mod tests {
                 "entry":{"gt":[{"price":"close"},0]},"exit":{"in_position":true},
                 "sizing":{"type":"fixed_qty","qty":1},
                 "execution":{"partial_fills":true}}"#,
+        )
+        .is_err());
+    }
+
+    #[test]
+    fn fill_timing_close_fills_same_bar() {
+        let spec = StrategySpec::parse(
+            r#"{"symbol":"x","timeframe":"1h","indicators":{},
+                "entry":{"gt":[{"price":"close"},100]},
+                "exit":{"lt":[{"price":"close"},100]},
+                "sizing":{"type":"fixed_qty","qty":1},
+                "execution":{"fill_timing":"close"}}"#,
+        )
+        .unwrap();
+        let candles = [
+            bar(0, 90.0, 90.0, 90.0, 90.0),   // close 90: no entry
+            bar(1, 95.0, 105.0, 95.0, 101.0), // close 101 > 100: entry @ close 101
+            bar(2, 100.0, 100.0, 90.0, 99.0), // close 99 < 100: exit @ close 99
+        ];
+        let r = run_with_capital(&spec, &candles, 10_000.0).unwrap();
+        assert_eq!(r.trades.len(), 1);
+        assert!((r.trades[0].entry_price - 101.0).abs() < 1e-9); // same-bar close
+        assert!((r.trades[0].exit_price - 99.0).abs() < 1e-9);
+    }
+
+    #[test]
+    fn fill_timing_close_rejects_limit_and_latency() {
+        // Close fills can't express the next-bar limit/stop or latency models.
+        assert!(StrategySpec::parse(
+            r#"{"symbol":"x","timeframe":"1h","indicators":{},
+                "entry":{"gt":[{"price":"close"},0]},"exit":{"in_position":true},
+                "sizing":{"type":"fixed_qty","qty":1},
+                "execution":{"fill_timing":"close","order_type":"limit","limit_offset_pct":-1.0}}"#,
+        )
+        .is_err());
+        assert!(StrategySpec::parse(
+            r#"{"symbol":"x","timeframe":"1h","indicators":{},
+                "entry":{"gt":[{"price":"close"},0]},"exit":{"in_position":true},
+                "sizing":{"type":"fixed_qty","qty":1},
+                "execution":{"fill_timing":"close","latency_bars":1}}"#,
         )
         .is_err());
     }

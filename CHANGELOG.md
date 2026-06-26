@@ -86,6 +86,12 @@ to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ### Changed
 
+- Close-to-close execution: `execution.fill_timing` of `"close"` fills market
+  orders on the signalling bar's own close (same bar) instead of the next bar's
+  open. It is an opt-in, deliberately optimistic mode — the fill uses the very
+  close that produced the signal, which is not tradeable live — so the default
+  stays `next_open` (look-ahead-free). Validation rejects it together with
+  limit/stop orders or `latency_bars` (both next-bar concepts).
 - Volume-participation partial fills: with `execution.partial_fills` and
   `execution.max_participation`, an entry fills at most `max_participation *
   bar_volume` (immediate-or-cancel — the unfilled remainder is cancelled), so a
