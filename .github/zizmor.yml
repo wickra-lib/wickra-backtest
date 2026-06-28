@@ -1,0 +1,30 @@
+# zizmor configuration — https://docs.zizmor.sh/configuration/
+#
+# cache-poisoning (release.yml):
+#   The release pipeline restores build caches (Swatinem/rust-cache, setup-node)
+#   as a deliberate, accepted optimisation. zizmor flags these under
+#   cache-poisoning because release.yml publishes artifacts to crates.io / PyPI /
+#   npm, so a poisoned cache could in theory reach a released build. Our caches
+#   are maintainer-controlled and the restore speedup is kept on purpose; we
+#   accept this rather than running cache-free release builds.
+#
+# use-trusted-publishing (release.yml):
+#   Informational suggestion to use OIDC trusted publishing for crates.io / PyPI
+#   / npm instead of long-lived tokens. A worthwhile migration, but it
+#   reconfigures the live publish pipeline on the registry side; tracked
+#   separately rather than blocking on it here. (NuGet already uses OIDC.)
+#
+# superfluous-actions (release.yml):
+#   The GitHub release step uses softprops/action-gh-release. The runner ships
+#   `gh`, so this is replaceable by a script step, but the action is stable and
+#   battle-tested; we keep it deliberately.
+rules:
+  cache-poisoning:
+    ignore:
+      - release.yml
+  use-trusted-publishing:
+    ignore:
+      - release.yml
+  superfluous-actions:
+    ignore:
+      - release.yml
