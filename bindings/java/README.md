@@ -9,6 +9,8 @@
 
 # Wickra Backtest — Java
 
+---
+
 Java binding for the [wickra-backtest](../../README.md) engine. It calls the
 stable **C ABI** through the Java **Foreign Function and Memory API** (FFM,
 stable since Java 22 — no preview flags), so the results are byte-identical to

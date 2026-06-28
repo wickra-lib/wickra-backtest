@@ -9,6 +9,8 @@
 
 # Wickra Backtest — C#
 
+---
+
 C# binding for the [wickra-backtest](../../README.md) engine. It calls the stable
 **C ABI** through P/Invoke, so the results are byte-identical to the Rust,
 Python, Node.js, WASM, Java, Go, C/C++ and R bindings: one engine kernel behind

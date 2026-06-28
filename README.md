@@ -11,7 +11,7 @@
 [![License: MIT OR Apache-2.0](https://raw.githubusercontent.com/wickra-lib/.github/main/profile/badges/license.svg)](#license)
 [![Verified across 10 languages](https://raw.githubusercontent.com/wickra-lib/.github/main/profile/badges/verified.svg)](golden/)
 
-# Wickra — Backtest
+---
 
 **Backtest and live — byte-identical, in 10 languages.** A streaming-native,
 event-driven backtester built on the [Wickra](https://github.com/wickra-lib/wickra)

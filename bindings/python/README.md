@@ -9,6 +9,8 @@
 
 # Wickra Backtest — Python
 
+---
+
 Streaming-native backtester for the [Wickra](https://github.com/wickra-lib/wickra)
 indicator library. A strategy is a JSON spec, so the backtest values match a live
 run and every other language binding by construction.
