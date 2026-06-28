@@ -5,12 +5,48 @@
     <LangVersion>latest</LangVersion>
     <Nullable>enable</Nullable>
     <AllowUnsafeBlocks>false</AllowUnsafeBlocks>
+
+    <!-- NuGet package metadata -->
     <PackageId>Wickra.Backtest</PackageId>
     <Version>0.1.0</Version>
     <Authors>kingchenc</Authors>
     <Description>Streaming-native backtester for the Wickra indicator library — C# bindings over the C ABI.</Description>
     <PackageLicenseExpression>MIT OR Apache-2.0</PackageLicenseExpression>
+    <PackageProjectUrl>https://github.com/wickra-lib/wickra-backtest</PackageProjectUrl>
     <RepositoryUrl>https://github.com/wickra-lib/wickra-backtest</RepositoryUrl>
+    <RepositoryType>git</RepositoryType>
+    <PackageTags>backtesting;trading;technical-analysis;quant;streaming;ffi;native</PackageTags>
+    <PackageReadmeFile>README.md</PackageReadmeFile>
+    <IncludeSymbols>true</IncludeSymbols>
+    <SymbolPackageFormat>snupkg</SymbolPackageFormat>
+    <!-- A managed package carrying per-RID native assets; not built per-RID itself. -->
+    <IncludeBuildOutput>true</IncludeBuildOutput>
+    <!-- NU5128: managed package carrying only per-RID native assets. -->
+    <NoWarn>$(NoWarn);NU5128</NoWarn>
   </PropertyGroup>
+
+  <!--
+    Supported native runtime identifiers. The release pipeline builds the C ABI
+    per target triple and stages the libraries under
+    Wickra.Backtest/runtimes/<rid>/native/ before `dotnet pack`:
+      win-x64   win-arm64   linux-x64   linux-arm64   osx-x64   osx-arm64
+  -->
+  <PropertyGroup>
+    <WickraRuntimeIdentifiers>win-x64;win-arm64;linux-x64;linux-arm64;osx-x64;osx-arm64</WickraRuntimeIdentifiers>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <None Include="..\README.md" Pack="true" PackagePath="\" />
+  </ItemGroup>
+
+  <!--
+    Native libraries are packed under runtimes/<rid>/native/ by the release pipeline,
+    which unpacks the wickra-backtest-c-<triple>.tar.gz assets into the matching RID
+    folders. For local development and tests the natives are resolved from the cargo
+    target dir (see the Tests project's <Content> copy of target/debug).
+  -->
+  <ItemGroup>
+    <None Include="runtimes/**/native/*" Pack="true" PackagePath="runtimes" Condition="Exists('runtimes')" />
+  </ItemGroup>
 
 </Project>
