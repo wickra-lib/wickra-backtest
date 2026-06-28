@@ -2,7 +2,8 @@
 //!
 //! Run with `cargo bench -p wickra-backtest-bench`.
 
-use criterion::{black_box, criterion_group, criterion_main, Criterion, Throughput};
+use criterion::{criterion_group, criterion_main, Criterion, Throughput};
+use std::hint::black_box;
 use wickra_backtest_core::{run, Candle, StrategySpec};
 
 const EMA_CROSS: &str = r#"{
