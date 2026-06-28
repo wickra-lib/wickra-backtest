@@ -35,11 +35,11 @@ jobs:
     runs-on: ubuntu-latest
     environment: release
     steps:
-      - uses: actions/checkout@v7
+      - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
         with:
           persist-credentials: false
-      - uses: dtolnay/rust-toolchain@stable
-      - uses: Swatinem/rust-cache@v2
+      - uses: ./.github/actions/setup-rust
+      - uses: Swatinem/rust-cache@e18b497796c12c097a38f9edb9d0641fb99eee32 # v2
 
       # Idempotent publishing: if the version is already on crates.io we treat
       # that as success so re-runs of the workflow do not fail.
@@ -93,14 +93,14 @@ jobs:
           cargo package -p wickra-backtest-cli
 
       - name: Upload .crate files
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
         with:
           name: crate-files
           path: target/package/*.crate
 
       # CycloneDX SBOM per published crate.
       - name: Install cargo-cyclonedx
-        uses: taiki-e/install-action@v2
+        uses: taiki-e/install-action@8b3c737da4b541bf0fb5a3e0488ff20535badac9 # v2.82.1
         with:
           tool: cargo-cyclonedx
 
@@ -115,7 +115,7 @@ jobs:
           ls -lh sboms/
 
       - name: Upload SBOMs
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
         with:
           name: sboms
           path: sboms/*.cdx.json
@@ -140,10 +140,10 @@ jobs:
           - { os: windows-11-arm, target: aarch64, manylinux: auto }
     runs-on: ${{ matrix.os }}
     steps:
-      - uses: actions/checkout@v7
+      - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
         with:
           persist-credentials: false
-      - uses: actions/setup-python@v6
+      - uses: actions/setup-python@a309ff8b426b58ec0e2a45f0f869d46889d02405 # v6.2.0
         with:
           python-version: "3.11"
       - name: Sync root README into bindings/python so it ships with the wheel
@@ -152,13 +152,13 @@ jobs:
       # The Python binding depends only on wickra-backtest-core (no native-tls /
       # OpenSSL), so the manylinux/musllinux containers build the wheel with no
       # extra system dependencies — no vendored-tls feature needed.
-      - uses: PyO3/maturin-action@v1
+      - uses: PyO3/maturin-action@e83996d129638aa358a18fbd1dfb82f0b0fb5d3b # v1.51.0
         with:
           working-directory: bindings/python
           target: ${{ matrix.target }}
           args: --release --strip --out dist
           manylinux: ${{ matrix.manylinux }}
-      - uses: actions/upload-artifact@v4
+      - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
         with:
           name: wheels-${{ matrix.os }}-${{ matrix.target }}-${{ matrix.manylinux }}
           path: bindings/python/dist/*
@@ -168,17 +168,17 @@ jobs:
     timeout-minutes: 45
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v7
+      - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
         with:
           persist-credentials: false
       - name: Sync root README into bindings/python so it ships in the sdist
         run: cp README.md bindings/python/README.md
-      - uses: PyO3/maturin-action@v1
+      - uses: PyO3/maturin-action@e83996d129638aa358a18fbd1dfb82f0b0fb5d3b # v1.51.0
         with:
           working-directory: bindings/python
           command: sdist
           args: --out dist
-      - uses: actions/upload-artifact@v4
+      - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
         with:
           name: wheels-sdist
           path: bindings/python/dist/*
@@ -190,13 +190,13 @@ jobs:
     runs-on: ubuntu-latest
     environment: release
     steps:
-      - uses: actions/download-artifact@v4
+      - uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8.0.1
         with:
           path: dist
           pattern: wheels-*
           merge-multiple: true
       - name: Upload to PyPI
-        uses: PyO3/maturin-action@v1
+        uses: PyO3/maturin-action@e83996d129638aa358a18fbd1dfb82f0b0fb5d3b # v1.51.0
         with:
           command: upload
           args: --skip-existing dist/*
@@ -221,16 +221,16 @@ jobs:
           - { host: windows-11-arm, target: aarch64-pc-windows-msvc }
     runs-on: ${{ matrix.host }}
     steps:
-      - uses: actions/checkout@v7
+      - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
         with:
           persist-credentials: false
-      - uses: actions/setup-node@v6
+      - uses: actions/setup-node@48b55a011bda9f5d6aeb4c2d9c7362e8dae4041e # v6.4.0
         with:
           node-version: "22"
-      - uses: dtolnay/rust-toolchain@stable
+      - uses: ./.github/actions/setup-rust
         with:
           targets: ${{ matrix.target }}
-      - uses: Swatinem/rust-cache@v2
+      - uses: Swatinem/rust-cache@e18b497796c12c097a38f9edb9d0641fb99eee32 # v2
       # npm install (not ci): the per-platform optionalDependencies are not yet
       # published, so they are absent from the lock and npm ci would reject it.
       - name: Install Node deps
@@ -239,7 +239,7 @@ jobs:
         working-directory: bindings/node
         run: npx napi build --platform --release --target ${{ matrix.target }}
       - name: Upload artifact
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
         with:
           name: bindings-${{ matrix.target }}
           path: bindings/node/wickra-backtest.*.node
@@ -255,17 +255,17 @@ jobs:
       contents: read
       id-token: write # Sigstore provenance from the GitHub OIDC token
     steps:
-      - uses: actions/checkout@v7
+      - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
         with:
           persist-credentials: false
-      - uses: actions/setup-node@v6
+      - uses: actions/setup-node@48b55a011bda9f5d6aeb4c2d9c7362e8dae4041e # v6.4.0
         with:
           node-version: "22"
           registry-url: "https://registry.npmjs.org"
       - name: Install Node deps
         run: cd bindings/node && npm install --no-audit --no-fund
       - name: Download all platform binaries
-        uses: actions/download-artifact@v4
+        uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8.0.1
         with:
           path: bindings/node/artifacts
           pattern: bindings-*
@@ -352,7 +352,7 @@ jobs:
           done
 
       - name: Upload Node tarballs
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
         with:
           name: node-tarballs
           path: |
@@ -371,19 +371,19 @@ jobs:
       contents: read
       id-token: write
     steps:
-      - uses: actions/checkout@v7
+      - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
         with:
           persist-credentials: false
-      - uses: actions/setup-node@v6
+      - uses: actions/setup-node@48b55a011bda9f5d6aeb4c2d9c7362e8dae4041e # v6.4.0
         with:
           node-version: "22"
           registry-url: "https://registry.npmjs.org"
-      - uses: dtolnay/rust-toolchain@stable
+      - uses: ./.github/actions/setup-rust
         with:
           targets: wasm32-unknown-unknown
-      - uses: Swatinem/rust-cache@v2
+      - uses: Swatinem/rust-cache@e18b497796c12c097a38f9edb9d0641fb99eee32 # v2
       - name: Install wasm-pack
-        uses: taiki-e/install-action@v2
+        uses: taiki-e/install-action@8b3c737da4b541bf0fb5a3e0488ff20535badac9 # v2.82.1
         with:
           tool: wasm-pack
       - name: Sync root README into bindings/wasm so wasm-pack ships it in pkg/
@@ -407,7 +407,7 @@ jobs:
         working-directory: bindings/wasm/pkg
         run: npm pack
       - name: Upload WASM tarball
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
         with:
           name: wasm-tarball
           path: bindings/wasm/pkg/wickra-backtest-wasm-*.tgz
@@ -439,13 +439,13 @@ jobs:
           - { host: windows-11-arm, target: aarch64-pc-windows-msvc }
     runs-on: ${{ matrix.host }}
     steps:
-      - uses: actions/checkout@v7
+      - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
         with:
           persist-credentials: false
-      - uses: dtolnay/rust-toolchain@stable
+      - uses: ./.github/actions/setup-rust
         with:
           targets: ${{ matrix.target }}
-      - uses: Swatinem/rust-cache@v2
+      - uses: Swatinem/rust-cache@e18b497796c12c097a38f9edb9d0641fb99eee32 # v2
       - name: Build the C ABI library (cdylib + staticlib)
         run: cargo build -p wickra-backtest-c --release --target ${{ matrix.target }}
       - name: Package header + libraries
@@ -462,7 +462,7 @@ jobs:
           tar -czf "$dir.tar.gz" "$dir"
           echo "packaged $dir:"; ls -lR "$dir"
       - name: Upload artifact
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
         with:
           name: c-abi-${{ matrix.target }}
           path: wickra-backtest-c-${{ matrix.target }}.tar.gz
@@ -482,11 +482,11 @@ jobs:
       contents: read
       id-token: write # GitHub OIDC token for trusted publishing
     steps:
-      - uses: actions/checkout@v7
+      - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
         with:
           persist-credentials: false
       - name: Download the C ABI native libraries
-        uses: actions/download-artifact@v4
+        uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8.0.1
         with:
           pattern: c-abi-*
           path: c-abi-artifacts
@@ -517,7 +517,7 @@ jobs:
             echo "staged ${RID[$target]}:"; ls -l "$dest"
           done
       - name: Pack
-        uses: nick-fields/retry@v3
+        uses: nick-fields/retry@ad984534de44a9489a53aefd81eb77f87c70dc60 # v4.0.0
         with:
           timeout_minutes: 15
           max_attempts: 2
@@ -527,7 +527,7 @@ jobs:
             version="${GITHUB_REF_NAME#v}"
             dotnet pack bindings/csharp/Wickra.Backtest/Wickra.Backtest.csproj -c Release -p:Version="$version" -o nupkg
       - name: NuGet login (OIDC -> temporary API key)
-        uses: NuGet/login@v1
+        uses: NuGet/login@8d196754b4036150537f80ac539e15c2f1028841 # v1.2.0
         id: nuget_login
         with:
           user: KingchenC
@@ -539,7 +539,7 @@ jobs:
           dotnet nuget push "nupkg/*.nupkg" --api-key "$NUGET_API_KEY" \
             --source https://api.nuget.org/v3/index.json --skip-duplicate
       - name: Upload the NuGet package as a build artifact
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
         with:
           name: nuget-package
           path: nupkg/*.nupkg
@@ -556,11 +556,11 @@ jobs:
     runs-on: ubuntu-latest
     environment: release
     steps:
-      - uses: actions/checkout@v7
+      - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
         with:
           persist-credentials: false
       - name: Download the C ABI native libraries
-        uses: actions/download-artifact@v4
+        uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8.0.1
         with:
           pattern: c-abi-*
           path: c-abi-artifacts
@@ -591,7 +591,7 @@ jobs:
             echo "staged ${PLAT[$target]}:"; ls -l "$dest"
           done
       - name: Set up JDK 25 + Maven Central credentials + GPG
-        uses: actions/setup-java@v5
+        uses: actions/setup-java@ad2b38190b15e4d6bdf0c97fb4fca8412226d287 # v5.3.0
         with:
           distribution: temurin
           java-version: "25"
@@ -619,11 +619,11 @@ jobs:
     needs: c-abi-build
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v7
+      - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
         with:
           persist-credentials: false
       - name: Download the C ABI native libraries
-        uses: actions/download-artifact@v4
+        uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8.0.1
         with:
           pattern: c-abi-*
           path: c-abi-artifacts
@@ -701,7 +701,7 @@ jobs:
       tag: ${{ steps.tag.outputs.tag }}
       version: ${{ steps.tag.outputs.version }}
     steps:
-      - uses: actions/checkout@v7
+      - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
         with:
           persist-credentials: false
           fetch-depth: 0
@@ -725,7 +725,7 @@ jobs:
           echo "version=${tag#v}" >> "$GITHUB_OUTPUT"
           echo "::notice::attaching assets to release $tag"
       - name: Download all build artifacts
-        uses: actions/download-artifact@v4
+        uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8.0.1
         with:
           path: artifacts
       - name: Stage release assets
@@ -742,7 +742,7 @@ jobs:
           ls -lh release-assets/
           echo "asset-count=$(ls release-assets/ | wc -l)"
       - name: Create / update the draft GitHub Release with assets
-        uses: softprops/action-gh-release@v3
+        uses: softprops/action-gh-release@718ea10b132b3b2eba29c1007bb80653f286566b # v3.0.1
         with:
           tag_name: ${{ steps.tag.outputs.tag }}
           name: wickra-backtest ${{ steps.tag.outputs.tag }}
@@ -801,19 +801,19 @@ jobs:
       contents: write
     steps:
       - name: Download crate files
-        uses: actions/download-artifact@v4
+        uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8.0.1
         with:
           name: crate-files
           path: artifacts/crates
       - name: Download wheels + sdist
-        uses: actions/download-artifact@v4
+        uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8.0.1
         with:
           pattern: wheels-*
           path: artifacts/python
           merge-multiple: true
       - name: Attest build provenance
         id: attest
-        uses: actions/attest-build-provenance@v4
+        uses: actions/attest-build-provenance@a2bbfa25375fe432b6a289bc6b6cd05ecd0c4c32 # v4.1.0
         with:
           subject-path: |
             artifacts/crates/*.crate
