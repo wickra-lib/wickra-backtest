@@ -174,3 +174,57 @@ jobs:
           cd bindings/go
           go vet ./...
           go test ./...
+
+  node:
+    name: Node ${{ matrix.node-version }} on ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, macos-latest, windows-latest]
+        node-version: ["22", "24"]
+    runs-on: ${{ matrix.os }}
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          persist-credentials: false
+      - uses: dtolnay/rust-toolchain@stable
+      - uses: Swatinem/rust-cache@v2
+      - uses: actions/setup-node@v6
+        with:
+          node-version: ${{ matrix.node-version }}
+          cache: npm
+          cache-dependency-path: bindings/node/package-lock.json
+      - name: Install Node dependencies
+        run: cd bindings/node && npm ci
+      # --platform puts the target triple into the filename so the loader finds
+      # the freshly built binary instead of a per-platform npm subpackage.
+      - name: Build native module
+        run: cd bindings/node && npx napi build --platform --release
+      - name: Run Node tests
+        run: cd bindings/node && node --test
+
+  wasm:
+    name: WASM build
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          persist-credentials: false
+      - uses: dtolnay/rust-toolchain@stable
+        with:
+          targets: wasm32-unknown-unknown
+      - uses: Swatinem/rust-cache@v2
+      - name: Install wasm-pack
+        uses: taiki-e/install-action@v2
+        with:
+          tool: wasm-pack
+      # Build the nodejs target so the golden suite can require ../pkg/*.js.
+      - name: Build WASM package (nodejs target)
+        run: wasm-pack build bindings/wasm --target nodejs --release --out-dir pkg
+      - name: Verify generated artefacts
+        run: |
+          test -f bindings/wasm/pkg/wickra_backtest_wasm.js
+          test -f bindings/wasm/pkg/wickra_backtest_wasm_bg.wasm
+          test -f bindings/wasm/pkg/wickra_backtest_wasm.d.ts
+      - name: Golden parity tests (node)
+        run: node --test bindings/wasm/tests/*.test.cjs
