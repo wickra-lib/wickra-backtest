@@ -26,3 +26,19 @@ ci_workflow = "ci.yml"
 forbidden = [
     "kingchenc/wickra-backtest",
 ]
+
+# Paths exempt from the forbidden-substring scan: auto-generated / lockfiles and
+# the two files that legitimately spell the forbidden value out (this file
+# defines it; the audit script matches against it).
+allowlist = [
+    "target/",
+    "node_modules/",
+    "fuzz/target/",
+    ".venv/",
+    "Cargo.lock",
+    "package-lock.json",
+    "bindings/node/index.js",
+    "bindings/node/index.d.ts",
+    "repo-metadata.toml",
+    ".github/scripts/sync-metadata.py",
+]
