@@ -4,7 +4,12 @@
 
 [![Built on Wickra](https://img.shields.io/badge/built%20on-wickra-3b82f6)](https://github.com/wickra-lib/wickra)
 [![Status](https://img.shields.io/badge/status-alpha%20(WIP)-orange)](https://github.com/wickra-lib/wickra-backtest)
-[![License: MIT OR Apache-2.0](https://raw.githubusercontent.com/wickra-lib/.github/main/profile/badges/license.svg)](https://github.com/wickra-lib/wickra#license)
+[![CI](https://raw.githubusercontent.com/wickra-lib/.github/main/profile/badges/ci.svg)](https://github.com/wickra-lib/wickra-backtest/actions/workflows/ci.yml)
+[![CodeQL](https://raw.githubusercontent.com/wickra-lib/.github/main/profile/badges/codeql.svg)](https://github.com/wickra-lib/wickra-backtest/actions/workflows/codeql.yml)
+[![codecov](https://raw.githubusercontent.com/wickra-lib/.github/main/profile/badges/codecov.svg)](https://codecov.io/gh/wickra-lib/wickra-backtest)
+[![OpenSSF Scorecard](https://raw.githubusercontent.com/wickra-lib/.github/main/profile/badges/scorecard.svg)](https://scorecard.dev/viewer/?uri=github.com/wickra-lib/wickra-backtest)
+[![License: MIT OR Apache-2.0](https://raw.githubusercontent.com/wickra-lib/.github/main/profile/badges/license.svg)](#license)
+[![Verified across 10 languages](https://raw.githubusercontent.com/wickra-lib/.github/main/profile/badges/verified.svg)](golden/)
 
 # Wickra — Backtest
 
@@ -31,7 +36,7 @@ Why it is different from vectorbt / backtrader:
 - **Backtest = live, value-identical across 10 languages** — no reimplementation drift, pinned by a shared golden corpus for the OHLCV path *and* every microstructure feed.
 - **Microstructure backtesting** — replay the order book, trades, perpetual funding and open interest as strategy inputs; off-the-shelf backtesters can't.
 - **Realistic execution** — long/short, market/limit/stop orders, leverage and position caps, five sizing models, intrabar stop-loss / take-profit / trailing stops, maker/taker fees, three slippage models, perpetual funding, liquidation and execution latency.
-- **Polyglot** — the same `StrategySpec` runs from Rust, Python, Node, the browser (WASM), Go, C#, Java, C/C++ and R.
+- **Polyglot** — the same `StrategySpec` runs from Rust, Python, Node.js, WASM, C, C++, C#, Go, Java and R.
 
 ## Status
 
@@ -187,8 +192,81 @@ The Go, Java and R bindings load the C ABI shared library at run time; put
 nightly toolchain — see [`fuzz/`](fuzz/); the same never-panic invariants are
 covered on stable by the property tests.
 
+## Requirements
+
+The minimum supported version per language. The same engine kernel runs behind
+every binding; the C-ABI bindings that compile on install — Go (cgo) and R
+(`.Call`) — also need a C compiler, and Java runs with
+`--enable-native-access=ALL-UNNAMED`.
+
+| Language | Package                                   | Minimum supported          |
+|----------|-------------------------------------------|----------------------------|
+| Rust     | crates.io · `wickra-backtest`             | 1.86 (MSRV)                |
+| Python   | PyPI · `wickra-backtest` (abi3 wheel)     | 3.9 (tested through 3.13)  |
+| Node.js  | npm · `wickra-backtest` (N-API 8)         | 22 (tested on 22 · 24 LTS) |
+| WASM     | npm · `wickra-backtest-wasm`              | any modern JS engine       |
+| C        | `wickra_backtest.h` + library (releases)  | C99 compiler               |
+| C++      | over the C ABI                            | C++14 compiler             |
+| C#       | NuGet · `Wickra.Backtest`                 | .NET 8 (`net8.0`)          |
+| Go       | module · `wickra-lib/wickra-backtest-go`  | Go 1.23 (cgo)              |
+| Java     | Maven Central · `org.wickra:wickra-backtest` | Java 22 (FFM / Panama)  |
+| R        | r-universe · `wickrabacktest`             | R ≥ 2.10 (Rtools on Win.)  |
+
+## Contributing
+
+Contributions are welcome — issues, bug reports, ideas and pull requests all land
+at <https://github.com/wickra-lib/wickra-backtest>. See
+[CONTRIBUTING.md](CONTRIBUTING.md) for the orientation: the engine lives in
+`crates/wickra-backtest-core`, every binding under `bindings/<lang>` keeps the
+golden-corpus parity invariant, and `cargo fmt --all` +
+`cargo clippy --workspace --all-targets --all-features -- -D warnings` are CI
+gates. For larger changes, open an issue first.
+
+## Security
+
+Found a security issue? **Please don't open a public issue.** Report it privately
+via the repository's *Security* tab (*"Report a vulnerability"*) or email
+**support@wickra.org**. Full policy: [SECURITY.md](SECURITY.md).
+
 ## License
 
-Licensed under either of [MIT](LICENSE-MIT) or [Apache-2.0](LICENSE-APACHE) at your option.
+Licensed under either of
 
-> Not a trading system. Backtest results are not indicative of future performance. Use at your own risk.
+- Apache License, Version 2.0 ([LICENSE-APACHE](LICENSE-APACHE) or
+  <http://www.apache.org/licenses/LICENSE-2.0>)
+- MIT license ([LICENSE-MIT](LICENSE-MIT) or <http://opensource.org/licenses/MIT>)
+
+at your option. Use it, fork it, modify it, redistribute it — commercially or
+not — file issues, send pull requests; all welcome.
+
+### Contribution
+
+Unless you explicitly state otherwise, any contribution intentionally submitted
+for inclusion in the work by you, as defined in the Apache-2.0 license, shall be
+dual licensed as above, without any additional terms or conditions.
+
+## Disclaimer
+
+Not a trading system. Backtest results are deterministic transforms of the input
+data — they are not financial advice and are not indicative of future
+performance. Any use in a live trading context is at your own risk. The software
+is provided **as is**, without warranty of any kind; see the license files for
+the full terms.
+
+---
+
+<p align="center">
+  <a href="https://github.com/wickra-lib/wickra-backtest/stargazers">
+    <img alt="GitHub stars" src="https://raw.githubusercontent.com/wickra-lib/.github/main/profile/badges/stars.svg">
+  </a>
+  <a href="https://github.com/wickra-lib/wickra-backtest/network/members">
+    <img alt="GitHub forks" src="https://raw.githubusercontent.com/wickra-lib/.github/main/profile/badges/forks.svg">
+  </a>
+  <a href="https://github.com/wickra-lib/wickra-backtest/issues">
+    <img alt="GitHub issues" src="https://raw.githubusercontent.com/wickra-lib/.github/main/profile/badges/issues.svg">
+  </a>
+</p>
+
+<p align="center">
+  Built on <a href="https://github.com/wickra-lib/wickra">Wickra</a>. If it saved you time, ⭐ the repo.
+</p>
