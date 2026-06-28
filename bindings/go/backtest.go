@@ -4,14 +4,19 @@
 // every language.
 //
 // The native library wickra_backtest must be built first
-// (cargo build -p wickra-backtest-c) and reachable at run time (on PATH on
-// Windows, or LD_LIBRARY_PATH / DYLD_LIBRARY_PATH on Linux / macOS).
+// (cargo build -p wickra-backtest-c) and staged under lib/<goos>_<goarch>/. On
+// Linux/macOS the library path is baked in via rpath; on Windows the DLL must be
+// discoverable at run time (next to the executable or on PATH).
 package wickrabacktest
 
 /*
-#cgo CFLAGS: -I${SRCDIR}/../c/include
-#cgo windows LDFLAGS: -L${SRCDIR}/../../target/debug -l:wickra_backtest.dll
-#cgo !windows LDFLAGS: -L${SRCDIR}/../../target/debug -lwickra_backtest
+#cgo CFLAGS: -I${SRCDIR}/include
+#cgo linux,amd64 LDFLAGS: -L${SRCDIR}/lib/linux_amd64 -lwickra_backtest -Wl,-rpath,${SRCDIR}/lib/linux_amd64
+#cgo linux,arm64 LDFLAGS: -L${SRCDIR}/lib/linux_arm64 -lwickra_backtest -Wl,-rpath,${SRCDIR}/lib/linux_arm64
+#cgo darwin,amd64 LDFLAGS: -L${SRCDIR}/lib/darwin_amd64 -lwickra_backtest -Wl,-rpath,${SRCDIR}/lib/darwin_amd64
+#cgo darwin,arm64 LDFLAGS: -L${SRCDIR}/lib/darwin_arm64 -lwickra_backtest -Wl,-rpath,${SRCDIR}/lib/darwin_arm64
+#cgo windows,amd64 LDFLAGS: -L${SRCDIR}/lib/windows_amd64 -l:wickra_backtest.dll
+#cgo windows,arm64 LDFLAGS: -L${SRCDIR}/lib/windows_arm64 -l:wickra_backtest.dll
 #include <stdlib.h>
 #include "wickra_backtest.h"
 */
