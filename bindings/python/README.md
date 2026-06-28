@@ -3,9 +3,9 @@
 </p>
 
 [![Built on Wickra](https://img.shields.io/badge/built%20on-wickra-3b82f6)](https://github.com/wickra-lib/wickra)
-[![CI](https://github.com/wickra-lib/wickra-backtest/actions/workflows/ci.yml/badge.svg)](https://github.com/wickra-lib/wickra-backtest/actions/workflows/ci.yml)
-[![codecov](https://codecov.io/gh/wickra-lib/wickra-backtest/branch/main/graph/badge.svg)](https://codecov.io/gh/wickra-lib/wickra-backtest)
-[![License: MIT OR Apache-2.0](https://img.shields.io/badge/license-MIT_OR_Apache--2.0-blue)](../../README.md#license)
+[![CI](https://raw.githubusercontent.com/wickra-lib/.github/main/profile/badges/wickra-backtest/ci.svg)](https://github.com/wickra-lib/wickra-backtest/actions/workflows/ci.yml)
+[![codecov](https://raw.githubusercontent.com/wickra-lib/.github/main/profile/badges/wickra-backtest/codecov.svg)](https://codecov.io/gh/wickra-lib/wickra-backtest)
+[![License: MIT OR Apache-2.0](https://raw.githubusercontent.com/wickra-lib/.github/main/profile/badges/wickra-backtest/license.svg)](../../README.md#license)
 
 # Wickra Backtest — Python
 
