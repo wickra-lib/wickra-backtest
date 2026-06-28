@@ -194,8 +194,12 @@ jobs:
           node-version: ${{ matrix.node-version }}
           cache: npm
           cache-dependency-path: bindings/node/package-lock.json
+      # npm install (not npm ci): the per-platform optionalDependencies point at
+      # native packages that are not published until the first release, so they
+      # are absent from the lock file and `npm ci` would reject the tree as out
+      # of sync. install treats the missing optional packages as non-fatal.
       - name: Install Node dependencies
-        run: cd bindings/node && npm ci
+        run: cd bindings/node && npm install --no-audit --no-fund
       # --platform puts the target triple into the filename so the loader finds
       # the freshly built binary instead of a per-platform npm subpackage.
       - name: Build native module
