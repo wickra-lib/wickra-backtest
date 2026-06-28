@@ -11,6 +11,34 @@
 
   <name>wickra-backtest (Java)</name>
   <description>Java binding for the wickra-backtest engine over the C ABI (Foreign Function and Memory API).</description>
+  <url>https://github.com/wickra-lib/wickra-backtest</url>
+
+  <licenses>
+    <license>
+      <name>MIT</name>
+      <url>https://opensource.org/licenses/MIT</url>
+      <distribution>repo</distribution>
+    </license>
+    <license>
+      <name>Apache-2.0</name>
+      <url>https://www.apache.org/licenses/LICENSE-2.0</url>
+      <distribution>repo</distribution>
+    </license>
+  </licenses>
+
+  <developers>
+    <developer>
+      <id>kingchenc</id>
+      <name>kingchenc</name>
+      <url>https://github.com/kingchenc</url>
+    </developer>
+  </developers>
+
+  <scm>
+    <connection>scm:git:https://github.com/wickra-lib/wickra-backtest.git</connection>
+    <developerConnection>scm:git:https://github.com/wickra-lib/wickra-backtest.git</developerConnection>
+    <url>https://github.com/wickra-lib/wickra-backtest</url>
+  </scm>
 
   <properties>
     <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
@@ -51,6 +79,96 @@
           <argLine>--enable-native-access=ALL-UNNAMED "-Djava.library.path=${native.lib.dir}"</argLine>
         </configuration>
       </plugin>
+      <plugin>
+        <groupId>org.apache.maven.plugins</groupId>
+        <artifactId>maven-jar-plugin</artifactId>
+        <version>3.4.2</version>
+        <configuration>
+          <archive>
+            <manifestEntries>
+              <!-- Grant native access when the jar is run directly. -->
+              <Enable-Native-Access>ALL-UNNAMED</Enable-Native-Access>
+            </manifestEntries>
+          </archive>
+        </configuration>
+      </plugin>
     </plugins>
   </build>
+
+  <profiles>
+    <!--
+      Release profile (CI only, gated): attaches source + javadoc jars, GPG-signs
+      every artifact, and publishes to Maven Central via the central-publishing
+      plugin. The native libraries are unpacked from the wickra-backtest-c-<triple>.tar.gz
+      release assets into src/main/resources/native/<os>-<arch>/ before `mvn deploy`,
+      so the published jar carries every platform's library.
+    -->
+    <profile>
+      <id>release</id>
+      <build>
+        <plugins>
+          <plugin>
+            <groupId>org.apache.maven.plugins</groupId>
+            <artifactId>maven-source-plugin</artifactId>
+            <version>3.4.0</version>
+            <executions>
+              <execution>
+                <id>attach-sources</id>
+                <goals><goal>jar-no-fork</goal></goals>
+              </execution>
+            </executions>
+          </plugin>
+
+          <plugin>
+            <groupId>org.apache.maven.plugins</groupId>
+            <artifactId>maven-javadoc-plugin</artifactId>
+            <version>3.12.0</version>
+            <configuration>
+              <!-- Generated members are self-descriptive; do not fail on doclint. -->
+              <doclint>none</doclint>
+              <quiet>true</quiet>
+            </configuration>
+            <executions>
+              <execution>
+                <id>attach-javadocs</id>
+                <goals><goal>jar</goal></goals>
+              </execution>
+            </executions>
+          </plugin>
+
+          <plugin>
+            <groupId>org.apache.maven.plugins</groupId>
+            <artifactId>maven-gpg-plugin</artifactId>
+            <version>3.2.8</version>
+            <executions>
+              <execution>
+                <id>sign-artifacts</id>
+                <phase>verify</phase>
+                <goals><goal>sign</goal></goals>
+                <configuration>
+                  <!-- Non-interactive signing on CI: modern GPG needs loopback
+                       pinentry to take the passphrase from the env without a TTY. -->
+                  <gpgArguments>
+                    <arg>--pinentry-mode</arg>
+                    <arg>loopback</arg>
+                  </gpgArguments>
+                </configuration>
+              </execution>
+            </executions>
+          </plugin>
+
+          <plugin>
+            <groupId>org.sonatype.central</groupId>
+            <artifactId>central-publishing-maven-plugin</artifactId>
+            <version>0.11.0</version>
+            <extensions>true</extensions>
+            <configuration>
+              <publishingServerId>central</publishingServerId>
+              <autoPublish>true</autoPublish>
+            </configuration>
+          </plugin>
+        </plugins>
+      </build>
+    </profile>
+  </profiles>
 </project>
