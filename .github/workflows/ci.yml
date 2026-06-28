@@ -323,3 +323,42 @@ jobs:
         run: java -version
       - name: Test the Java binding
         run: mvn -B -f bindings/java test
+
+  r:
+    name: R on ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, macos-latest, windows-latest]
+    runs-on: ${{ matrix.os }}
+    env:
+      WKBT_INC: ${{ github.workspace }}/bindings/c/include
+      WKBT_LIB: ${{ github.workspace }}/target/release
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          persist-credentials: false
+      - uses: dtolnay/rust-toolchain@stable
+      - uses: Swatinem/rust-cache@v2
+      # The package compiles a thin .Call glue layer against the C ABI hub and
+      # links -lwickra_backtest from WKBT_LIB; build the library first.
+      - name: Build the C ABI library
+        run: cargo build -p wickra-backtest-c --release
+      - uses: r-lib/actions/setup-r@v2
+        with:
+          r-version: "release"
+          use-public-rspm: true
+      - name: Install and test the R binding
+        shell: bash
+        # github.workspace is a backslash path on Windows; Makevars(.win) (sh) and
+        # mingw need forward slashes. The Makevars do not bake an rpath, so the
+        # native library must be on the loader path at run time: LD_LIBRARY_PATH
+        # (Linux), DYLD_LIBRARY_PATH (macOS) and PATH (Windows).
+        run: |
+          export WKBT_INC="${WKBT_INC//\\//}"
+          export WKBT_LIB="${WKBT_LIB//\\//}"
+          export LD_LIBRARY_PATH="$WKBT_LIB:$LD_LIBRARY_PATH"
+          export DYLD_LIBRARY_PATH="$WKBT_LIB:$DYLD_LIBRARY_PATH"
+          export PATH="$WKBT_LIB:$PATH"
+          R CMD INSTALL bindings/r
+          Rscript bindings/r/tests/run_tests.R
