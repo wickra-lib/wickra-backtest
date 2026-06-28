@@ -1,0 +1,24 @@
+{
+  "name": "wickra-backtest-darwin-arm64",
+  "version": "0.1.0",
+  "description": "Native binding for wickra-backtest (darwin-arm64). Installed automatically as an optional dependency of wickra-backtest on matching platforms.",
+  "main": "wickra-backtest.darwin-arm64.node",
+  "files": [
+    "wickra-backtest.darwin-arm64.node"
+  ],
+  "license": "MIT OR Apache-2.0",
+  "engines": {
+    "node": ">= 22"
+  },
+  "os": [
+    "darwin"
+  ],
+  "cpu": [
+    "arm64"
+  ],
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/wickra-lib/wickra-backtest"
+  },
+  "homepage": "https://github.com/wickra-lib/wickra-backtest"
+}

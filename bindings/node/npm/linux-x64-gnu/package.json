@@ -1,0 +1,27 @@
+{
+  "name": "wickra-backtest-linux-x64-gnu",
+  "version": "0.1.0",
+  "description": "Native binding for wickra-backtest (linux-x64-gnu). Installed automatically as an optional dependency of wickra-backtest on matching platforms.",
+  "main": "wickra-backtest.linux-x64-gnu.node",
+  "files": [
+    "wickra-backtest.linux-x64-gnu.node"
+  ],
+  "license": "MIT OR Apache-2.0",
+  "engines": {
+    "node": ">= 22"
+  },
+  "os": [
+    "linux"
+  ],
+  "cpu": [
+    "x64"
+  ],
+  "libc": [
+    "glibc"
+  ],
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/wickra-lib/wickra-backtest"
+  },
+  "homepage": "https://github.com/wickra-lib/wickra-backtest"
+}

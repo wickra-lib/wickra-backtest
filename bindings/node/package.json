@@ -42,6 +42,14 @@
       ]
     }
   },
+  "optionalDependencies": {
+    "wickra-backtest-linux-x64-gnu": "0.1.0",
+    "wickra-backtest-linux-arm64-gnu": "0.1.0",
+    "wickra-backtest-darwin-x64": "0.1.0",
+    "wickra-backtest-darwin-arm64": "0.1.0",
+    "wickra-backtest-win32-x64-msvc": "0.1.0",
+    "wickra-backtest-win32-arm64-msvc": "0.1.0"
+  },
   "scripts": {
     "build": "napi build --platform --release",
     "build:debug": "napi build --platform",
