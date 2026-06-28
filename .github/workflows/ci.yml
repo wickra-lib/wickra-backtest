@@ -368,3 +368,63 @@ jobs:
           fi
           R CMD INSTALL bindings/r
           Rscript bindings/r/tests/run_tests.R
+
+  coverage:
+    name: Coverage
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          persist-credentials: false
+      - uses: dtolnay/rust-toolchain@stable
+        with:
+          components: llvm-tools-preview
+      - uses: Swatinem/rust-cache@v2
+      - name: Install cargo-llvm-cov
+        uses: taiki-e/install-action@v2
+        with:
+          tool: cargo-llvm-cov
+      - name: Generate coverage (lcov)
+        run: >
+          cargo llvm-cov
+          -p wickra-backtest-core -p wickra-backtest-data
+          -p wickra-backtest -p wickra-backtest-cli
+          --lcov --output-path lcov.info
+      - name: Upload to Codecov
+        uses: codecov/codecov-action@v5
+        with:
+          files: lcov.info
+          fail_ci_if_error: false
+        env:
+          CODECOV_TOKEN: ${{ secrets.CODECOV_TOKEN }}
+
+  fuzz-smoke:
+    name: Fuzz (smoke)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          persist-credentials: false
+      - uses: dtolnay/rust-toolchain@nightly
+      - uses: Swatinem/rust-cache@v2
+        with:
+          workspaces: fuzz
+      - name: Install cargo-fuzz
+        uses: taiki-e/install-action@v2
+        with:
+          tool: cargo-fuzz
+      - name: Fuzz spec_parse (30 s)
+        run: cargo +nightly fuzz run --target x86_64-unknown-linux-gnu spec_parse -- -max_total_time=30
+        working-directory: fuzz
+      - name: Fuzz run_json (30 s)
+        run: cargo +nightly fuzz run --target x86_64-unknown-linux-gnu run_json -- -max_total_time=30
+        working-directory: fuzz
+      - name: Fuzz engine_run (30 s)
+        run: cargo +nightly fuzz run --target x86_64-unknown-linux-gnu engine_run -- -max_total_time=30
+        working-directory: fuzz
+      - name: Fuzz fill_model (30 s)
+        run: cargo +nightly fuzz run --target x86_64-unknown-linux-gnu fill_model -- -max_total_time=30
+        working-directory: fuzz
+      - name: Fuzz data_loader (30 s)
+        run: cargo +nightly fuzz run --target x86_64-unknown-linux-gnu data_loader -- -max_total_time=30
+        working-directory: fuzz
