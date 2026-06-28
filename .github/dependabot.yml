@@ -66,6 +66,12 @@ updates:
       default-days: 7
     commit-message:
       prefix: "deps(actions)"
+    # dtolnay/rust-toolchain@<channel> pins a Rust toolchain (e.g. 1.86 for the
+    # MSRV job, 1.88 for the Node binding), not an action version. Dependabot
+    # misreads the channel as a version and proposes non-existent Rust releases
+    # (e.g. 1.100). The toolchain pins are managed manually with the MSRV policy.
+    ignore:
+      - dependency-name: "dtolnay/rust-toolchain"
     groups:
       github-actions:
         patterns: ["*"]
