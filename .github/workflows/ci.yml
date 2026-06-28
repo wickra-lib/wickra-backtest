@@ -271,3 +271,54 @@ jobs:
           cmake -S examples/c -B examples/c/build
           cmake --build examples/c/build --config Release
           ctest --test-dir examples/c/build -C Release --output-on-failure
+
+  csharp:
+    name: C# on ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, macos-latest, windows-latest]
+    runs-on: ${{ matrix.os }}
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          persist-credentials: false
+      - uses: dtolnay/rust-toolchain@stable
+      - uses: Swatinem/rust-cache@v2
+      - uses: actions/setup-dotnet@v5
+        with:
+          dotnet-version: "8.0"
+      # The binding links the C ABI hub at runtime; build it first so the
+      # DllImportResolver finds target/release/wickra_backtest.{dll,so,dylib}.
+      - name: Build the C ABI library
+        run: cargo build -p wickra-backtest-c --release
+      - name: Test the C# binding
+        run: dotnet test bindings/csharp/Wickra.Backtest.Tests/Wickra.Backtest.Tests.csproj -c Release
+
+  java:
+    name: Java on ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, macos-latest, windows-latest]
+    runs-on: ${{ matrix.os }}
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          persist-credentials: false
+      - uses: dtolnay/rust-toolchain@stable
+      - uses: Swatinem/rust-cache@v2
+      # The binding links the C ABI hub at runtime via the Java FFM API; build it
+      # first so the development fallback finds target/release/wickra_backtest.*.
+      # The pom pins bytecode to release 25, so build on the matching JDK.
+      - name: Build the C ABI library
+        run: cargo build -p wickra-backtest-c --release
+      - uses: actions/setup-java@v5
+        with:
+          distribution: temurin
+          java-version: "25"
+          cache: maven
+      - name: Java info
+        run: java -version
+      - name: Test the Java binding
+        run: mvn -B -f bindings/java test
