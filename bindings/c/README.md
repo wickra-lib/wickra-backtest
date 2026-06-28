@@ -9,6 +9,8 @@
 
 # Wickra Backtest — C / C++
 
+---
+
 The stable **C ABI** for the [wickra-backtest](../../README.md) engine, and the
 hub every non-native binding (C#, Java, Go, R) calls through. The same source
 compiles as C and C++ (the header is `extern "C"`), and the report is

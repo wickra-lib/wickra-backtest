@@ -9,6 +9,8 @@
 
 # Wickra Backtest — R
 
+---
+
 R binding for the [wickra-backtest](../../README.md) engine. Compiled C glue
 calls the stable **C ABI** via `.Call`, so the results are byte-identical to the
 Rust, Python, Node.js, WASM, C#, Java and Go bindings: one engine kernel behind

@@ -9,6 +9,8 @@
 
 # Wickra Backtest — Go
 
+---
+
 Go binding for the [wickra-backtest](../../README.md) engine. It calls the
 stable **C ABI** through cgo, so the results are byte-identical to the Rust,
 Python, Node.js, WASM, C# and Java bindings: one engine kernel behind every

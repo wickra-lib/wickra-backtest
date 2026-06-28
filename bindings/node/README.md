@@ -9,6 +9,8 @@
 
 # Wickra Backtest — Node.js
 
+---
+
 Node.js binding for the [wickra-backtest](../../README.md) engine, built with
 napi-rs. It runs a strategy spec over OHLCV arrays and returns the report as a
 JSON string — byte-identical to the Rust, Python, WASM, C#, Java, Go, C/C++ and
