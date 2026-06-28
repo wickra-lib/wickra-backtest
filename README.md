@@ -17,6 +17,9 @@
 [![R-universe](https://raw.githubusercontent.com/wickra-lib/.github/main/profile/badges/wickra-backtest/r-universe.svg)](https://wickra-lib.r-universe.dev)
 [![License: MIT OR Apache-2.0](https://raw.githubusercontent.com/wickra-lib/.github/main/profile/badges/wickra-backtest/license.svg)](#license)
 [![OpenSSF Scorecard](https://raw.githubusercontent.com/wickra-lib/.github/main/profile/badges/wickra-backtest/scorecard.svg)](https://scorecard.dev/viewer/?uri=github.com/wickra-lib/wickra-backtest)
+[![OpenSSF Best Practices](https://raw.githubusercontent.com/wickra-lib/.github/main/profile/badges/wickra-backtest/best-practices.svg)](https://www.bestpractices.dev/)
+[![Build provenance](https://raw.githubusercontent.com/wickra-lib/.github/main/profile/badges/wickra-backtest/provenance.svg)](https://github.com/wickra-lib/wickra-backtest/attestations)
+[![Docs](https://raw.githubusercontent.com/wickra-lib/.github/main/profile/badges/wickra-backtest/docs.svg)](https://backtest.wickra.org)
 [![Verified across 10 languages](https://raw.githubusercontent.com/wickra-lib/.github/main/profile/badges/wickra-backtest/verified.svg)](golden/)
 
 ---
