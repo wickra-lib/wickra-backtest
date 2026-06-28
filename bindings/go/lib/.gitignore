@@ -1,0 +1,8 @@
+# Prebuilt wickra-backtest C ABI libraries are provisioned locally / in CI, not
+# committed. The release pipeline stages them into the standalone Go module.
+*.so
+*.dylib
+*.dll
+*.a
+*.lib
+*.exp

@@ -12,20 +12,29 @@ language.
 
 ## Build the native library
 
+The cgo directives in `backtest.go` link against `lib/<goos>_<goarch>/`, so build
+the C ABI crate and stage the library into the directory for your platform:
+
 ```bash
-cargo build -p wickra-backtest-c           # debug   -> target/debug
-cargo build -p wickra-backtest-c --release # release -> target/release
+cargo build -p wickra-backtest-c --release
+# Linux x64:   cp target/release/libwickra_backtest.so    bindings/go/lib/linux_amd64/
+# macOS arm64: cp target/release/libwickra_backtest.dylib bindings/go/lib/darwin_arm64/
+# Windows x64: cp target/release/wickra_backtest.dll      bindings/go/lib/windows_amd64/
 ```
 
-The cgo directives in `backtest.go` link against `target/debug`. At run time the
-library must be reachable: add the target directory to `PATH` (Windows),
-`LD_LIBRARY_PATH` (Linux) or `DYLD_LIBRARY_PATH` (macOS).
+On Linux/macOS the library path is baked in via rpath. On Windows the DLL must be
+discoverable at run time (next to the executable or on `PATH`).
+
+The published [`wickra-backtest-go`](https://github.com/wickra-lib/wickra-backtest-go)
+module ships these prebuilt libraries for every platform, so end users only run
+`go get` — the staging above is for contributors building from this directory.
 
 ## Run the tests
 
 ```bash
 cd bindings/go
-PATH="$PATH:$(cd ../../target/debug && pwd)" go test ./...   # Windows: dll on PATH
+go test ./...                              # Linux/macOS (rpath resolves the lib)
+PATH="$PWD/lib/windows_amd64:$PATH" go test ./...   # Windows: dll on PATH
 ```
 
 ## Usage
