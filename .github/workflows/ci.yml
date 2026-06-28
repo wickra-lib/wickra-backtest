@@ -228,3 +228,46 @@ jobs:
           test -f bindings/wasm/pkg/wickra_backtest_wasm.d.ts
       - name: Golden parity tests (node)
         run: node --test bindings/wasm/tests/*.test.cjs
+
+  c-abi:
+    name: C ABI on ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, macos-latest, windows-latest]
+    runs-on: ${{ matrix.os }}
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          persist-credentials: false
+      - uses: dtolnay/rust-toolchain@stable
+      - uses: Swatinem/rust-cache@v2
+      - name: Install cbindgen
+        uses: taiki-e/install-action@v2
+        with:
+          tool: cbindgen
+      - name: Build the C ABI library (cdylib + staticlib)
+        run: cargo build -p wickra-backtest-c --release
+      - name: Rust unit tests
+        run: cargo test -p wickra-backtest-c
+      # The generated header is platform-independent, so checking drift on one OS
+      # is enough — and avoids a spurious CRLF/LF diff on the Windows runner.
+      - name: Check the committed header is in sync with cbindgen
+        if: runner.os == 'Linux'
+        shell: bash
+        run: |
+          cbindgen --config bindings/c/cbindgen.toml --crate wickra-backtest-c --output bindings/c/include/wickra_backtest.h
+          if ! git diff --quiet -- bindings/c/include/wickra_backtest.h; then
+            echo "::error::bindings/c/include/wickra_backtest.h is out of sync — run cbindgen and commit the result"
+            git --no-pager diff -- bindings/c/include/wickra_backtest.h
+            exit 1
+          fi
+      # The real cross-language test: a foreign C consumer links the generated
+      # header + the compiled library and runs. If this passes on all three OSes,
+      # every C-capable language can link the same way.
+      - name: Build and run the C example (CMake + ctest)
+        shell: bash
+        run: |
+          cmake -S examples/c -B examples/c/build
+          cmake --build examples/c/build --config Release
+          ctest --test-dir examples/c/build -C Release --output-on-failure
