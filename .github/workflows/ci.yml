@@ -357,8 +357,14 @@ jobs:
         run: |
           export WKBT_INC="${WKBT_INC//\\//}"
           export WKBT_LIB="${WKBT_LIB//\\//}"
-          export LD_LIBRARY_PATH="$WKBT_LIB:$LD_LIBRARY_PATH"
-          export DYLD_LIBRARY_PATH="$WKBT_LIB:$DYLD_LIBRARY_PATH"
-          export PATH="$WKBT_LIB:$PATH"
+          if command -v cygpath >/dev/null 2>&1; then
+            # Windows (rtools bash): add the lib dir to PATH in msys form so the
+            # ':' in the drive letter is not parsed as a PATH separator and msys
+            # translates it to the Windows PATH the DLL loader searches.
+            export PATH="$(cygpath -u "$WKBT_LIB"):$PATH"
+          else
+            export LD_LIBRARY_PATH="$WKBT_LIB:$LD_LIBRARY_PATH"
+            export DYLD_LIBRARY_PATH="$WKBT_LIB:$DYLD_LIBRARY_PATH"
+          fi
           R CMD INSTALL bindings/r
           Rscript bindings/r/tests/run_tests.R
