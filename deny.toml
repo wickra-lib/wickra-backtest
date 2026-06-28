@@ -3,6 +3,11 @@
 [advisories]
 version = 2
 yanked = "deny"
+# paste 1.0.15 is unmaintained (RUSTSEC-2024-0436) but is pulled transitively by
+# parquet for the Parquet feed corpus. It is a tiny, stable proc-macro with no
+# known vulnerability and no maintained drop-in replacement; the advisory is
+# informational. Re-evaluate if parquet drops the dependency.
+ignore = ["RUSTSEC-2024-0436"]
 
 [licenses]
 version = 2
