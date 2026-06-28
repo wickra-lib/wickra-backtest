@@ -288,10 +288,11 @@ jobs:
       - uses: actions/setup-dotnet@v5
         with:
           dotnet-version: "8.0"
-      # The binding links the C ABI hub at runtime; build it first so the
-      # DllImportResolver finds target/release/wickra_backtest.{dll,so,dylib}.
+      # The test project copies the native library next to the test assembly from
+      # target/debug (see the <Content> items in the .csproj), so build it in the
+      # debug profile here.
       - name: Build the C ABI library
-        run: cargo build -p wickra-backtest-c --release
+        run: cargo build -p wickra-backtest-c
       - name: Test the C# binding
         run: dotnet test bindings/csharp/Wickra.Backtest.Tests/Wickra.Backtest.Tests.csproj -c Release
 
@@ -308,11 +309,11 @@ jobs:
           persist-credentials: false
       - uses: dtolnay/rust-toolchain@stable
       - uses: Swatinem/rust-cache@v2
-      # The binding links the C ABI hub at runtime via the Java FFM API; build it
-      # first so the development fallback finds target/release/wickra_backtest.*.
-      # The pom pins bytecode to release 25, so build on the matching JDK.
+      # The binding loads the C ABI hub via the Java FFM API; the pom points
+      # java.library.path at target/debug (the <native.lib.dir> property), so
+      # build it in the debug profile here. The pom pins bytecode to release 25.
       - name: Build the C ABI library
-        run: cargo build -p wickra-backtest-c --release
+        run: cargo build -p wickra-backtest-c
       - uses: actions/setup-java@v5
         with:
           distribution: temurin
