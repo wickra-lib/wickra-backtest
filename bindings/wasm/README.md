@@ -1,6 +1,6 @@
 # Wickra Backtest — WASM
 
-WebAssembly binding for the [wickra-backtest](../../README.md) engine, built with
+WASM binding for the [wickra-backtest](../../README.md) engine, built with
 wasm-bindgen. Run a backtest **in the browser** (or any WASM host) with the same
 kernel and values as every other binding — the report is byte-identical.
 
