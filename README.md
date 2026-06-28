@@ -4,12 +4,12 @@
 
 [![Built on Wickra](https://img.shields.io/badge/built%20on-wickra-3b82f6)](https://github.com/wickra-lib/wickra)
 [![Status](https://img.shields.io/badge/status-alpha%20(WIP)-orange)](https://github.com/wickra-lib/wickra-backtest)
-[![CI](https://raw.githubusercontent.com/wickra-lib/.github/main/profile/badges/ci.svg)](https://github.com/wickra-lib/wickra-backtest/actions/workflows/ci.yml)
-[![CodeQL](https://raw.githubusercontent.com/wickra-lib/.github/main/profile/badges/codeql.svg)](https://github.com/wickra-lib/wickra-backtest/actions/workflows/codeql.yml)
-[![codecov](https://raw.githubusercontent.com/wickra-lib/.github/main/profile/badges/codecov.svg)](https://codecov.io/gh/wickra-lib/wickra-backtest)
-[![OpenSSF Scorecard](https://raw.githubusercontent.com/wickra-lib/.github/main/profile/badges/scorecard.svg)](https://scorecard.dev/viewer/?uri=github.com/wickra-lib/wickra-backtest)
-[![License: MIT OR Apache-2.0](https://raw.githubusercontent.com/wickra-lib/.github/main/profile/badges/license.svg)](#license)
-[![Verified across 10 languages](https://raw.githubusercontent.com/wickra-lib/.github/main/profile/badges/verified.svg)](golden/)
+[![CI](https://github.com/wickra-lib/wickra-backtest/actions/workflows/ci.yml/badge.svg)](https://github.com/wickra-lib/wickra-backtest/actions/workflows/ci.yml)
+[![CodeQL](https://github.com/wickra-lib/wickra-backtest/actions/workflows/codeql.yml/badge.svg)](https://github.com/wickra-lib/wickra-backtest/actions/workflows/codeql.yml)
+[![codecov](https://codecov.io/gh/wickra-lib/wickra-backtest/branch/main/graph/badge.svg)](https://codecov.io/gh/wickra-lib/wickra-backtest)
+[![OpenSSF Scorecard](https://api.securityscorecards.dev/projects/github.com/wickra-lib/wickra-backtest/badge)](https://scorecard.dev/viewer/?uri=github.com/wickra-lib/wickra-backtest)
+[![License: MIT OR Apache-2.0](https://img.shields.io/badge/license-MIT_OR_Apache--2.0-blue)](#license)
+[![Verified across 10 languages](https://img.shields.io/badge/verified-10_languages-brightgreen)](golden/)
 
 ---
 
@@ -257,13 +257,13 @@ the full terms.
 
 <p align="center">
   <a href="https://github.com/wickra-lib/wickra-backtest/stargazers">
-    <img alt="GitHub stars" src="https://raw.githubusercontent.com/wickra-lib/.github/main/profile/badges/stars.svg">
+    <img alt="GitHub stars" src="https://img.shields.io/github/stars/wickra-lib/wickra-backtest?style=social">
   </a>
   <a href="https://github.com/wickra-lib/wickra-backtest/network/members">
-    <img alt="GitHub forks" src="https://raw.githubusercontent.com/wickra-lib/.github/main/profile/badges/forks.svg">
+    <img alt="GitHub forks" src="https://img.shields.io/github/forks/wickra-lib/wickra-backtest?style=social">
   </a>
   <a href="https://github.com/wickra-lib/wickra-backtest/issues">
-    <img alt="GitHub issues" src="https://raw.githubusercontent.com/wickra-lib/.github/main/profile/badges/issues.svg">
+    <img alt="GitHub issues" src="https://img.shields.io/github/issues/wickra-lib/wickra-backtest">
   </a>
 </p>
 
