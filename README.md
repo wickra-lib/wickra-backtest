@@ -4,12 +4,20 @@
 
 [![Built on Wickra](https://img.shields.io/badge/built%20on-wickra-3b82f6)](https://github.com/wickra-lib/wickra)
 [![Status](https://img.shields.io/badge/status-alpha%20(WIP)-orange)](https://github.com/wickra-lib/wickra-backtest)
-[![CI](https://github.com/wickra-lib/wickra-backtest/actions/workflows/ci.yml/badge.svg)](https://github.com/wickra-lib/wickra-backtest/actions/workflows/ci.yml)
-[![CodeQL](https://github.com/wickra-lib/wickra-backtest/actions/workflows/codeql.yml/badge.svg)](https://github.com/wickra-lib/wickra-backtest/actions/workflows/codeql.yml)
-[![codecov](https://codecov.io/gh/wickra-lib/wickra-backtest/branch/main/graph/badge.svg)](https://codecov.io/gh/wickra-lib/wickra-backtest)
-[![OpenSSF Scorecard](https://api.securityscorecards.dev/projects/github.com/wickra-lib/wickra-backtest/badge)](https://scorecard.dev/viewer/?uri=github.com/wickra-lib/wickra-backtest)
-[![License: MIT OR Apache-2.0](https://img.shields.io/badge/license-MIT_OR_Apache--2.0-blue)](#license)
-[![Verified across 10 languages](https://img.shields.io/badge/verified-10_languages-brightgreen)](golden/)
+[![CI](https://raw.githubusercontent.com/wickra-lib/.github/main/profile/badges/wickra-backtest/ci.svg)](https://github.com/wickra-lib/wickra-backtest/actions/workflows/ci.yml)
+[![CodeQL](https://raw.githubusercontent.com/wickra-lib/.github/main/profile/badges/wickra-backtest/codeql.svg)](https://github.com/wickra-lib/wickra-backtest/actions/workflows/codeql.yml)
+[![codecov](https://raw.githubusercontent.com/wickra-lib/.github/main/profile/badges/wickra-backtest/codecov.svg)](https://codecov.io/gh/wickra-lib/wickra-backtest)
+[![GitHub release](https://raw.githubusercontent.com/wickra-lib/.github/main/profile/badges/wickra-backtest/release.svg)](https://github.com/wickra-lib/wickra-backtest/releases/latest)
+[![crates.io](https://raw.githubusercontent.com/wickra-lib/.github/main/profile/badges/wickra-backtest/crates.svg)](https://crates.io/crates/wickra-backtest)
+[![PyPI](https://raw.githubusercontent.com/wickra-lib/.github/main/profile/badges/wickra-backtest/pypi.svg)](https://pypi.org/project/wickra-backtest/)
+[![npm](https://raw.githubusercontent.com/wickra-lib/.github/main/profile/badges/wickra-backtest/npm.svg)](https://www.npmjs.com/package/wickra-backtest)
+[![NuGet](https://raw.githubusercontent.com/wickra-lib/.github/main/profile/badges/wickra-backtest/nuget.svg)](https://www.nuget.org/packages/Wickra.Backtest)
+[![Maven Central](https://raw.githubusercontent.com/wickra-lib/.github/main/profile/badges/wickra-backtest/maven.svg)](https://central.sonatype.com/artifact/org.wickra/wickra-backtest)
+[![Go module](https://raw.githubusercontent.com/wickra-lib/.github/main/profile/badges/wickra-backtest/go.svg)](https://pkg.go.dev/github.com/wickra-lib/wickra-backtest-go)
+[![R-universe](https://raw.githubusercontent.com/wickra-lib/.github/main/profile/badges/wickra-backtest/r-universe.svg)](https://wickra-lib.r-universe.dev)
+[![License: MIT OR Apache-2.0](https://raw.githubusercontent.com/wickra-lib/.github/main/profile/badges/wickra-backtest/license.svg)](#license)
+[![OpenSSF Scorecard](https://raw.githubusercontent.com/wickra-lib/.github/main/profile/badges/wickra-backtest/scorecard.svg)](https://scorecard.dev/viewer/?uri=github.com/wickra-lib/wickra-backtest)
+[![Verified across 10 languages](https://raw.githubusercontent.com/wickra-lib/.github/main/profile/badges/wickra-backtest/verified.svg)](golden/)
 
 ---
 
