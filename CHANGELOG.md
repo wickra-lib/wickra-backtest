@@ -8,6 +8,12 @@ to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ### Added
 
+- `StreamingBacktest::new_owned` — a streaming backtest that owns its spec, so the
+  handle carries no borrow and can be held across `step`s indefinitely (the
+  borrowing `new` is unchanged).
+- WASM: a `StreamingBacktest` handle (`new` / `step` / `stepWithRef` / `equity` /
+  `latestEquity` / `numTrades` / `finish`) that drives the engine bar-by-bar in
+  the browser — the same kernel and the same values as the batch `run`.
 - Workspace scaffold: `wickra-backtest-core` (engine core), `wickra-backtest-data`
   (loaders) and the `wickra-backtest` facade, depending on `wickra-core`.
 - `BacktestError` error type and crate `version()` helpers.
