@@ -22,6 +22,7 @@
 //! derivatives feed, and a leveraged position is liquidated intrabar at its
 //! bankruptcy price when `risk.liquidation` is set.
 
+use std::borrow::Cow;
 use std::collections::BTreeMap;
 
 use wickra_core::OrderBook as CoreOrderBook;
@@ -470,7 +471,7 @@ pub fn run_with_cross_section(
 /// from a slice, so **backtest and live share one code path** — point `step` at
 /// a live feed and the same engine becomes the live bot.
 pub struct StreamingBacktest<'a> {
-    spec: &'a StrategySpec,
+    spec: Cow<'a, StrategySpec>,
     capital: f64,
     maker: f64,
     taker: f64,
@@ -491,6 +492,12 @@ pub struct StreamingBacktest<'a> {
 impl<'a> StreamingBacktest<'a> {
     /// Build a streaming backtest from a validated spec and starting capital.
     pub fn new(spec: &'a StrategySpec, capital: f64) -> Result<Self> {
+        Self::from_spec(Cow::Borrowed(spec), capital)
+    }
+
+    /// Build from an owned-or-borrowed spec — the shared constructor behind
+    /// [`StreamingBacktest::new`] and [`StreamingBacktest::new_owned`].
+    fn from_spec(spec: Cow<'a, StrategySpec>, capital: f64) -> Result<Self> {
         spec.validate()?;
         let mut indicators: BTreeMap<String, Box<dyn EvalIndicator>> = BTreeMap::new();
         let mut max_warmup = 0usize;
@@ -582,7 +589,7 @@ impl<'a> StreamingBacktest<'a> {
                 self.pending = Some(order); // still waiting on latency
             } else {
                 let ctx = FillCtx {
-                    spec: self.spec,
+                    spec: &self.spec,
                     candle,
                     history: &self.history,
                     maker: self.maker,
@@ -721,7 +728,7 @@ impl<'a> StreamingBacktest<'a> {
             if eval_condition(cond, &self.history, idx, state) {
                 if close_fill {
                     let ctx = FillCtx {
-                        spec: self.spec,
+                        spec: &self.spec,
                         candle,
                         history: &self.history,
                         maker: self.maker,
@@ -763,7 +770,7 @@ impl<'a> StreamingBacktest<'a> {
             if let Some(side) = side {
                 if close_fill {
                     let ctx = FillCtx {
-                        spec: self.spec,
+                        spec: &self.spec,
                         candle,
                         history: &self.history,
                         maker: self.maker,
@@ -810,6 +817,21 @@ impl<'a> StreamingBacktest<'a> {
             fees_paid: self.pf.fees_paid,
             initial_capital: self.capital,
         }
+    }
+}
+
+impl StreamingBacktest<'static> {
+    /// Build a streaming backtest that **owns** its spec, so the handle carries
+    /// no borrow and can be held across `step`s indefinitely — for embedders
+    /// that cannot thread a borrow through their own lifetime, such as a
+    /// `#[wasm_bindgen]` handle driving the engine bar-by-bar in the browser.
+    /// Otherwise identical to [`StreamingBacktest::new`].
+    ///
+    /// # Errors
+    ///
+    /// Returns an error if the spec fails validation.
+    pub fn new_owned(spec: StrategySpec, capital: f64) -> Result<Self> {
+        Self::from_spec(Cow::Owned(spec), capital)
     }
 }
 
@@ -2093,5 +2115,38 @@ mod tests {
         let candles = [bar(0, 1.0, 1.0, 1.0, 1.0), bar(1, 1.0, 1.0, 1.0, 1.0)];
         let derivs = [sample_tick(0.0)];
         assert!(run_with_deriv(&spec, &candles, &derivs, 10_000.0).is_err());
+    }
+
+    #[test]
+    fn new_owned_matches_the_borrowing_constructor() {
+        let json = r#"{"symbol":"x","timeframe":"1h","indicators":{},
+            "entry":{"gt":[{"price":"close"},0]},"exit":{"in_position":true},
+            "sizing":{"type":"fixed_qty","qty":1}}"#;
+        let spec = StrategySpec::parse(json).unwrap();
+        let candles = [
+            bar(0, 1.0, 1.0, 1.0, 1.0),
+            bar(1, 1.0, 2.0, 1.0, 2.0),
+            bar(2, 2.0, 3.0, 2.0, 3.0),
+        ];
+
+        // Borrowing constructor.
+        let mut borrowed = StreamingBacktest::new(&spec, 10_000.0).unwrap();
+        for candle in &candles {
+            borrowed.step(candle).unwrap();
+        }
+        let borrowed_report = borrowed.finish();
+
+        // Owned constructor: move the spec in; the handle carries no borrow.
+        let mut owned = StreamingBacktest::new_owned(spec, 10_000.0).unwrap();
+        for candle in &candles {
+            owned.step(candle).unwrap();
+        }
+        let owned_report = owned.finish();
+
+        // The two paths must produce byte-identical reports.
+        assert_eq!(
+            serde_json::to_string(&owned_report).unwrap(),
+            serde_json::to_string(&borrowed_report).unwrap()
+        );
     }
 }
