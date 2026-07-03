@@ -23,4 +23,5 @@ exclude = [
     "^https?://crates\\.io/crates/wickra-backtest",
     "^https?://pypi\\.org/project/wickra-backtest",
     "^https?://www\\.npmjs\\.com/package/wickra-backtest",
+    "^https?://pkg\\.go\\.dev/github\\.com/wickra-lib/wickra-backtest-go",
 ]

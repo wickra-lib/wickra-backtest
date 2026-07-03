@@ -5,13 +5,14 @@
 [![Built on Wickra](https://img.shields.io/badge/built%20on-wickra-3b82f6)](https://github.com/wickra-lib/wickra)
 [![CI](https://raw.githubusercontent.com/wickra-lib/.github/main/profile/badges/wickra-backtest/ci.svg)](https://github.com/wickra-lib/wickra-backtest/actions/workflows/ci.yml)
 [![codecov](https://raw.githubusercontent.com/wickra-lib/.github/main/profile/badges/wickra-backtest/codecov.svg)](https://codecov.io/gh/wickra-lib/wickra-backtest)
-[![License: MIT OR Apache-2.0](https://raw.githubusercontent.com/wickra-lib/.github/main/profile/badges/wickra-backtest/license.svg)](../../README.md#license)
+[![Go module](https://raw.githubusercontent.com/wickra-lib/.github/main/profile/badges/wickra-backtest/go.svg)](https://pkg.go.dev/github.com/wickra-lib/wickra-backtest-go)
+[![License: MIT OR Apache-2.0](https://raw.githubusercontent.com/wickra-lib/.github/main/profile/badges/wickra-backtest/license.svg)version](https://github.com/wickra-lib/wickra-backtest/README.md#license)
 
 # Wickra Backtest — Go
 
 ---
 
-Go binding for the [wickra-backtest](../../README.md) engine. It calls the
+Go binding for the [wickra-backtestversion](https://github.com/wickra-lib/wickra-backtest/README.md) engine. It calls the
 stable **C ABI** through cgo, so the results are byte-identical to the Rust,
 Python, Node.js, WASM, C# and Java bindings: one engine kernel behind every
 language.
@@ -80,8 +81,8 @@ crosses the FFI boundary.
 ## Documentation
 
 - **Repository:** <https://github.com/wickra-lib/wickra-backtest>
-- **Strategy spec reference:** [STRATEGY_SPEC.md](../../docs/STRATEGY_SPEC.md)
-- **Cookbook:** [COOKBOOK.md](../../docs/COOKBOOK.md)
+- **Strategy spec reference:** [STRATEGY_SPEC.md](https://github.com/wickra-lib/wickra-backtest/blob/main/docs/STRATEGY_SPEC.md)
+- **Cookbook:** [COOKBOOK.md](https://github.com/wickra-lib/wickra-backtest/blob/main/docs/COOKBOOK.md)
 - **Built on Wickra:** <https://github.com/wickra-lib/wickra> · <https://docs.wickra.org>
 
 The same `StrategySpec` runs identically across Rust, Python, Node.js, WASM, C,
@@ -103,5 +104,5 @@ performance. Any use in a live trading context is at your own risk. Provided
 
 ## License
 
-Licensed under either of [MIT](../../LICENSE-MIT) or
-[Apache-2.0](../../LICENSE-APACHE) at your option.
+Licensed under either of [MIT](https://github.com/wickra-lib/wickra-backtest/blob/main/LICENSE-MIT) or
+[Apache-2.0](https://github.com/wickra-lib/wickra-backtest/blob/main/LICENSE-APACHE) at your option.
