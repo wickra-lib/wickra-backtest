@@ -17,7 +17,7 @@ kernel and values as every other binding — the report is byte-identical.
 
 ## Requirements
 
-- [`wasm-pack`](https://rustwasm.github.io/wasm-pack/)
+- [`wasm-pack`](https://rustwasm.github.io/docs/wasm-pack/)
 
 ## Build
 

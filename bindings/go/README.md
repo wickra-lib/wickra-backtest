@@ -6,13 +6,13 @@
 [![CI](https://raw.githubusercontent.com/wickra-lib/.github/main/profile/badges/wickra-backtest/ci.svg)](https://github.com/wickra-lib/wickra-backtest/actions/workflows/ci.yml)
 [![codecov](https://raw.githubusercontent.com/wickra-lib/.github/main/profile/badges/wickra-backtest/codecov.svg)](https://codecov.io/gh/wickra-lib/wickra-backtest)
 [![Go module](https://raw.githubusercontent.com/wickra-lib/.github/main/profile/badges/wickra-backtest/go.svg)](https://pkg.go.dev/github.com/wickra-lib/wickra-backtest-go)
-[![License: MIT OR Apache-2.0](https://raw.githubusercontent.com/wickra-lib/.github/main/profile/badges/wickra-backtest/license.svg)version](https://github.com/wickra-lib/wickra-backtest/README.md#license)
+[![License: MIT OR Apache-2.0](https://raw.githubusercontent.com/wickra-lib/.github/main/profile/badges/wickra-backtest/license.svg)](https://github.com/wickra-lib/wickra-backtest#license)
 
 # Wickra Backtest — Go
 
 ---
 
-Go binding for the [wickra-backtestversion](https://github.com/wickra-lib/wickra-backtest/README.md) engine. It calls the
+Go binding for the [wickra-backtest](https://github.com/wickra-lib/wickra-backtest) engine. It calls the
 stable **C ABI** through cgo, so the results are byte-identical to the Rust,
 Python, Node.js, WASM, C# and Java bindings: one engine kernel behind every
 language.
