@@ -290,17 +290,5 @@ the full terms.
 ---
 
 <p align="center">
-  <a href="https://github.com/wickra-lib/wickra-backtest/stargazers">
-    <img alt="GitHub stars" src="https://img.shields.io/github/stars/wickra-lib/wickra-backtest?style=social">
-  </a>
-  <a href="https://github.com/wickra-lib/wickra-backtest/network/members">
-    <img alt="GitHub forks" src="https://img.shields.io/github/forks/wickra-lib/wickra-backtest?style=social">
-  </a>
-  <a href="https://github.com/wickra-lib/wickra-backtest/issues">
-    <img alt="GitHub issues" src="https://img.shields.io/github/issues/wickra-lib/wickra-backtest">
-  </a>
-</p>
-
-<p align="center">
   Built on <a href="https://github.com/wickra-lib/wickra">Wickra</a>. If it saved you time, ⭐ the repo.
 </p>
