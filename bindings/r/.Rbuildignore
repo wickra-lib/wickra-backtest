@@ -1,0 +1,10 @@
+# Keep compiled artifacts out of the R source tarball built by `R CMD build`.
+# The package links the C ABI out-of-tree, so only the glue objects and any
+# locally built shared library live under src/ — none of them belong in a
+# distributable source package; they are produced at install.
+^src/.*\.o$
+^src/.*\.so$
+^src/.*\.dll$
+^src/.*\.dylib$
+^src/symbols\.rds$
+^\.gitignore$
