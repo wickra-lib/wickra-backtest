@@ -15,5 +15,8 @@ categories.workspace = true
 wickra-backtest-core.workspace = true
 wickra-backtest-data.workspace = true
 
+[features]
+fxmacrodata = ["wickra-backtest-data/fxmacrodata"]
+
 [lints]
 workspace = true

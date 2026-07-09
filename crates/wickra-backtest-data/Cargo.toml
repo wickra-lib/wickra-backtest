@@ -32,6 +32,9 @@ parquet = ["dep:parquet", "dep:arrow-array"]
 # Fetch historical candles from the Binance REST API. Off by default (pulls an
 # HTTP client). The response *parser* is always available and tested offline.
 binance = ["dep:ureq"]
+# Fetch JSON payloads from FXMacroData macro, FX, calendar, COT, commodity,
+# curve, session and news endpoints.
+fxmacrodata = ["dep:ureq"]
 
 [lints]
 workspace = true

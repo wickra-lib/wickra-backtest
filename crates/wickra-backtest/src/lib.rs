@@ -23,6 +23,8 @@ pub use wickra_backtest_core::{
     run_with_ref, run_with_trades, strategy_spec_schema, BacktestError, BacktestReport, Candle,
     DerivativesTick, EquityPoint, OrderBook, Result, StrategySpec, StreamingBacktest, TradePrint,
 };
+#[cfg(feature = "fxmacrodata")]
+pub use wickra_backtest_data::fxmacrodata;
 
 /// The crate version, surfaced for diagnostics.
 #[must_use]

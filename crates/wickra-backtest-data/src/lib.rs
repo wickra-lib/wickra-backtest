@@ -13,6 +13,8 @@ use std::path::Path;
 
 use wickra_backtest_core::{BacktestError, Candle, Result};
 
+pub mod fxmacrodata;
+
 /// Load candles from a file, choosing the parser by extension
 /// (`.jsonl`/`.ndjson` → JSON Lines, `.json` → JSON array, `.parquet` → Parquet
 /// when the `parquet` feature is on, anything else → CSV).
