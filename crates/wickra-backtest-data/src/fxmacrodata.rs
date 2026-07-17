@@ -91,7 +91,7 @@ impl FxMacroDataClient {
             }
         }
 
-        let mut url = format!("{}{}", self.base_url, self.path(request)?);
+        let mut url = format!("{}{}", self.base_url, Self::path(request)?);
         if !params.is_empty() {
             url.push('?');
             url.push_str(
@@ -153,75 +153,89 @@ impl FxMacroDataClient {
         request
     }
 
-    fn path(&self, request: &FxMacroDataRequest) -> Result<String> {
+    fn path(request: &FxMacroDataRequest) -> Result<String> {
         let path = match request.endpoint {
             FxMacroDataEndpoint::DataCatalogue => {
                 format!(
                     "/data_catalogue/{}",
-                    segment(&request.currency, "currency")?
+                    segment(request.currency.as_ref(), "currency")?
                 )
             }
             FxMacroDataEndpoint::Announcements => format!(
                 "/announcements/{}/{}",
-                segment(&request.currency, "currency")?,
-                segment(&request.indicator, "indicator")?
+                segment(request.currency.as_ref(), "currency")?,
+                segment(request.indicator.as_ref(), "indicator")?
             ),
             FxMacroDataEndpoint::LatestAnnouncements => {
                 format!(
                     "/announcements/{}/latest",
-                    segment(&request.currency, "currency")?
+                    segment(request.currency.as_ref(), "currency")?
                 )
             }
             FxMacroDataEndpoint::AnnouncementChanges => "/announcements/changes".to_owned(),
             FxMacroDataEndpoint::Calendar => {
-                format!("/calendar/{}", segment(&request.currency, "currency")?)
+                format!(
+                    "/calendar/{}",
+                    segment(request.currency.as_ref(), "currency")?
+                )
             }
             FxMacroDataEndpoint::Predictions => format!(
                 "/predictions/{}/{}",
-                segment(&request.currency, "currency")?,
-                segment(&request.indicator, "indicator")?
+                segment(request.currency.as_ref(), "currency")?,
+                segment(request.indicator.as_ref(), "indicator")?
             ),
             FxMacroDataEndpoint::Forex => format!(
                 "/forex/{}/{}",
-                segment(&request.base, "base")?,
-                segment(&request.quote, "quote")?
+                segment(request.base.as_ref(), "base")?,
+                segment(request.quote.as_ref(), "quote")?
             ),
-            FxMacroDataEndpoint::Cot => format!("/cot/{}", segment(&request.currency, "currency")?),
+            FxMacroDataEndpoint::Cot => {
+                format!("/cot/{}", segment(request.currency.as_ref(), "currency")?)
+            }
             FxMacroDataEndpoint::Commodity => {
-                format!("/commodities/{}", segment(&request.indicator, "indicator")?)
+                format!(
+                    "/commodities/{}",
+                    segment(request.indicator.as_ref(), "indicator")?
+                )
             }
             FxMacroDataEndpoint::CommoditiesLatest => "/commodities/latest".to_owned(),
             FxMacroDataEndpoint::Curves => {
-                format!("/curves/{}", segment(&request.currency, "currency")?)
+                format!(
+                    "/curves/{}",
+                    segment(request.currency.as_ref(), "currency")?
+                )
             }
             FxMacroDataEndpoint::CurveProxies => {
-                format!("/curve_proxies/{}", segment(&request.currency, "currency")?)
+                format!(
+                    "/curve_proxies/{}",
+                    segment(request.currency.as_ref(), "currency")?
+                )
             }
             FxMacroDataEndpoint::ForwardCurves => {
                 format!(
                     "/forward_curves/{}",
-                    segment(&request.currency, "currency")?
+                    segment(request.currency.as_ref(), "currency")?
                 )
             }
             FxMacroDataEndpoint::RateDifferentials => format!(
                 "/rate_differentials/{}/{}",
-                segment(&request.base, "base")?,
-                segment(&request.quote, "quote")?
+                segment(request.base.as_ref(), "base")?,
+                segment(request.quote.as_ref(), "quote")?
             ),
             FxMacroDataEndpoint::ForwardDifferentials => format!(
                 "/forward_differentials/{}/{}",
-                segment(&request.base, "base")?,
-                segment(&request.quote, "quote")?
+                segment(request.base.as_ref(), "base")?,
+                segment(request.quote.as_ref(), "quote")?
             ),
             FxMacroDataEndpoint::MarketSessions => "/market_sessions".to_owned(),
             FxMacroDataEndpoint::RiskSentiment => "/risk_sentiment".to_owned(),
             FxMacroDataEndpoint::News => {
-                format!("/news/{}", segment(&request.currency, "currency")?)
+                format!("/news/{}", segment(request.currency.as_ref(), "currency")?)
             }
             FxMacroDataEndpoint::PressReleases => {
                 format!(
                     "/press-releases/{}",
-                    segment(&request.currency, "currency")?
+                    segment(request.currency.as_ref(), "currency")?
                 )
             }
             FxMacroDataEndpoint::Graphql => "/graphql".to_owned(),
@@ -241,11 +255,9 @@ impl FxMacroDataClient {
     }
 }
 
-fn segment(value: &Option<String>, name: &str) -> Result<String> {
+fn segment(value: Option<&String>, name: &str) -> Result<String> {
     value
-        .as_deref()
-        .map(str::to_lowercase)
-        .map(|value| encode(&value))
+        .map(|value| encode(&value.to_lowercase()))
         .ok_or_else(|| BacktestError::InvalidData(format!("FXMacroData {name} is required")))
 }
 
