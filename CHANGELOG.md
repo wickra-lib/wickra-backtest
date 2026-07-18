@@ -70,6 +70,8 @@ to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
   `WKBT_INC` / `WKBT_LIB` environment variables.
 - Data loaders (`wickra-backtest-data`): CSV (`time,open,high,low,close[,volume]`,
   optional header), JSON Lines and JSON-array candle files, dispatched by extension.
+- FXMacroData data client for FX, macro, calendar, COT, commodity, curve, session
+  and news endpoints, including typed release-calendar and COT response parsers.
 - Documentation: a strategy spec reference (`docs/STRATEGY_SPEC.md`) covering the
   full DSL — operands, conditions, sizing, costs, slippage, risk and execution —
   and a cookbook (`docs/COOKBOOK.md`) of six ready-to-run strategies (RSI mean

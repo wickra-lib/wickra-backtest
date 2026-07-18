@@ -14,6 +14,7 @@ categories.workspace = true
 [dependencies]
 wickra-backtest-core.workspace = true
 wickra-core.workspace = true
+serde.workspace = true
 serde_json.workspace = true
 parquet = { workspace = true, optional = true }
 arrow-array = { workspace = true, optional = true }
