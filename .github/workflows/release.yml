@@ -611,7 +611,7 @@ jobs:
   # so `go get github.com/wickra-lib/wickra-backtest-go` builds with no extra
   # steps. The mirror commits the prebuilt libraries per platform under
   # lib/<goos>_<goarch>/ alongside the vendored header. The push uses a
-  # fine-grained PAT (WICKRA_BACKTEST_GO_MIRROR_TOKEN, contents:write on
+  # fine-grained PAT (GO_MIRROR_TOKEN, contents:write on
   # wickra-backtest-go); the mirror's bot commit is intentionally unsigned.
   go-mirror:
     name: Mirror the Go module to wickra-backtest-go
@@ -664,7 +664,7 @@ jobs:
       - name: Push to wickra-backtest-go and tag the release
         shell: bash
         env:
-          MIRROR_TOKEN: ${{ secrets.WICKRA_BACKTEST_GO_MIRROR_TOKEN }}
+          MIRROR_TOKEN: ${{ secrets.GO_MIRROR_TOKEN }}
         run: |
           set -e
           version="${GITHUB_REF_NAME#v}"
