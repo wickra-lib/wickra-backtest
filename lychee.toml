@@ -10,8 +10,6 @@ retry_wait_time = 2
 # Don't hammer hosts.
 max_concurrency = 8
 
-# Skip checking anchors within pages (heading fragments) — too noisy.
-include_fragments = false
 
 # Exclude links that are not meant to resolve at check time: localhost,
 # example/placeholder hosts, and the package-registry URLs that 404 until a
