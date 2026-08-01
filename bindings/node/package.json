@@ -56,6 +56,6 @@
     "test": "node --test"
   },
   "devDependencies": {
-    "@napi-rs/cli": "^3.7.3"
+    "@napi-rs/cli": "^3.7.4"
   }
 }
