@@ -508,9 +508,14 @@ jobs:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           persist-credentials: false
-      - uses: ./.github/actions/setup-rust
+      - name: Install nightly Rust
+        uses: ./.github/actions/setup-rust
         with:
-          toolchain: nightly
+          # Pinned to a dated nightly so this job is reproducible: a rolling
+          # `nightly` can break on an unrelated day for reasons that have nothing
+          # to do with this code, and a fuzz smoke test that fails at random stops
+          # being read. Same date as the indicator repository. Bump deliberately.
+          toolchain: nightly-2026-07-01
       - uses: Swatinem/rust-cache@6323deb102c322ba6fcbdcafc7e3dddab59af2b6 # v2.9.2
         continue-on-error: true # cache is an optimisation; never block on a stuck/slow restore
         timeout-minutes: 6
@@ -518,20 +523,29 @@ jobs:
           workspaces: fuzz
       - name: Install cargo-fuzz
         uses: taiki-e/install-action@3d7d7cd5ac7f994c1892ae0c06165095b9139094 # v2.85.1
+        timeout-minutes: 10 # fail fast on a stuck download instead of hanging the job
         with:
           tool: cargo-fuzz
+
+      # `fuzz run <target>` builds only the target it runs. All five are run
+      # below, so today this step is redundant -- it is here so that a sixth
+      # target added later and forgotten in the run list still gets compiled
+      # against the core API instead of drifting unnoticed.
+      - name: Build every fuzz target
+        run: cargo +nightly-2026-07-01 fuzz build --target x86_64-unknown-linux-gnu
+        working-directory: fuzz
       - name: Fuzz spec_parse (30 s)
-        run: cargo +nightly fuzz run --target x86_64-unknown-linux-gnu spec_parse -- -max_total_time=30
+        run: cargo +nightly-2026-07-01 fuzz run --target x86_64-unknown-linux-gnu spec_parse -- -max_total_time=30
         working-directory: fuzz
       - name: Fuzz run_json (30 s)
-        run: cargo +nightly fuzz run --target x86_64-unknown-linux-gnu run_json -- -max_total_time=30
+        run: cargo +nightly-2026-07-01 fuzz run --target x86_64-unknown-linux-gnu run_json -- -max_total_time=30
         working-directory: fuzz
       - name: Fuzz engine_run (30 s)
-        run: cargo +nightly fuzz run --target x86_64-unknown-linux-gnu engine_run -- -max_total_time=30
+        run: cargo +nightly-2026-07-01 fuzz run --target x86_64-unknown-linux-gnu engine_run -- -max_total_time=30
         working-directory: fuzz
       - name: Fuzz fill_model (30 s)
-        run: cargo +nightly fuzz run --target x86_64-unknown-linux-gnu fill_model -- -max_total_time=30
+        run: cargo +nightly-2026-07-01 fuzz run --target x86_64-unknown-linux-gnu fill_model -- -max_total_time=30
         working-directory: fuzz
       - name: Fuzz data_loader (30 s)
-        run: cargo +nightly fuzz run --target x86_64-unknown-linux-gnu data_loader -- -max_total_time=30
+        run: cargo +nightly-2026-07-01 fuzz run --target x86_64-unknown-linux-gnu data_loader -- -max_total_time=30
         working-directory: fuzz

@@ -302,6 +302,15 @@ to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ### Fixed
 
+- **The fuzz job ran on a rolling `nightly`.** A smoke test whose toolchain
+  changes underneath it fails on days that have nothing to do with this code, and
+  a job that fails at random stops being read. It is pinned to the same dated
+  nightly the indicator repository uses, to be bumped deliberately. The
+  `cargo-fuzz` install gained the fail-fast timeout it was missing, and a
+  build-every-target step now precedes the five runs: `fuzz run <target>` compiles
+  only the target it runs, so a sixth target added later and forgotten in the run
+  list would never be built against the core API at all.
+
 - **Four of the five Python versions this project ships were never tested.**
   `pyproject.toml` declares `requires-python = ">=3.9"` and `release.yml` builds
   abi3-py39 wheels, so a single wheel serves 3.9 through 3.13 — while CI ran the
