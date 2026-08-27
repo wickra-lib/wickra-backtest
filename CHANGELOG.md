@@ -300,4 +300,18 @@ to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
   fill at the level (conservative stop-before-target ordering) instead of at the
   next close. Short entries/exits use `short_entry` / `short_exit`.
 
+### Fixed
+
+- **Every `rust-cache` pin named a version it does not point at.** All 19 uses
+  across `ci.yml`, `release.yml` and `bench.yml` pinned `e18b497` with the comment
+  `# v2`. That commit carries no tag at all — it is an untagged master commit, 45
+  behind the `v2` tip — so the comment was never true for it, and because
+  Dependabot cannot map an untagged SHA to a version it would never have opened a
+  bump either. The pin is now `6323deb`, commented with the exact release it is,
+  `# v2.9.2`, matching the indicator repository. Every other pinned action was
+  checked the same way and all of them resolve to the commit their comment names;
+  the one remaining floating comment, `lychee-action # v2`, is now `# v2.9.0`. A
+  floating major is accurate only until the tag moves, and then it silently
+  becomes a false claim a reviewer has no way to spot.
+
 [Unreleased]: https://github.com/wickra-lib/wickra-backtest/commits/main
