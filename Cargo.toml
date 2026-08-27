@@ -33,7 +33,7 @@ keywords = ["backtesting", "trading", "technical-analysis", "quant", "streaming"
 categories = ["finance", "simulation"]
 
 [workspace.dependencies]
-wickra-core = "0.9"
+wickra-core = "1.0"
 wickra-backtest-core = { version = "0.1.0", path = "crates/wickra-backtest-core" }
 wickra-backtest-data = { version = "0.1.0", path = "crates/wickra-backtest-data" }
 serde = { version = "1", features = ["derive"] }
