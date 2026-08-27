@@ -64,7 +64,6 @@ STREAMING = frozenset({
 # only shrink.
 PENDING = {
     "wasm": STREAMING,
-    "csharp": STREAMING,
     "go": STREAMING,
     "java": STREAMING,
     "r": STREAMING,
@@ -92,6 +91,9 @@ NODE_MEMBERS = {
     "stream_latest_equity_json": "latest_equity_json",
     "stream_finish_json": "finish_json",
 }
+# C# reports through JSON strings too, and spells releasing a handle `Dispose`,
+# because that is the word the language's own resource contract uses.
+CSHARP_MEMBERS = {**NODE_MEMBERS, "stream_free": "dispose"}
 
 # For these languages, `stream_new` means the class exists and the rest mean it
 # declares that member. Languages absent here are still checked flat.
@@ -104,6 +106,12 @@ CLASS_STREAMING = {
     ),
     # index.d.ts is generated from the Rust source, so checking it proves the
     # class actually reached the published surface, not merely the crate.
+    "csharp": (
+        CSHARP_MEMBERS,
+        lambda n: "".join(part.capitalize() for part in n.split("_")),
+        r"(?m)^    public .*\b@NAME@\s*[({=]",
+        r"public sealed class StreamingBacktest\b",
+    ),
     "node": (
         NODE_MEMBERS,
         lambda n: re.sub(r"_(\w)", lambda m: m.group(1).upper(), n),
@@ -136,7 +144,10 @@ BINDINGS = {
         r"pub fn @NAME@\s*\(",
     ),
     "csharp": (
-        ["bindings/csharp/Wickra.Backtest/Backtester.cs"],
+        [
+            "bindings/csharp/Wickra.Backtest/Backtester.cs",
+            "bindings/csharp/Wickra.Backtest/StreamingBacktest.cs",
+        ],
         lambda n: "".join(p.capitalize() for p in n.split("_")),
         r"public static [^\n]*\b@NAME@\s*[\({=]",
     ),

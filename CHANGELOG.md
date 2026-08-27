@@ -8,6 +8,11 @@ to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ### Added
 
+- C#: a `StreamingBacktest` class over the C ABI's streaming handle (`Step` /
+  `StepJson` / `EquityJson` / `LatestEquityJson` / `NumTrades` / `IsFinished` /
+  `FinishJson`), implementing `IDisposable` with a finalizer as a backstop, since
+  the handle owns Rust-side memory the GC cannot reclaim. Using a finished run
+  throws `ObjectDisposedException`.
 - Node: a `StreamingBacktest` class (`step` / `stepJson` / `equityJson` /
   `latestEquityJson` / `numTrades` / `isFinished` / `finishJson` / `close`), with
   the regenerated `index.js` and `index.d.ts`. Reporting methods return JSON

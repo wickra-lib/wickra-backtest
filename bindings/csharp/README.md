@@ -55,6 +55,26 @@ Console.WriteLine(reportJson);
 the `BacktestReport` JSON string. `volume`/`time` default to zeros / `0..n`. An
 invalid spec throws `InvalidOperationException`; no panic crosses the boundary.
 
+The same strategy also runs one bar at a time, which is what makes a backtest and
+a live loop the same code path -- swap the array for a socket and nothing else
+changes:
+
+```csharp
+using var bt = new StreamingBacktest(spec, capital: 10_000.0);
+foreach (var bar in feed)
+{
+    bt.Step(bar.Open, bar.High, bar.Low, bar.Close, bar.Volume, bar.Time);
+    Console.WriteLine($"{bt.NumTrades} {bt.LatestEquityJson()}");
+}
+string reportJson = bt.FinishJson();
+```
+
+`StreamingBacktest` owns a native handle, so dispose it -- `using`, `Dispose()`,
+or `FinishJson()`, which ends the run and releases it. `volume` defaults to 0 and
+`time` to the number of bars fed so far. Strategies reading a side feed drive the
+run with `StepJson`, passing `{ "candle": ..., "feeds": ... }` per bar. Using a
+finished run throws `ObjectDisposedException`.
+
 ## Test
 
 ```bash
