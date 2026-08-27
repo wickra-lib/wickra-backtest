@@ -94,9 +94,13 @@ impl StrategySpec {
                     "stop order_type requires execution.stop_offset_pct".into(),
                 ));
             }
-            OrderType::StopLimit => {
+            OrderType::StopLimit
+                if self.execution.stop_offset_pct.is_none()
+                    || self.execution.limit_offset_pct.is_none() =>
+            {
                 return Err(BacktestError::InvalidSpec(
-                    "stop_limit order_type is not supported yet".into(),
+                    "stop_limit order_type requires both execution.stop_offset_pct and                      execution.limit_offset_pct"
+                        .into(),
                 ));
             }
             _ => {}
@@ -567,10 +571,24 @@ mod tests {
                 Err(BacktestError::InvalidSpec(_))
             )
         };
-        // Limit without an offset, stop without an offset, stop_limit at all.
+        let accepts = |exec: &str| StrategySpec::parse(&base(exec)).is_ok();
+        // A stop-limit carrying both offsets is a valid spec. Without this the
+        // rejection tests below would still pass if the order type were rejected
+        // outright, which is what it used to be.
+        assert!(accepts(
+            r#"{"order_type":"stop_limit","stop_offset_pct":0.5,"limit_offset_pct":0.6}"#
+        ));
+        // An order type whose trigger offset is missing. A stop-limit needs both:
+        // the stop that arms it and the limit it arms.
         assert!(rejects(r#"{"order_type":"limit"}"#));
         assert!(rejects(r#"{"order_type":"stop"}"#));
         assert!(rejects(r#"{"order_type":"stop_limit"}"#));
+        assert!(rejects(
+            r#"{"order_type":"stop_limit","stop_offset_pct":0.5}"#
+        ));
+        assert!(rejects(
+            r#"{"order_type":"stop_limit","limit_offset_pct":0.2}"#
+        ));
         // Partial fills without a participation cap.
         assert!(rejects(r#"{"partial_fills":true}"#));
         // Close fill timing is market-only and latency-free.

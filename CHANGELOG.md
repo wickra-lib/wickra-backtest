@@ -302,6 +302,19 @@ to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ### Fixed
 
+- **The committed JSON Schema advertised an order type the engine refused.**
+  `OrderType::StopLimit` was declared, listed in `schema/strategy_spec.schema.json`
+  as a valid value and documented in `docs/STRATEGY_SPEC.md`, while `validate()`
+  rejected it unconditionally with "not supported yet" — so a schema-validating
+  editor green-lit a spec the engine would not run, and `ROADMAP.md` counted "all
+  order types" as done. It is implemented now: the stop arms a limit, and the fill
+  requires both that the stop is touched and that the limit is reachable in the
+  same bar. That second condition is the point of the order — a bar that gaps
+  past the limit does not fill, where a plain stop fills at the open — and it is
+  what the tests pin, including the side-by-side comparison against `Stop` on the
+  same bar. A stop-limit spec must now carry both offsets; carrying one is
+  rejected with a message naming the missing field.
+
 - **Two issue templates covered a repository with ten bindings and a JSON rule
   DSL.** A bug in a backtester is usually "this number is wrong", which needs a
   spec, a slice of data and a hand-computed expectation — none of which the old

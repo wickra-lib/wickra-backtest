@@ -51,6 +51,12 @@ enum Side {
 enum LevelKind {
     Limit,
     Stop,
+    /// Stop-limit: the trigger is the stop, and touching it activates a limit
+    /// order at `limit`. Carrying the limit here rather than beside the trigger
+    /// keeps the resting order one value, the way the other two kinds are.
+    StopLimit {
+        limit: f64,
+    },
 }
 
 /// What a working order does once it fills.
@@ -84,6 +90,19 @@ fn level_fill(side: Side, trigger: f64, kind: LevelKind, c: &Candle) -> Option<f
         (true, LevelKind::Stop) => (c.high >= trigger).then(|| c.open.max(trigger)),
         (false, LevelKind::Limit) => (c.high >= trigger).then(|| c.open.max(trigger)),
         (false, LevelKind::Stop) => (c.low <= trigger).then(|| c.open.min(trigger)),
+        // A stop-limit needs both: the stop has to be touched, and the limit has
+        // to be reachable within the same bar. The second condition is the whole
+        // point of the order -- a stop that gaps far through its limit does not
+        // fill, where a plain stop would have filled at the open. `activation` is
+        // where the stop takes effect (the open when the bar gapped past it,
+        // otherwise the stop itself), and the limit caps how far the fill may
+        // travel from there.
+        (true, LevelKind::StopLimit { limit }) => {
+            (c.high >= trigger && c.low <= limit).then(|| limit.min(c.open.max(trigger)))
+        }
+        (false, LevelKind::StopLimit { limit }) => {
+            (c.low <= trigger && c.high >= limit).then(|| limit.max(c.open.min(trigger)))
+        }
     }
 }
 
@@ -99,8 +118,13 @@ fn entry_trigger(exec: &Execution, signal_close: f64) -> Option<(f64, LevelKind)
             signal_close * (1.0 + exec.stop_offset_pct.unwrap_or(0.0) / 100.0),
             LevelKind::Stop,
         )),
-        // Market order (StopLimit is rejected by validation before the run).
-        _ => None,
+        OrderType::StopLimit => Some((
+            signal_close * (1.0 + exec.stop_offset_pct.unwrap_or(0.0) / 100.0),
+            LevelKind::StopLimit {
+                limit: signal_close * (1.0 + exec.limit_offset_pct.unwrap_or(0.0) / 100.0),
+            },
+        )),
+        OrderType::Market => None,
     }
 }
 
@@ -995,6 +1019,101 @@ mod tests {
             low,
             close,
             volume: 0.0,
+        }
+    }
+
+    // --- stop-limit ---------------------------------------------------------
+    //
+    // A stop-limit is a stop that arms a limit. What distinguishes it from a
+    // plain stop is the case where the market gaps past the limit: the stop
+    // triggers, the limit is never reachable, and the order does not fill. A
+    // plain stop would have filled at the open. These tests pin that difference,
+    // because an implementation that ignored it would pass every other check.
+
+    #[test]
+    fn buy_stop_limit_fills_at_the_stop_when_the_limit_is_above_it() {
+        // Stop 100, limit 101. The bar trades up through 100, so the stop arms
+        // and the limit buy at 101 is immediately marketable: it fills at 100,
+        // better than the limit, never worse.
+        let c = bar(0, 99.0, 100.5, 98.5, 100.2);
+        let fill = level_fill(Side::Long, 100.0, LevelKind::StopLimit { limit: 101.0 }, &c);
+        assert_eq!(fill, Some(100.0));
+    }
+
+    #[test]
+    fn buy_stop_limit_does_not_fill_when_the_bar_gaps_past_the_limit() {
+        // Opens at 105, far above both stop and limit, and never trades back to
+        // 101. The stop is touched; the limit is not. No fill.
+        let c = bar(0, 105.0, 106.0, 102.0, 105.5);
+        let fill = level_fill(Side::Long, 100.0, LevelKind::StopLimit { limit: 101.0 }, &c);
+        assert_eq!(fill, None);
+        // The same bar and the same stop, as a plain stop order, does fill --
+        // at the open. That is exactly the protection a stop-limit buys.
+        assert_eq!(
+            level_fill(Side::Long, 100.0, LevelKind::Stop, &c),
+            Some(105.0)
+        );
+    }
+
+    #[test]
+    fn buy_stop_limit_fills_at_the_limit_when_price_comes_back() {
+        // Gaps to 105, so the stop arms at the open, then trades back through
+        // 101. It fills at the limit, not at the open.
+        let c = bar(0, 105.0, 106.0, 100.5, 104.0);
+        let fill = level_fill(Side::Long, 100.0, LevelKind::StopLimit { limit: 101.0 }, &c);
+        assert_eq!(fill, Some(101.0));
+    }
+
+    #[test]
+    fn sell_stop_limit_mirrors_the_buy_side() {
+        // Stop 100 below the market, limit 99. Trades down through 100 and
+        // reaches 99: fills at 100, better than the limit.
+        let touched = bar(0, 101.0, 101.5, 99.0, 99.5);
+        assert_eq!(
+            level_fill(
+                Side::Short,
+                100.0,
+                LevelKind::StopLimit { limit: 99.0 },
+                &touched
+            ),
+            Some(100.0)
+        );
+        // Gaps down to 95 and never trades back up to 99: no fill, where a plain
+        // stop would have filled at the open.
+        let gapped = bar(0, 95.0, 98.0, 94.0, 96.0);
+        assert_eq!(
+            level_fill(
+                Side::Short,
+                100.0,
+                LevelKind::StopLimit { limit: 99.0 },
+                &gapped
+            ),
+            None
+        );
+        assert_eq!(
+            level_fill(Side::Short, 100.0, LevelKind::Stop, &gapped),
+            Some(95.0)
+        );
+    }
+
+    #[test]
+    fn stop_limit_never_fills_worse_than_its_limit() {
+        // Whatever the bar does, a buy never pays more than the limit and a sell
+        // never receives less.
+        for (o, h, l, c) in [
+            (99.0, 100.5, 98.5, 100.2),
+            (105.0, 106.0, 100.5, 104.0),
+            (100.2, 103.0, 100.1, 102.0),
+        ] {
+            let candle = bar(0, o, h, l, c);
+            if let Some(px) = level_fill(
+                Side::Long,
+                100.0,
+                LevelKind::StopLimit { limit: 101.0 },
+                &candle,
+            ) {
+                assert!(px <= 101.0, "buy filled above its limit: {px}");
+            }
         }
     }
 
