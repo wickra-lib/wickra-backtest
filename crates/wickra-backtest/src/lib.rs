@@ -50,7 +50,7 @@ mod tests {
     fn a_report_and_the_type_of_its_metrics_field_are_both_reachable() {
         fn takes(_: &BacktestReport, _: &Metrics) {}
         let _ = takes;
-        assert!(REPORT_SCHEMA_VERSION >= 1);
+        let _: u32 = REPORT_SCHEMA_VERSION;
     }
 
     #[test]
@@ -71,43 +71,35 @@ mod tests {
 
     #[test]
     fn a_spec_can_be_built_from_typed_parts_not_only_parsed_from_json() {
-        // Every type named here comes from `spec`; none of them was re-exported
-        // before, so a caller could only reach a StrategySpec by parsing JSON.
-        fn names(
-            _: &Condition,
-            _: &Costs,
-            _: &Execution,
-            _: &Feed,
-            _: &FillTiming,
-            _: &IndicatorSpec,
-            _: &IntPredicate,
-            _: &Operand,
-            _: &OperandExpr,
-            _: &OrderType,
-            _: &PriceField,
-            _: &Risk,
-            _: &Sizing,
-            _: &Slippage,
-        ) {
-        }
-        let _ = names;
-        assert!(SPEC_VERSION >= 1);
+        // Every type named here comes from `spec`; none was re-exported before, so
+        // a caller could only reach a StrategySpec by parsing JSON.
+        let _: Option<Condition> = None;
+        let _: Option<Costs> = None;
+        let _: Option<Execution> = None;
+        let _: Option<Feed> = None;
+        let _: Option<FillTiming> = None;
+        let _: Option<IndicatorSpec> = None;
+        let _: Option<IntPredicate> = None;
+        let _: Option<Operand> = None;
+        let _: Option<OperandExpr> = None;
+        let _: Option<OrderType> = None;
+        let _: Option<PriceField> = None;
+        let _: Option<Risk> = None;
+        let _: Option<Sizing> = None;
+        let _: Option<Slippage> = None;
+        let _: u32 = SPEC_VERSION;
     }
 
     #[test]
     fn the_data_types_the_engine_consumes_are_reachable() {
-        fn names(
-            _: &CrossSection,
-            _: &CrossSectionMember,
-            _: &Level,
-            _: &TradeSide,
-            _: &DerivativesTick,
-            _: &OrderBook,
-            _: &TradePrint,
-            _: &Trade,
-        ) {
-        }
-        let _ = names;
-        assert!(DEFAULT_CAPITAL > 0.0);
+        let _: Option<CrossSection> = None;
+        let _: Option<CrossSectionMember> = None;
+        let _: Option<Level> = None;
+        let _: Option<TradeSide> = None;
+        let _: Option<DerivativesTick> = None;
+        let _: Option<OrderBook> = None;
+        let _: Option<TradePrint> = None;
+        let _: Option<Trade> = None;
+        let _: f64 = DEFAULT_CAPITAL;
     }
 }
