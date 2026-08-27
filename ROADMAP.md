@@ -21,18 +21,19 @@
   all byte-identical, pinned by a golden corpus covering the OHLCV path and all
   four microstructure feed families.
 - `wkbt` CLI and a unified `run_json` request entry point in every binding.
+- Binance historical candle importer (`fetch_klines`, behind the off-by-default
+  `binance` feature), wired to `wkbt fetch`.
+- Five fuzz targets — `spec_parse`, `run_json`, `engine_run`, `fill_model` and
+  `data_loader` — all built and each run for 30 s in CI on a pinned nightly,
+  complementing the stable-toolchain property tests.
 
 ## Planned
 
 - **Multi-asset / portfolio backtests** — run a strategy across a symbol panel
   with shared capital and cross-sectional ranking.
-- **Exchange data importers** — pull historical candles directly (e.g. Binance)
-  into the loader.
 - **A live tick / streaming source** wired through `StreamingBacktest`.
 - **An honest comparison benchmark** against vectorbt and backtrader.
 - **A dedicated microstructure strategy guide.**
-- **Nightly fuzz targets** (`spec_parse`, `engine_run`, `fill_model`,
-  `data_loader`) to complement the stable-toolchain property tests.
 
 ## Toward 1.0
 

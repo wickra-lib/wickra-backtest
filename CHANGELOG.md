@@ -302,6 +302,14 @@ to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ### Fixed
 
+- **The roadmap understated the project.** Two entries sat under "Planned" that had
+  already shipped: the Binance historical importer (`fetch_klines` behind the
+  `binance` feature, wired to `wkbt fetch`) and the nightly fuzz targets. The fuzz
+  entry also named four targets where five exist — it omitted `run_json` — and all
+  five are built and run for 30 s each in CI. Both are now under "Done" with what
+  actually shipped. Roadmap drift usually flatters a project; this one did the
+  opposite, which is the less common way to be wrong about your own code.
+
 - **Both crate front pages announced themselves as unfinished scaffolding.**
   `wickra-backtest-core` and `wickra-backtest` opened with
   `Status: **scaffold** (handoff-20, Phase 0). The public surface below is the
