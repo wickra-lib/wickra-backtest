@@ -93,6 +93,15 @@ pub fn version() -> String {
 // Named for JS directly rather than via `js_name` on a differently named struct:
 // that spelling makes napi emit a second runtime export for the Rust name, so
 // the package would carry two names for one class.
+//
+// CodeQL's `rust/access-invalid-pointer` fires on the expansion below and is a
+// false positive, dismissed as such. The derive emits the standard N-API unwrap:
+// a pointer is initialised to null, written by `napi_unwrap` across the FFI
+// boundary, then dereferenced. CodeQL cannot follow a write through an extern
+// call, so it sees a null deref that cannot happen. This is the first `#[napi]`
+// struct here; the indicator repository has hundreds without the alert, because
+// there they come from a `macro_rules!` body the Rust extractor treats
+// differently. Re-open the alert if napi-rs changes how it expands classes.
 #[napi]
 #[derive(Debug)]
 pub struct StreamingBacktest {
