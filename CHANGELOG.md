@@ -396,10 +396,9 @@ to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 ### Changed
 
 - CI installs its Python dev tooling from hash-locked requirements under
-  `.github/requirements/` with `--require-hashes`, and installs Node
-  dependencies with `npm ci` rather than `npm install`, so both are pinned to a
-  lockfile instead of to whatever the registry served that morning. Regenerate
-  either with `./scripts/update-lockfiles.sh`.
+  `.github/requirements/` with `--require-hashes`, so the toolchain is pinned
+  rather than being whatever the index served that morning. Regenerate them with
+  `./scripts/update-lockfiles.sh`.
 
 - The engine's per-bar loop is split into named phases -- fill the working order,
   record the bar, apply intrabar exits, charge funding, mark equity, decide the

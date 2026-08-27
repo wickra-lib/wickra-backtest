@@ -84,7 +84,7 @@ fails `scripts/check_binding_surface.py`, which CI runs as `binding-surface`.
 | Component | Lockfile | Tracked? | Why |
 | --- | --- | --- | --- |
 | Workspace (Rust) | `Cargo.lock` | **yes** | The workspace ships binaries (`wkbt`, the fuzz harness) and CI builds from it, so the graph is pinned for reproducible builds. |
-| `bindings/node` | `package-lock.json` | **yes** | Reproducible `npm ci` for the native binding, and the six platform packages are pinned to the exact version alongside it — a bump that misses the lock fails `npm ci` with `EUSAGE`. |
+| `bindings/node` | `package-lock.json` | **yes** | Pins the build toolchain for the native binding, and the six platform packages are pinned to the exact version alongside it. CI installs with `npm install`, not `npm ci`: those six have never been published, so they cannot appear in the lock, and `npm ci` refuses a lock that omits a declared dependency. It becomes usable once the first release publishes them. |
 | `bindings/python` | — | n/a | The published package declares `dependencies = []`; there is nothing to lock at runtime, and the native code is pinned through the workspace `Cargo.lock`. |
 | `.github/requirements` | `ci-dev-py3.txt`, `ci-dev-py39.txt` | **yes** | Hash-pinned dev tooling for the Python job; CI installs them with `--require-hashes`, so the toolchain is a pinned dependency rather than whatever the index served that morning. Split by Python version because 3.9 needs backports later versions do not. |
 | `fuzz` | — | n/a | `fuzz/` is a detached crate with no committed lock; the smoke job resolves fresh, which is fine because it proves the targets still build rather than reproducing a byte-identical binary. |

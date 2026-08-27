@@ -328,12 +328,14 @@ jobs:
           node-version: ${{ matrix.node-version }}
           cache: npm
           cache-dependency-path: bindings/node/package-lock.json
-      # npm ci, not npm install: the lockfile is the pin. The six per-platform
-      # optionalDependencies are declared but have no resolved entries in it --
-      # they are built by this very job -- and npm skips an optional dependency
-      # it cannot resolve, so ci succeeds rather than rejecting the lock.
+      # npm install, not npm ci: the six per-platform optionalDependencies have
+      # never been published, so they cannot be in the lockfile, and npm ci
+      # refuses a lock that does not list them -- `EUSAGE ... Missing:
+      # wickra-backtest-darwin-arm64@ from lock file`. Older npm tolerated it;
+      # npm 12 does not, so this is not a matter of taste. It becomes possible
+      # once the first release publishes those six packages.
       - name: Install Node dependencies
-        run: cd bindings/node && npm ci --no-audit --no-fund
+        run: cd bindings/node && npm install --no-audit --no-fund
       # --platform puts the target triple into the filename so the loader finds
       # the freshly built binary instead of a per-platform npm subpackage.
       - name: Build native module
