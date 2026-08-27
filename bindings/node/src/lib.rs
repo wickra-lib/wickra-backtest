@@ -90,16 +90,19 @@ pub fn version() -> String {
 /// `finish` consumes the run, which a `&mut self` receiver cannot express, so
 /// the engine is held in an `Option` and taken on finish. Using the object
 /// afterwards throws instead of resurrecting a half-finished run.
-#[napi(js_name = "StreamingBacktest")]
+// Named for JS directly rather than via `js_name` on a differently named struct:
+// that spelling makes napi emit a second runtime export for the Rust name, so
+// the package would carry two names for one class.
+#[napi]
 #[derive(Debug)]
-pub struct StreamingBacktestNode {
+pub struct StreamingBacktest {
     inner: Option<CoreStreaming<'static>>,
     /// Bars fed so far, used as the default timestamp. Kept as a signed counter
     /// rather than reading the equity length, which would need a `usize` cast.
     bars: i64,
 }
 
-impl StreamingBacktestNode {
+impl StreamingBacktest {
     fn engine(&self) -> Result<&CoreStreaming<'static>> {
         self.inner
             .as_ref()
@@ -114,7 +117,7 @@ impl StreamingBacktestNode {
 }
 
 #[napi]
-impl StreamingBacktestNode {
+impl StreamingBacktest {
     #[napi(constructor)]
     pub fn new(spec_json: String, capital: Option<f64>) -> Result<Self> {
         let spec = StrategySpec::parse(&spec_json).map_err(to_napi)?;

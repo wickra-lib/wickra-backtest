@@ -8,6 +8,11 @@ to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ### Added
 
+- A completeness guard for the WASM binding, which had none, and exact-set
+  assertions in the Python and Node guards. They compared against a list of names
+  that had to exist, so a binding growing a method no other binding has passed
+  silently -- and that is a portability lie, since the premise is that one
+  strategy runs everywhere. Both directions now fail.
 - Streaming golden parity in every reach: the shared cases (`golden/cases/`) are
   now also driven one bar at a time and asserted against the same canonical
   reports (`golden/expected/`) the batch path produces -- in the Rust core, and in
@@ -366,6 +371,12 @@ to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
   and an edit made in place is lost on the next run.
 
 ### Fixed
+
+- The Node package exported the streaming class under two names, `StreamingBacktest`
+  and `StreamingBacktestNode`. Naming the Rust struct for JS directly, rather than
+  via `js_name` on a differently named struct, drops the duplicate: napi emits a
+  second runtime export for the Rust name otherwise. The reference binding in the
+  main wickra repo carries these aliases as types only, never at run time.
 
 - `bindings/r/tests/golden.R` was executed by no workflow, so the R binding's
   golden parity went unverified while every other binding checked it. `ci.yml`

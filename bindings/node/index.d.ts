@@ -42,7 +42,6 @@ export declare class StreamingBacktest {
   /** Drop the run without producing a report. Idempotent. */
   close(): void
 }
-export type StreamingBacktestNode = StreamingBacktest
 
 /** Run a backtest. Returns the report as a JSON string. */
 export declare function run(open: Array<number>, high: Array<number>, low: Array<number>, close: Array<number>, volume: Array<number>, time: Array<number>, specJson: string, capital?: number | undefined | null): string
