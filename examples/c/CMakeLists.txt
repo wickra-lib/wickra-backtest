@@ -48,3 +48,25 @@ if(NOT WIN32)
     set_tests_properties(example PROPERTIES
         ENVIRONMENT "LD_LIBRARY_PATH=${WICKRA_LIB_DIR};DYLD_LIBRARY_PATH=${WICKRA_LIB_DIR}")
 endif()
+
+# The streaming reach, driven from the same foreign C consumer. It runs the same
+# bars through the handle and through the batch entry point and exits non-zero if
+# the two reports differ, so "backtest and live are one code path" is checked from
+# outside Rust rather than only asserted inside it.
+add_executable(streaming streaming.c)
+target_include_directories(streaming PRIVATE "${WICKRA_INCLUDE_DIR}")
+target_link_libraries(streaming PRIVATE "${WICKRA_LINK_LIB}")
+if(UNIX AND NOT APPLE)
+    target_link_libraries(streaming PRIVATE m)
+endif()
+if(WIN32)
+    add_custom_command(TARGET streaming POST_BUILD
+        COMMAND ${CMAKE_COMMAND} -E copy_if_different
+                "${WICKRA_RUNTIME}" "$<TARGET_FILE_DIR:streaming>")
+endif()
+
+add_test(NAME streaming COMMAND streaming)
+if(NOT WIN32)
+    set_tests_properties(streaming PROPERTIES
+        ENVIRONMENT "LD_LIBRARY_PATH=${WICKRA_LIB_DIR};DYLD_LIBRARY_PATH=${WICKRA_LIB_DIR}")
+endif()

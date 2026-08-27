@@ -8,6 +8,11 @@ to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ### Added
 
+- A C example driving the streaming handle (`examples/c/streaming.c`), built and
+  run as a second CTest case. It reads the trade count and latest equity point
+  between bars, then runs the same bars through the batch entry point and exits
+  non-zero if the two reports differ -- so the claim that streaming and batch
+  agree is checked from a foreign C consumer, not only from inside Rust.
 - R: a streaming reach over the C ABI's handle (`backtest_stream_new` / `_step` /
   `_step_json` / `_equity_json` / `_latest_equity_json` / `_num_trades` /
   `_finish_json` / `_free`). The handle is an externalptr with a registered
