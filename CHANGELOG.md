@@ -384,6 +384,16 @@ to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ### Fixed
 
+- **The engine retained every bar of a run.** `StreamingBacktest` kept the full
+  per-bar history so any rule could look back arbitrarily, and allocated a fresh
+  `String` key for every indicator value on every bar. A live loop is a run that
+  never ends, so both grew without limit; `BENCHMARKS.md` advertised ten years of
+  minute bars three lines above admitting it. The window is now sized to what the
+  strategy's rules can actually reach -- the deepest `prev` / `rising` / `falling`
+  / cross, or the vol-target lookback -- and the keys are shared `Arc<str>` built
+  once per indicator instead of rebuilt per bar. No reported value moves: the
+  golden corpus is byte-identical.
+
 - The WASM streaming class named its members differently from the Node one, even
   though both are consumed from JavaScript: `step` took a JSON candle rather than
   scalars, and the accessors dropped the `Json` suffix their JSON-string returns

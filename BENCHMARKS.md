@@ -37,9 +37,11 @@ window on every bar.
 - Numbers are from a development machine in the release profile; absolute timings
   vary by hardware. Throughput also drops with more indicators and more complex
   rule trees.
-- The engine currently retains the full per-bar history (`O(bars × indicators)`
-  memory) so any rule can look back arbitrarily; a bounded ring buffer is a known
-  optimisation for very long runs.
+- The engine retains only as many bars as the strategy's rules can reach back
+  (the deepest `prev` / `rising` / `falling` / cross, or the vol-target lookback),
+  so memory is `O(lookback × indicators)` and does not grow with the length of the
+  run. The report's equity curve and trade list still grow with it, since they are
+  the output.
 - This is a single-symbol, single-strategy micro-benchmark. It measures the
   engine, not a realistic multi-asset optimisation workload.
 

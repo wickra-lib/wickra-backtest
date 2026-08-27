@@ -25,6 +25,7 @@
 use std::borrow::Cow;
 use std::collections::BTreeMap;
 use std::fmt;
+use std::sync::Arc;
 
 use wickra_core::OrderBook as CoreOrderBook;
 
@@ -34,7 +35,7 @@ use crate::metrics;
 use crate::portfolio::Portfolio;
 use crate::registry::{self, BarInput, EvalIndicator};
 use crate::report::{BacktestReport, EquityPoint, REPORT_SCHEMA_VERSION};
-use crate::rules::{eval_condition, BarRow, RuleState};
+use crate::rules::{condition_lookback, eval_condition, BarRow, RuleState};
 use crate::spec::{Execution, FillTiming, OrderType, Risk, Sizing, Slippage, StrategySpec};
 
 /// Default starting capital for the runner.
@@ -292,6 +293,41 @@ pub struct Feeds<'a> {
     pub cross_section: Option<&'a CrossSection>,
 }
 
+/// One declared indicator, with the keys its values are recorded under.
+///
+/// The keys are built once and shared into every `BarRow`. Recording a value used
+/// to clone the indicator's name into a fresh `String`, and a multi-output field
+/// used to `format!` one per bar -- allocations proportional to the length of the
+/// run, which for a live loop has no length.
+struct Indicator {
+    name: Arc<str>,
+    /// `name.field` keys, filled the first time a field is reported: the field
+    /// names come from the indicator, so they are not known before it runs.
+    field_keys: Vec<(&'static str, Arc<str>)>,
+    eval: Box<dyn EvalIndicator>,
+}
+
+/// How many bars the evaluator must be able to reach, including the current one.
+///
+/// Every backward-looking form declares its own depth in `rules`, so this is the
+/// maximum over the spec's rules plus whatever the sizing model reads. Sized this
+/// way the window answers exactly the questions an unbounded history would, and
+/// no more.
+fn history_depth(spec: &StrategySpec) -> usize {
+    let mut back = condition_lookback(&spec.entry).max(condition_lookback(&spec.exit));
+    if let Some(cond) = &spec.short_entry {
+        back = back.max(condition_lookback(cond));
+    }
+    if let Some(cond) = &spec.short_exit {
+        back = back.max(condition_lookback(cond));
+    }
+    // Vol targeting reads the last `lookback` closes off the tail.
+    if let Sizing::VolTarget { lookback, .. } = spec.sizing {
+        back = back.max(lookback as usize);
+    }
+    back + 1
+}
+
 /// Reject a spec that prices a run against a feed the run does not carry.
 ///
 /// Both cases below produce a number rather than a failure when the feed is
@@ -541,9 +577,17 @@ pub struct StreamingBacktest<'a> {
     maker: f64,
     taker: f64,
     warmup: usize,
-    indicators: BTreeMap<String, Box<dyn EvalIndicator>>,
+    indicators: Vec<Indicator>,
     pf: Portfolio,
+    // The most recent `history_depth` bars, not the whole run: the evaluator only
+    // ever indexes backwards by a bounded amount, and retaining everything made
+    // memory grow with the length of the feed. A live loop is a run that never
+    // ends, so "the whole history" is not a size at all.
     history: Vec<BarRow>,
+    history_depth: usize,
+    // Bars fed so far. `history.len()` used to serve as this; once the window is
+    // bounded the two part company, and entry bookkeeping needs the absolute one.
+    bars_seen: usize,
     equity: Vec<EquityPoint>,
     pending: Option<Pending>,
     entry_bar: Option<usize>,
@@ -563,8 +607,11 @@ impl fmt::Debug for StreamingBacktest<'_> {
         f.debug_struct("StreamingBacktest")
             .field("capital", &self.capital)
             .field("warmup", &self.warmup)
-            .field("indicators", &self.indicators.keys().collect::<Vec<_>>())
-            .field("bars", &self.history.len())
+            .field(
+                "indicators",
+                &self.indicators.iter().map(|i| &*i.name).collect::<Vec<_>>(),
+            )
+            .field("bars", &self.bars_seen)
             .field("equity_points", &self.equity.len())
             .field("trades", &self.pf.trades.len())
             .field("pending", &self.pending)
@@ -583,14 +630,20 @@ impl<'a> StreamingBacktest<'a> {
     /// [`StreamingBacktest::new`] and [`StreamingBacktest::new_owned`].
     fn from_spec(spec: Cow<'a, StrategySpec>, capital: f64) -> Result<Self> {
         spec.validate()?;
-        let mut indicators: BTreeMap<String, Box<dyn EvalIndicator>> = BTreeMap::new();
+        // `spec.indicators` is a sorted map, so the order here is deterministic.
+        let mut indicators: Vec<Indicator> = Vec::with_capacity(spec.indicators.len());
         let mut max_warmup = 0usize;
         for (name, ind) in &spec.indicators {
             let built = registry::build(&ind.kind, &ind.params)?;
             max_warmup = max_warmup.max(built.warmup());
-            indicators.insert(name.clone(), built);
+            indicators.push(Indicator {
+                name: Arc::from(name.as_str()),
+                field_keys: Vec::new(),
+                eval: built,
+            });
         }
         let warmup = spec.warmup.map_or(max_warmup, |w| w as usize);
+        let history_depth = history_depth(&spec);
         let maker = spec.costs.maker_bps / 10_000.0;
         let taker = spec.costs.taker_bps / 10_000.0;
         Ok(Self {
@@ -601,7 +654,9 @@ impl<'a> StreamingBacktest<'a> {
             warmup,
             indicators,
             pf: Portfolio::new(capital),
-            history: Vec::new(),
+            history: Vec::with_capacity(history_depth),
+            history_depth,
+            bars_seen: 0,
             equity: Vec::new(),
             pending: None,
             entry_bar: None,
@@ -665,7 +720,7 @@ impl<'a> StreamingBacktest<'a> {
             .iter()
             .filter_map(|tp| tp.to_core().ok())
             .collect();
-        let t = self.history.len();
+        let t = self.bars_seen;
         self.last = Some((candle.time, candle.close));
 
         // 1. Fill the working order against this bar (look-ahead-free). Execution
@@ -724,7 +779,7 @@ impl<'a> StreamingBacktest<'a> {
 
         // 2. Update indicators and record the bar.
         let mut values = BTreeMap::new();
-        for (name, ind) in &mut self.indicators {
+        for ind in &mut self.indicators {
             let input = BarInput {
                 candle,
                 reference,
@@ -733,17 +788,38 @@ impl<'a> StreamingBacktest<'a> {
                 trades: &trades,
                 cross_section: cross_section.as_ref(),
             };
-            if let Some(v) = ind.update(&input) {
-                values.insert(name.clone(), v);
-                for (field, fv) in ind.fields() {
-                    values.insert(format!("{name}.{field}"), fv);
+            if let Some(v) = ind.eval.update(&input) {
+                values.insert(Arc::clone(&ind.name), v);
+                let fields = ind.eval.fields();
+                for (field, fv) in fields {
+                    // Built once per field, then shared: a linear scan over a
+                    // handful of names costs less than formatting one per bar.
+                    let key =
+                        if let Some((_, key)) = ind.field_keys.iter().find(|(f, _)| *f == field) {
+                            Arc::clone(key)
+                        } else {
+                            let key: Arc<str> = Arc::from(format!("{}.{field}", ind.name).as_str());
+                            ind.field_keys.push((field, Arc::clone(&key)));
+                            key
+                        };
+                    values.insert(key, fv);
                 }
             }
         }
-        self.history.push(BarRow {
+        let row = BarRow {
             candle: *candle,
             values,
-        });
+        };
+        if self.history.len() == self.history_depth {
+            // Full: drop the oldest and keep the slice contiguous, since the
+            // evaluator indexes into it directly.
+            self.history.rotate_left(1);
+            self.history[self.history_depth - 1] = row;
+        } else {
+            self.history.push(row);
+        }
+        self.bars_seen += 1;
+        // Window-relative: the current bar is always the last retained one.
         let idx = self.history.len() - 1;
 
         // 3. Intrabar stop-loss / take-profit / trailing-stop against this bar's OHLC.
@@ -796,10 +872,15 @@ impl<'a> StreamingBacktest<'a> {
         });
 
         // 5. Decide the next signal action. Skip warmup.
-        if idx < self.warmup {
+        //
+        // Counted in bars fed, not in retained rows: warmup is about indicators
+        // having seen enough input, which is their own state, not this window's
+        // depth. Reading it off the window would stall the gate forever once the
+        // window filled.
+        if t < self.warmup {
             return Ok(());
         }
-        let bars_since_entry = self.entry_bar.map(|e| (idx - e) as u32);
+        let bars_since_entry = self.entry_bar.map(|e| (t - e) as u32);
         let state = RuleState {
             in_position: self.pf.in_position(),
             bars_since_entry,
@@ -1896,6 +1977,114 @@ mod tests {
                 "execution":{"fill_timing":"close","latency_bars":1}}"#,
         )
         .is_err());
+    }
+
+    #[test]
+    fn history_depth_covers_every_backward_looking_form() {
+        // A cross reaches one bar back; `prev` compounds; `rising`/`falling` take
+        // their own count. The window has to be the maximum of all of them, plus
+        // the current bar.
+        let depth = |rules: &str| {
+            let spec = StrategySpec::parse(&format!(
+                r#"{{"symbol":"x","timeframe":"1h","indicators":{{}},{rules},
+                    "sizing":{{"type":"fixed_qty","qty":1}}}}"#
+            ))
+            .unwrap();
+            history_depth(&spec)
+        };
+
+        // Plain comparisons read only the current bar.
+        assert_eq!(
+            depth(r#""entry":{"gt":[{"price":"close"},1]},"exit":{"lt":[{"price":"close"},1]}"#),
+            1
+        );
+        // A cross compares this bar with the previous one.
+        assert_eq!(
+            depth(
+                r#""entry":{"cross_above":[{"price":"close"},{"price":"open"}]},
+                   "exit":{"lt":[{"price":"close"},1]}"#
+            ),
+            2
+        );
+        // `rising` by n reaches n bars back.
+        assert_eq!(
+            depth(
+                r#""entry":{"rising":[{"price":"close"},9]},"exit":{"lt":[{"price":"close"},1]}"#
+            ),
+            10
+        );
+        // Nested `prev` compounds, and the deepest rule wins.
+        assert_eq!(
+            depth(
+                r#""entry":{"gt":[{"prev":[{"prev":[{"price":"close"},2]},3]},1]},
+                   "exit":{"lt":[{"price":"close"},1]}"#
+            ),
+            6
+        );
+        // Vol targeting reads the last `lookback` closes off the tail.
+        let vol = StrategySpec::parse(
+            r#"{"symbol":"x","timeframe":"1h","indicators":{},
+                "entry":{"gt":[{"price":"close"},1]},
+                "exit":{"lt":[{"price":"close"},1]},
+                "sizing":{"type":"vol_target","target_vol":0.02,"lookback":20}}"#,
+        )
+        .unwrap();
+        assert_eq!(history_depth(&vol), 21);
+    }
+
+    #[test]
+    fn history_stays_bounded_over_a_long_run() {
+        // The claim this guards: a run that never ends must not grow without end.
+        // Before the window, a year of minute bars retained a year of rows.
+        let spec = StrategySpec::parse(
+            r#"{"symbol":"x","timeframe":"1h","indicators":{"f":{"type":"Ema","params":[3]}},
+                "entry":{"cross_above":[{"price":"close"},"f"]},
+                "exit":{"cross_below":[{"price":"close"},"f"]},
+                "sizing":{"type":"fixed_qty","qty":1}}"#,
+        )
+        .unwrap();
+        let mut bt = StreamingBacktest::new(&spec, 10_000.0).unwrap();
+        for i in 0..20_000i64 {
+            let px = 100.0 + ((i as f64) * 0.05).sin() * 5.0;
+            bt.step(&bar(i, px, px + 0.5, px - 0.5, px)).unwrap();
+        }
+        assert_eq!(bt.bars_seen, 20_000);
+        assert_eq!(bt.history_depth, 2);
+        assert_eq!(bt.history.len(), 2);
+        // It still traded, so the bounded window did not blind the rules.
+        assert!(bt.num_trades() > 0);
+    }
+
+    #[test]
+    fn a_deep_lookback_still_sees_far_enough() {
+        // `rising` by 40 must keep working after the window has filled and started
+        // evicting: the retained depth is what the rule reaches, not less.
+        let spec = StrategySpec::parse(
+            r#"{"symbol":"x","timeframe":"1h","indicators":{},
+                "entry":{"rising":[{"price":"close"},40]},
+                "exit":{"falling":[{"price":"close"},40]},
+                "sizing":{"type":"fixed_qty","qty":1}}"#,
+        )
+        .unwrap();
+        assert_eq!(history_depth(&spec), 41);
+
+        let candles: Vec<Candle> = (0..400i64)
+            .map(|i| {
+                let px = 100.0 + ((i as f64) * 0.03).sin() * 10.0;
+                bar(i, px, px + 0.5, px - 0.5, px)
+            })
+            .collect();
+        let batch = run_with_capital(&spec, &candles, 10_000.0).unwrap();
+        assert!(batch.metrics.num_trades >= 1, "the fixture must trade");
+
+        let mut bt = StreamingBacktest::new(&spec, 10_000.0).unwrap();
+        for candle in &candles {
+            bt.step(candle).unwrap();
+        }
+        assert_eq!(bt.history.len(), 41);
+        let streamed = bt.finish();
+        assert_eq!(streamed.metrics.num_trades, batch.metrics.num_trades);
+        assert!((streamed.metrics.pnl - batch.metrics.pnl).abs() < 1e-9);
     }
 
     #[test]

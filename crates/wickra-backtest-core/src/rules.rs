@@ -5,6 +5,7 @@
 //! previous one.
 
 use std::collections::BTreeMap;
+use std::sync::Arc;
 
 use crate::data::Candle;
 use crate::spec::{Condition, IntPredicate, Operand, OperandExpr, PriceField};
@@ -15,7 +16,12 @@ pub struct BarRow {
     /// The bar.
     pub candle: Candle,
     /// Values of indicators that have produced output this bar.
-    pub values: BTreeMap<String, f64>,
+    ///
+    /// The keys are shared with the engine rather than owned per row: a long run
+    /// otherwise allocated one fresh `String` per value per bar, and cloning an
+    /// `Arc<str>` is a refcount bump. Lookup is unchanged -- `Arc<str>` borrows
+    /// as `str`, so `values.get("ema_fast")` still works.
+    pub values: BTreeMap<Arc<str>, f64>,
 }
 
 /// Engine state the stateful conditions read.
@@ -179,6 +185,55 @@ fn compare_prev(
     }
 }
 
+/// How many bars *before* the current one an operand can reach.
+///
+/// The evaluator indexes backwards from the bar being evaluated, so this is what
+/// a caller must retain to answer the same questions from a bounded window. It
+/// is defined here, beside the code that does the indexing, so the two cannot
+/// drift apart: a new backward-looking form has to be given a depth to compile.
+#[must_use]
+pub fn operand_lookback(op: &Operand) -> usize {
+    match op {
+        Operand::Ref(_) | Operand::Const(_) => 0,
+        Operand::Expr(expr) => match expr.as_ref() {
+            OperandExpr::Price(_) => 0,
+            // Nested `prev` compounds: prev(prev(x, 2), 3) reaches back five bars.
+            OperandExpr::Prev((inner, n)) => *n as usize + operand_lookback(inner),
+            OperandExpr::Add((a, b))
+            | OperandExpr::Sub((a, b))
+            | OperandExpr::Mul((a, b))
+            | OperandExpr::Div((a, b)) => operand_lookback(a).max(operand_lookback(b)),
+        },
+    }
+}
+
+/// How many bars *before* the current one a condition can reach.
+#[must_use]
+pub fn condition_lookback(cond: &Condition) -> usize {
+    match cond {
+        Condition::Gt((a, b))
+        | Condition::Lt((a, b))
+        | Condition::Ge((a, b))
+        | Condition::Le((a, b))
+        | Condition::Eq((a, b))
+        | Condition::Ne((a, b)) => operand_lookback(a).max(operand_lookback(b)),
+        // A cross compares this bar with the one before it, on both sides.
+        Condition::CrossAbove((a, b)) | Condition::CrossBelow((a, b)) => {
+            1 + operand_lookback(a).max(operand_lookback(b))
+        }
+        Condition::Between((a, lo, hi)) => operand_lookback(a)
+            .max(operand_lookback(lo))
+            .max(operand_lookback(hi)),
+        Condition::Rising((a, n)) | Condition::Falling((a, n)) => *n as usize + operand_lookback(a),
+        Condition::All(cs) | Condition::Any(cs) => {
+            cs.iter().map(condition_lookback).max().unwrap_or(0)
+        }
+        Condition::Not(c) => condition_lookback(c),
+        // Read from RuleState, not from history.
+        Condition::InPosition(_) | Condition::BarsSinceEntry(_) => 0,
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -194,7 +249,7 @@ mod tests {
                 close,
                 volume: 0.0,
             },
-            values: vals.iter().map(|(k, v)| ((*k).to_string(), *v)).collect(),
+            values: vals.iter().map(|(k, v)| (Arc::from(*k), *v)).collect(),
         }
     }
 
