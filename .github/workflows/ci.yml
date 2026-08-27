@@ -482,6 +482,7 @@ jobs:
           fi
           R CMD INSTALL bindings/r
           Rscript bindings/r/tests/run_tests.R
+          Rscript bindings/r/tests/streaming.R
 
   coverage:
     name: Coverage

@@ -64,7 +64,6 @@ STREAMING = frozenset({
 # only shrink.
 PENDING = {
     "wasm": STREAMING,
-    "r": STREAMING,
 }
 
 # A streaming run is a class in most languages -- an object you construct, step

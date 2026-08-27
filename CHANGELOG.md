@@ -8,6 +8,12 @@ to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ### Added
 
+- R: a streaming reach over the C ABI's handle (`backtest_stream_new` / `_step` /
+  `_step_json` / `_equity_json` / `_latest_equity_json` / `_num_trades` /
+  `_finish_json` / `_free`). The handle is an externalptr with a registered
+  finalizer, so a run dropped without finishing or freeing still releases its
+  native memory, and clearing the pointer on finish makes releasing twice a
+  no-op rather than a double free.
 - Java: a `StreamingBacktest` class over the C ABI's streaming handle (`step` /
   `stepJson` / `equityJson` / `latestEquityJson` / `numTrades` / `isFinished` /
   `finishJson` / `close`), implementing `AutoCloseable`. `finishJson` releases the

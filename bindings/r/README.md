@@ -71,6 +71,27 @@ cat(report)  # BacktestReport JSON
 `BacktestReport` as every other binding; an invalid spec or mismatched inputs
 raise an R error, and no panic crosses the FFI boundary.
 
+The same strategy also runs one bar at a time, which is what makes a backtest and
+a live loop the same code path -- swap the vector for a socket and nothing else
+changes:
+
+```r
+bt <- backtest_stream_new(spec, capital = 10000)
+for (i in seq_along(bar_close)) {
+  backtest_stream_step(bt, bar_open[i], bar_high[i], bar_low[i], bar_close[i])
+  cat(backtest_stream_num_trades(bt), backtest_stream_latest_equity_json(bt), "
+")
+}
+report <- backtest_stream_finish_json(bt)
+```
+
+The handle carries a finalizer, so a run dropped without
+`backtest_stream_finish_json()` or `backtest_stream_free()` still releases its
+native memory. `time` defaults to the number of bars fed so far, and `volume` to
+zero. Strategies reading a side feed drive the run with
+`backtest_stream_step_json()`, passing `{"candle": ..., "feeds": ...}` per bar;
+using a finished run raises an error.
+
 ## Documentation
 
 - **Repository:** <https://github.com/wickra-lib/wickra-backtest>
