@@ -302,6 +302,15 @@ to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ### Fixed
 
+- **The link checker walked more than links and excluded less than it thought.**
+  `lychee.toml` set no `scheme`, so `mailto:`, `file:` and `tel:` URIs were
+  followed alongside real external links; it is now restricted to http and https.
+  It had no `timeout`, so a host that never answers could hold the job open; that
+  is 20 seconds now. And it hand-wrote `^https?://localhost` and
+  `^https?://127\.0\.0\.1` where `exclude_all_private = true` does the job
+  properly — the two patterns missed `10.0.0.0/8`, `172.16.0.0/12`,
+  `192.168.0.0/16` and `::1` entirely.
+
 - **The supply-chain gate never looked at the optional dependency trees.**
   `deny.toml` had no `[graph]` section, so `cargo deny` scanned default features
   only — while every exception the file defines exists for a crate that appears

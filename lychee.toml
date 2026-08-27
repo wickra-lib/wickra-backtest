@@ -6,17 +6,23 @@ accept = [200, 206, 429]
 # Retry transient failures.
 max_retries = 3
 retry_wait_time = 2
+timeout = 20
 
 # Don't hammer hosts.
 max_concurrency = 8
 
+# Check real external links only: no mailto:, no file:, no tel:.
+scheme = ["https", "http"]
+# Covers loopback and every private range -- more than the two hand-written
+# patterns this replaces ever did: 10.0.0.0/8, 172.16.0.0/12, 192.168.0.0/16
+# and ::1 all went unexcluded.
+exclude_all_private = true
 
-# Exclude links that are not meant to resolve at check time: localhost,
-# example/placeholder hosts, and the package-registry URLs that 404 until a
-# release is published.
+
+# Exclude links that are not meant to resolve at check time: placeholder
+# hosts and the package-registry URLs that 404 until a release is published.
+# Loopback and private addresses are handled by exclude_all_private above.
 exclude = [
-    "^https?://localhost",
-    "^https?://127\\.0\\.0\\.1",
     "example\\.com",
     "^https?://crates\\.io/crates/wickra-backtest",
     "^https?://pypi\\.org/project/wickra-backtest",
