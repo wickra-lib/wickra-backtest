@@ -188,6 +188,8 @@ order is good-till-filled.
 ```jsonc
 {
   "schema_version": 1,
+  "symbol": "BTCUSDT",
+  "timeframe": "1h",
   "initial_capital": 10000.0,
   "metrics": {
     "pnl": …, "return_pct": …, "sharpe": …, "sortino": …, "calmar": …,
@@ -199,6 +201,10 @@ order is good-till-filled.
   "fees_paid": …
 }
 ```
+
+`symbol` and `timeframe` are echoed from the spec, so a stored report says what
+it is a report of. The engine reads whatever candles it is given and does not
+check them against either, so they are labels rather than guarantees.
 
 A trade's `reason` is one of `signal` (an exit rule fired), `stop_loss`,
 `take_profit`, `trailing_stop`, `liquidation` or `end` (the position was still

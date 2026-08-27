@@ -71,8 +71,9 @@ System.out.println(reportJson);
 - `run(open, high, low, close, volume, time, spec, capital)` — full control
 
 The returned JSON is the same `BacktestReport` as every other binding
-(`metrics`, `trades`, `equity`, `fees_paid`, `initial_capital`). An invalid spec
-or mismatched inputs throw `IllegalStateException` / `IllegalArgumentException`;
+(`symbol`, `timeframe`, `metrics`, `trades`, `equity`, `fees_paid`,
+`initial_capital`). An invalid spec or mismatched inputs throw
+`IllegalStateException` / `IllegalArgumentException`;
 no panic ever crosses the FFI boundary.
 
 The same strategy also runs one bar at a time, which is what makes a backtest and

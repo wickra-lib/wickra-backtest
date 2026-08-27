@@ -53,8 +53,9 @@ console.log(report.metrics);
 ```
 
 `run(open, high, low, close, volume, time, specJson, capital?)` returns the
-`BacktestReport` as a JSON string (`metrics`, `trades`, `equity`, `fees_paid`,
-`initial_capital`); `capital` defaults to 10,000. An invalid spec throws.
+`BacktestReport` as a JSON string (`symbol`, `timeframe`, `metrics`, `trades`,
+`equity`, `fees_paid`, `initial_capital`); `capital` defaults to 10,000. An
+invalid spec throws.
 
 For strategies that use microstructure feeds, `runJson(requestJson)` takes one
 request bundle (candles + spec + optional order-book / trade / derivatives /

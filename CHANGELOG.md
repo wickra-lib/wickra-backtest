@@ -8,6 +8,12 @@ to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ### Added
 
+- `BacktestReport` carries `symbol` and `timeframe`, echoed from the spec, so a
+  stored report says what it is a report of. They are labels rather than
+  guarantees: the engine reads whatever candles it is given and does not check
+  them against either. `schema_version` stays at 1 -- nothing has been released,
+  so no report of the earlier shape exists to distinguish from this one.
+
 - `scripts/check_version_sync.py`: asserts that every version declaration agrees,
   and with `--previous` that none still carries the version being replaced. CI
   runs it on every pull request. The version lives in twenty-odd places across six

@@ -1002,6 +1002,8 @@ impl<'a> StreamingBacktest<'a> {
         let metrics = metrics::compute(self.capital, &series, &self.pf.trades);
         BacktestReport {
             schema_version: REPORT_SCHEMA_VERSION,
+            symbol: self.spec.symbol.clone(),
+            timeframe: self.spec.timeframe.clone(),
             metrics,
             trades: self.pf.trades,
             equity: self.equity,
@@ -1284,6 +1286,34 @@ mod tests {
                 "costs":{costs}}}"#
         ))
         .unwrap()
+    }
+
+    #[test]
+    fn the_report_says_what_it_is_a_report_of() {
+        // Distinctive values on purpose: the golden corpus uses "x" and "1h"
+        // throughout, so it would pass just as well against a hardcoded string.
+        let spec = StrategySpec::parse(
+            r#"{"symbol":"BTCUSDT","timeframe":"4h","indicators":{},
+                "entry":{"gt":[{"price":"close"},100]},
+                "exit":{"lt":[{"price":"close"},100]},
+                "sizing":{"type":"fixed_qty","qty":1}}"#,
+        )
+        .unwrap();
+        let candles = oscillating(20);
+
+        let batch = run(&spec, &candles).unwrap();
+        assert_eq!(batch.symbol, "BTCUSDT");
+        assert_eq!(batch.timeframe, "4h");
+
+        // The streaming path builds its report separately, so it is asserted
+        // separately.
+        let mut bt = StreamingBacktest::new(&spec, DEFAULT_CAPITAL).unwrap();
+        for candle in &candles {
+            bt.step(candle).unwrap();
+        }
+        let streamed = bt.finish();
+        assert_eq!(streamed.symbol, "BTCUSDT");
+        assert_eq!(streamed.timeframe, "4h");
     }
 
     #[test]

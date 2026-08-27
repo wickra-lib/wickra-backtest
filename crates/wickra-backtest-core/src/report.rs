@@ -22,6 +22,16 @@ pub struct EquityPoint {
 pub struct BacktestReport {
     /// Report schema version.
     pub schema_version: u32,
+    /// The instrument the spec was written for, echoed from it.
+    ///
+    /// The engine reads whatever candles it is given and does not check them
+    /// against this, so it is a label rather than a guarantee -- but without it a
+    /// stored report does not say what it is a report of, which makes a directory
+    /// of them unreadable.
+    pub symbol: String,
+    /// The bar size the spec was written for, echoed from it. A label, like
+    /// `symbol`.
+    pub timeframe: String,
     /// Summary metrics.
     pub metrics: Metrics,
     /// Completed trades.
