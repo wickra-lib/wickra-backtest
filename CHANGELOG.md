@@ -302,6 +302,19 @@ to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ### Fixed
 
+- **`ci.yml` carried none of the hardening the rest of the repository already
+  had.** The workflow had no `env:` block at all, while this repo's own
+  `release.yml` carries the network-retry block verbatim and `bench.yml` carries
+  half of it — so the one workflow running 15 jobs across three operating systems,
+  the one most exposed to a registry or CDN blip, was the only one left bare. It
+  now has the same block as the indicator repo, including `RUSTFLAGS: "-D
+  warnings"` (verified: the workspace builds and tests clean under it). Every job
+  gained the 30-minute backstop that caps a wedged run instead of leaving it to
+  GitHub's six-hour default, all 14 cache restores are now `continue-on-error`
+  with a 6-minute cap because a cache is an optimisation and must never block a
+  job, and `setup-python` and `setup-node` are wrapped in the wait-and-retry the
+  Windows CDN flake requires.
+
 - **Every `rust-cache` pin named a version it does not point at.** All 19 uses
   across `ci.yml`, `release.yml` and `bench.yml` pinned `e18b497` with the comment
   `# v2`. That commit carries no tag at all — it is an untagged master commit, 45
