@@ -1,3 +1,8 @@
 # Clippy thresholds. Lint levels (clippy::all / pedantic) live in the workspace
 # Cargo.toml under [workspace.lints]; this file holds configurable thresholds.
-too-many-arguments-threshold = 8
+#
+# No thresholds are set: clippy's defaults apply. `too-many-arguments-threshold`
+# used to be raised to 8 here, which was redundant -- the four functions that
+# exceed the default are FFI argument lists that already carry a local
+# `#[allow(clippy::too_many_arguments)]`. Loosening the global bound for cases
+# the code had already argued for only hid the next one.

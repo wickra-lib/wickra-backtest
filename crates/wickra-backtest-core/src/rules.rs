@@ -68,27 +68,30 @@ pub fn eval_operand(op: &Operand, history: &[BarRow], idx: usize) -> Option<f64>
 }
 
 fn binary(
-    a: &Operand,
-    b: &Operand,
+    lhs: &Operand,
+    rhs: &Operand,
     history: &[BarRow],
     idx: usize,
-    f: impl Fn(f64, f64) -> f64,
+    combine: impl Fn(f64, f64) -> f64,
 ) -> Option<f64> {
-    Some(f(
-        eval_operand(a, history, idx)?,
-        eval_operand(b, history, idx)?,
+    Some(combine(
+        eval_operand(lhs, history, idx)?,
+        eval_operand(rhs, history, idx)?,
     ))
 }
 
 fn compare(
-    a: &Operand,
-    b: &Operand,
+    lhs: &Operand,
+    rhs: &Operand,
     history: &[BarRow],
     idx: usize,
-    f: impl Fn(f64, f64) -> bool,
+    predicate: impl Fn(f64, f64) -> bool,
 ) -> bool {
-    match (eval_operand(a, history, idx), eval_operand(b, history, idx)) {
-        (Some(x), Some(y)) => f(x, y),
+    match (
+        eval_operand(lhs, history, idx),
+        eval_operand(rhs, history, idx),
+    ) {
+        (Some(left), Some(right)) => predicate(left, right),
         _ => false,
     }
 }

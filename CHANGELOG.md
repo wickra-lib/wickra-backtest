@@ -302,6 +302,19 @@ to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ### Fixed
 
+- **Two clippy lints were switched off globally that the code did not need off.**
+  `many_single_char_names` was allowed workspace-wide; exactly one function
+  tripped it, and the project's own convention is to give maths-heavy code
+  descriptive names rather than to silence the lint, so `compare` and its twin
+  `binary` now take `lhs` / `rhs` / `predicate` instead of `a` / `b` / `f`.
+  `too_many_lines` was likewise global; one function exceeds it, and it now
+  carries a local allow that says why. `float_cmp` is allowed instead — this
+  engine compares floats deliberately, and the indicator library beside it makes
+  the same exception. `clippy.toml` no longer raises
+  `too-many-arguments-threshold` to 8: the four functions above the default are
+  FFI argument lists that already carry their own allow, so the global loosening
+  only hid whatever came next.
+
 - **The workspace defined no build profiles at all**, so release artifacts were
   built without LTO and — more seriously — the panic strategy for four cdylibs was
   whatever the default happened to be. Cargo refuses `panic` in a per-package

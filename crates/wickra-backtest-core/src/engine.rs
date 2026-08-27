@@ -587,6 +587,11 @@ impl<'a> StreamingBacktest<'a> {
     /// Process one bar with its optional non-OHLCV [`Feeds`]. Pairwise indicators
     /// consume the reference; derivatives / order-book indicators consume the
     /// tick / snapshot; other indicators ignore them.
+    // 207 lines: one bar advances every part of the simulation in a fixed
+    // order -- indicators, pending fills, intrabar exits, funding, mark-out --
+    // and the order is the correctness argument. Splitting it is worthwhile but
+    // is a change to the engine, not to a lint configuration.
+    #[allow(clippy::too_many_lines)]
     pub fn step_with_feeds(&mut self, candle: &Candle, feeds: &Feeds) -> Result<()> {
         let reference = feeds.reference;
         let deriv = feeds.deriv.and_then(|d| d.to_core().ok());
