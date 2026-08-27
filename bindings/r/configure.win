@@ -1,0 +1,66 @@
+#!/bin/sh
+# Resolve the wickra-backtest C ABI for the Windows build.
+#
+# Simpler than the indicator package's equivalent, and for a reason worth
+# recording: there the package object and the C ABI are both named wickra.dll, so
+# the loader resolves the import back to the package itself and the ABI has to be
+# staged under a different name with a hand-built import library. Here the package
+# is `wickrabacktest` and the ABI is `wickra_backtest`, so the names never
+# collide, mingw links straight against the DLL with `-l:`, and no dlltool or .def
+# file is needed at all.
+#
+# Set WKBT_INC + WKBT_LIB to build against a locally built C ABI (dev override).
+set -e
+
+wkbt_download() {
+  _url="$1"
+  _dest="$2"
+  _attempt=1
+  while [ "${_attempt}" -le 6 ]; do
+    if "${R_HOME}/bin/Rscript" -e "download.file('${_url}', '${_dest}', mode = 'wb', quiet = TRUE)"; then
+      return 0
+    fi
+    echo "wickra-backtest: download attempt ${_attempt}/6 failed (${_url}); the release asset may still be propagating — retrying in 20s..."
+    sleep 20
+    _attempt=$((_attempt + 1))
+  done
+  echo "wickra-backtest: failed to download ${_url} after 6 attempts"
+  return 1
+}
+
+# Ask R for its architecture, not the shell's. On a Windows/arm64 runner
+# `uname -m` reports x86_64 because the shell runs under emulation, which would
+# pull the x64 ABI into an arm64 R and fail to load ("%1 is not a valid Win32
+# application"). R.version$arch reflects the R build that will load the DLL.
+arch=$("${R_HOME}/bin/Rscript" -e 'cat(R.version$arch)')
+case "${arch}" in
+  x86_64) triple="x86_64-pc-windows-msvc" ;;
+  aarch64 | arm64) triple="aarch64-pc-windows-msvc" ;;
+  *)
+    echo "wickra-backtest: unsupported Windows arch '${arch}' — set WKBT_INC/WKBT_LIB"
+    exit 1
+    ;;
+esac
+
+if [ -n "${WKBT_INC}" ] && [ -n "${WKBT_LIB}" ]; then
+  echo "wickra-backtest: using C ABI from WKBT_INC / WKBT_LIB (dev override)"
+  inc="${WKBT_INC}"
+  lib="${WKBT_LIB}"
+else
+  version=$(sed -n 's/^Version:[[:space:]]*//p' DESCRIPTION)
+  url="https://github.com/wickra-lib/wickra-backtest/releases/download/v${version}/wickra-backtest-c-${triple}.tar.gz"
+  echo "wickra-backtest: downloading C ABI ${triple} for v${version}"
+  wkbt_download "${url}" "src/wickra-backtest-c.tar.gz" || exit 1
+  "${R_HOME}/bin/Rscript" -e "untar('src/wickra-backtest-c.tar.gz', exdir = 'src/wickra-backtest-c')"
+  inc="src/wickra-backtest-c/wickra-backtest-c-${triple}/include"
+  lib="src/wickra-backtest-c/wickra-backtest-c-${triple}/lib"
+fi
+
+cp "${inc}/wickra_backtest.h" src/wickra_backtest.h
+if [ ! -f "${lib}/wickra_backtest.dll" ]; then
+  echo "wickra-backtest: no wickra_backtest.dll found under ${lib}"
+  exit 1
+fi
+cp "${lib}/wickra_backtest.dll" src/wickra_backtest.dll
+echo "wickra-backtest: configured (bundled wickra_backtest.dll for ${arch})"
+exit 0

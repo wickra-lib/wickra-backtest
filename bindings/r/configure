@@ -1,0 +1,103 @@
+#!/bin/sh
+# Resolve the wickra-backtest C ABI (header + shared library) for the Unix build.
+#
+# Self-contained by default: download the prebuilt
+# wickra-backtest-c-<triple>.tar.gz release asset that matches this package's
+# version and stage the shared library into src/, so the compiled package object
+# links against it and bundles it (via install.libs.R), found post-install
+# through an rpath ($ORIGIN on Linux, @loader_path on macOS).
+#
+# Set WKBT_INC + WKBT_LIB to build against a locally built C ABI instead (dev
+# override; e.g. after `cargo build -p wickra-backtest-c --release`). The staging
+# and rpath happen either way, so an override build is self-contained too.
+#
+# Download/extract uses base R, which is always present at build time, so there
+# is no curl/wget system dependency.
+set -e
+
+# A freshly cut release can briefly 404 while its assets propagate across the
+# CDN, and a transient network blip should not fail an install either. Retry with
+# a backoff (~2 min total) rather than giving up on the first miss.
+wkbt_download() {
+  _url="$1"
+  _dest="$2"
+  _attempt=1
+  while [ "${_attempt}" -le 6 ]; do
+    if "${R_HOME}/bin/Rscript" -e "download.file('${_url}', '${_dest}', mode = 'wb', quiet = TRUE)"; then
+      return 0
+    fi
+    echo "wickra-backtest: download attempt ${_attempt}/6 failed (${_url}); the release asset may still be propagating — retrying in 20s..."
+    sleep 20
+    _attempt=$((_attempt + 1))
+  done
+  echo "wickra-backtest: failed to download ${_url} after 6 attempts"
+  return 1
+}
+
+inc=""
+lib=""
+
+if [ -n "${WKBT_INC}" ] && [ -n "${WKBT_LIB}" ]; then
+  echo "wickra-backtest: using C ABI from WKBT_INC / WKBT_LIB (dev override)"
+  inc="${WKBT_INC}"
+  lib="${WKBT_LIB}"
+else
+  version=$(sed -n 's/^Version:[[:space:]]*//p' DESCRIPTION)
+  os=$(uname -s)
+  arch=$(uname -m)
+  case "${os}" in
+    Linux)
+      case "${arch}" in
+        x86_64) triple="x86_64-unknown-linux-gnu" ;;
+        aarch64 | arm64) triple="aarch64-unknown-linux-gnu" ;;
+        *) echo "wickra-backtest: unsupported Linux arch '${arch}' — set WKBT_INC/WKBT_LIB"; exit 1 ;;
+      esac
+      ;;
+    Darwin)
+      case "${arch}" in
+        x86_64) triple="x86_64-apple-darwin" ;;
+        arm64 | aarch64) triple="aarch64-apple-darwin" ;;
+        *) echo "wickra-backtest: unsupported macOS arch '${arch}' — set WKBT_INC/WKBT_LIB"; exit 1 ;;
+      esac
+      ;;
+    *)
+      echo "wickra-backtest: unsupported OS '${os}' — set WKBT_INC/WKBT_LIB"
+      exit 1
+      ;;
+  esac
+  url="https://github.com/wickra-lib/wickra-backtest/releases/download/v${version}/wickra-backtest-c-${triple}.tar.gz"
+  echo "wickra-backtest: downloading C ABI ${triple} for v${version}"
+  wkbt_download "${url}" "src/wickra-backtest-c.tar.gz" || exit 1
+  "${R_HOME}/bin/Rscript" -e "untar('src/wickra-backtest-c.tar.gz', exdir = 'src/wickra-backtest-c')"
+  inc="src/wickra-backtest-c/wickra-backtest-c-${triple}/include"
+  lib="src/wickra-backtest-c/wickra-backtest-c-${triple}/lib"
+fi
+
+cp "${inc}/wickra_backtest.h" src/wickra_backtest.h
+staged=""
+for f in libwickra_backtest.so libwickra_backtest.dylib; do
+  if [ -f "${lib}/${f}" ]; then
+    cp "${lib}/${f}" "src/${f}"
+    staged="${f}"
+  fi
+done
+if [ -z "${staged}" ]; then
+  echo "wickra-backtest: no libwickra_backtest.so/.dylib found under ${lib}"
+  exit 1
+fi
+
+# rpath so the bundled library is found next to the package object after install.
+case "$(uname -s)" in
+  Darwin)
+    rpath="-Wl,-rpath,@loader_path"
+    # Normalise the dylib id to @rpath so @loader_path resolution applies.
+    install_name_tool -id "@rpath/${staged}" "src/${staged}" 2>/dev/null || true
+    ;;
+  *)
+    rpath="-Wl,-rpath,'\$\$ORIGIN'"
+    ;;
+esac
+
+sed "s|@WKBT_RPATH@|${rpath}|" src/Makevars.in > src/Makevars
+echo "wickra-backtest: configured (bundled ${staged})"
+exit 0

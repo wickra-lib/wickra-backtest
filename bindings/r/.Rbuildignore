@@ -8,3 +8,12 @@
 ^src/.*\.dylib$
 ^src/symbols\.rds$
 ^\.gitignore$
+# Generated at configure time, never shipped in the source tarball: the Makevars
+# produced from Makevars.in, the staged C ABI header and library, and the
+# downloaded release asset with its extraction directory.
+^src/Makevars$
+^src/wickra_backtest\.h$
+^src/wickra-backtest-c\.tar\.gz$
+^src/wickra-backtest-c$
+^src/libwickra_backtest\.
+

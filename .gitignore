@@ -36,3 +36,11 @@ bindings/r/src/*.o
 bindings/r/src/*.so
 bindings/r/src/*.dll
 bindings/r/..Rcheck/
+
+# R binding: produced by configure / configure.win at install time.
+bindings/r/src/Makevars
+bindings/r/src/wickra_backtest.h
+bindings/r/src/wickra_backtest.dll
+bindings/r/src/libwickra_backtest.*
+bindings/r/src/wickra-backtest-c/
+bindings/r/src/wickra-backtest-c.tar.gz

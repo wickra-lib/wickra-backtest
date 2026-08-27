@@ -1,6 +1,7 @@
-# The header and native library locations are passed in via environment
-# variables so the package can find the Cargo build outputs:
-#   WKBT_INC = path to bindings/c/include   (wickra_backtest.h)
-#   WKBT_LIB = path to target/debug|release (wickra_backtest.dll)
-PKG_CPPFLAGS = -I"$(WKBT_INC)"
-PKG_LIBS = -L"$(WKBT_LIB)" -l:wickra_backtest.dll
+# configure.win stages the C ABI header and wickra_backtest.dll into src/, so the
+# package object links against the bundled copy. mingw links directly against a
+# DLL with `-l:`; no import library is needed because the package object
+# (wickrabacktest.dll) and the ABI (wickra_backtest.dll) have different names and
+# cannot shadow one another.
+PKG_CPPFLAGS = -I.
+PKG_LIBS = -L. -l:wickra_backtest.dll

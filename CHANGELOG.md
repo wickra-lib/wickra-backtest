@@ -302,6 +302,18 @@ to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ### Fixed
 
+- **The R package could not be installed by anyone but CI.** `src/Makevars`
+  required `WKBT_INC` and `WKBT_LIB` to be set before `R CMD INSTALL`, pointing at
+  a locally built C ABI — while `release.yml` prints an r-universe install command
+  for users who have neither. A `configure` and `configure.win` now download the
+  `wickra-backtest-c-<triple>.tar.gz` release asset matching the package version,
+  stage the header and library into `src/`, and bundle the library into the
+  installed package; `install.libs.R` places it beside the package object and the
+  Unix rpath (`$ORIGIN` / `@loader_path`) resolves it. The environment variables
+  still work as a developer override, and that path is now self-contained too.
+  Verified by installing with the override and then loading the package with both
+  variables unset: `backtest_version()` answers from the bundled library.
+
 - **The R package declared a different licence from the rest of the repository.**
   `bindings/r/DESCRIPTION` said `License: MIT + file LICENSE` while `Cargo.toml`,
   `package.json`, `pyproject.toml`, the `.csproj`, `CITATION.cff` and both root

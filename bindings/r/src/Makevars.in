@@ -1,0 +1,7 @@
+# Generated into src/Makevars by ../configure; the @WKBT_RPATH@ token is
+# substituted per-OS ($ORIGIN on Linux, @loader_path on macOS). configure stages
+# the C ABI header (wickra_backtest.h) and shared library
+# (libwickra_backtest.so/.dylib) into src/, so the package object links against
+# the bundled copy rather than against a path that only exists on the build host.
+PKG_CPPFLAGS = -I.
+PKG_LIBS = -L. -lwickra_backtest @WKBT_RPATH@
