@@ -14,9 +14,9 @@ printed by `wkbt schema`. This page is the human-readable companion.
 ```jsonc
 {
   "spec_version": 1,            // optional, defaults to 1
-  "symbol": "BTCUSDT",          // required
-  "ref_symbol": "ETHUSDT",      // optional — second series for pairwise indicators
-  "timeframe": "1h",            // required, free-form label (e.g. 1m/5m/1h/1d)
+  "symbol": "BTCUSDT",          // required — metadata, see below
+  "ref_symbol": "ETHUSDT",      // optional — metadata naming the pairwise reference
+  "timeframe": "1h",            // required — metadata, free-form (e.g. 1m/5m/1h/1d)
   "indicators": { /* name -> indicator */ },
   "entry":  { /* condition */ },     // required — opens a long
   "exit":   { /* condition */ },     // required — closes a long
@@ -32,6 +32,18 @@ printed by `wkbt schema`. This page is the human-readable companion.
 
 Any indicator name referenced in a condition must be declared in `indicators`,
 or the spec is rejected at parse time.
+
+### `symbol`, `ref_symbol` and `timeframe` are metadata
+
+The engine never resolves any of the three. It does not fetch data: the caller
+supplies the candles, and for a pairwise indicator the reference series as well,
+through `RunRequest.reference` or `run_with_ref`. These fields record what the
+spec was written for, so a stored spec is not ambiguous about which instrument
+and bar size it belongs to — and, for `ref_symbol`, about which instrument the
+caller is expected to pair it against.
+
+Setting `ref_symbol` therefore does **not** make a pairwise indicator work on its
+own. The reference series still has to be passed with the request.
 
 ## Indicators
 

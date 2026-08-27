@@ -302,6 +302,17 @@ to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ### Fixed
 
+- **`ref_symbol` was documented as something it is not.** "Optional reference
+  symbol for pair indicators" reads as the way to give a pairwise indicator its
+  second series — it is not. The reference is passed with the request, through
+  `RunRequest.reference` or `run_with_ref`, and the symbol string is never
+  resolved by anything. A user following the documentation would have set the
+  field, run the backtest, and got an indicator that produced no values. It, along
+  with `symbol` and `timeframe`, is now documented as what it is: metadata
+  recording what the spec was written for. The engine does not fetch data, so
+  there is nothing for it to resolve these against — the mistake was the wording,
+  not the fields.
+
 - **`spec_version` was parsed and never checked**, so `{"spec_version": 999}` ran
   as if it were version 1. A field whose entire purpose is forward-compatibility
   that is not enforced is worse than no field: it tells a future format it will be

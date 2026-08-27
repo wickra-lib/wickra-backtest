@@ -33,11 +33,26 @@ pub struct StrategySpec {
     #[serde(default = "default_spec_version")]
     pub spec_version: u32,
     /// Primary trading symbol.
+    ///
+    /// Metadata, not an input: the engine never resolves it and cannot fetch
+    /// data. The caller supplies the candles, and this records which instrument
+    /// they are expected to be, so a stored spec still says what it was written
+    /// for.
     pub symbol: String,
-    /// Optional reference symbol for pair indicators.
+    /// The reference instrument a pairwise indicator is meant to be run against.
+    ///
+    /// Also metadata. Naming it here does not load anything: the reference series
+    /// is passed alongside the candles, through `RunRequest.reference` or
+    /// `run_with_ref`. This field records which instrument the caller is expected
+    /// to pass, so a spec using a pairwise indicator is not ambiguous about what
+    /// it is pairing against.
     #[serde(default)]
     pub ref_symbol: Option<String>,
     /// Bar timeframe (e.g. `"1h"`).
+    ///
+    /// Metadata, like `symbol`: a free-form label recording the bar size the spec
+    /// was written for. The engine reads whatever candles it is given and does not
+    /// check them against this.
     pub timeframe: String,
     /// Named indicators available to the rules.
     pub indicators: BTreeMap<String, IndicatorSpec>,
