@@ -72,3 +72,25 @@ for (path in requests) {
   }
 }
 cat("R feed golden parity: all", length(requests), "requests match\n")
+
+# Streaming golden parity: driving each shared case one bar at a time must
+# reproduce the same canonical report the batch entry point produces. The loop
+# above pins the batch side; this pins that streaming did not drift away from it.
+for (path in cases) {
+  raw <- readChar(path, file.info(path)$size)
+  case <- jsonlite::fromJSON(raw, simplifyVector = TRUE)
+  spec_json <- extract_spec(raw)
+  bt <- backtest_stream_new(spec_json, capital = case$capital)
+  for (i in seq_along(case$close)) {
+    backtest_stream_step(bt, case$open[i], case$high[i], case$low[i],
+                         case$close[i], case$volume[i], case$time[i])
+  }
+  got <- backtest_stream_finish_json(bt)
+  exp_path <- file.path(golden, "expected", paste0(case$name, ".json"))
+  want <- trimws(readChar(exp_path, file.info(exp_path)$size))
+  if (!identical(got, want)) {
+    cat("STREAMING MISMATCH", case$name, "\n got: ", got, "\nwant: ", want, "\n")
+    quit(status = 1)
+  }
+}
+cat("R streaming golden parity: all", length(cases), "cases match\n")

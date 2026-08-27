@@ -8,6 +8,13 @@ to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ### Added
 
+- Streaming golden parity in every reach: the shared cases (`golden/cases/`) are
+  now also driven one bar at a time and asserted against the same canonical
+  reports (`golden/expected/`) the batch path produces -- in the Rust core, and in
+  the Python, Node, WASM, C#, Go, Java and R bindings. The streaming tests
+  deliberately have no `WICKRA_BLESS` of their own: a streaming run that needed
+  its own baseline would mean the two paths had diverged, which is what this pins
+  shut.
 - A C example driving the streaming handle (`examples/c/streaming.c`), built and
   run as a second CTest case. It reads the trade count and latest equity point
   between bars, then runs the same bars through the batch entry point and exits
@@ -359,6 +366,11 @@ to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
   and an edit made in place is lost on the next run.
 
 ### Fixed
+
+- `bindings/r/tests/golden.R` was executed by no workflow, so the R binding's
+  golden parity went unverified while every other binding checked it. `ci.yml`
+  now runs it alongside the other R test files. It passes as written -- it had
+  simply never been wired in.
 
 - **A run could price a strategy against a feed it did not carry, and say
   nothing.** `costs.slippage: spread` with no order book charged zero slippage on

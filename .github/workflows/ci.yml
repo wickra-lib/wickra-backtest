@@ -483,6 +483,7 @@ jobs:
           R CMD INSTALL bindings/r
           Rscript bindings/r/tests/run_tests.R
           Rscript bindings/r/tests/streaming.R
+          Rscript bindings/r/tests/golden.R
 
   coverage:
     name: Coverage
