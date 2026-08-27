@@ -8,6 +8,16 @@ to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ### Added
 
+- `scripts/check_version_sync.py`: asserts that every version declaration agrees,
+  and with `--previous` that none still carries the version being replaced. CI
+  runs it on every pull request. The version lives in twenty-odd places across six
+  package managers, and a bump that misses one ships a package pinning a binary
+  that was never published -- a failure that surfaces on a user's machine, after
+  the tag is irreversible.
+- A `Releasing` section in `CONTRIBUTING.md`: the touchpoints, the audit, the
+  ordering, what a `v*` tag publishes, and why the first release is `v0.1.0`
+  rather than a bump.
+
 - `StreamingBacktest.stepJson` on the WASM binding: it could previously carry only
   a reference series (`stepWithRef`), so a strategy reading a derivatives,
   order-book, trade or cross-section feed was unreachable from the browser.
@@ -375,6 +385,11 @@ to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
   next close. Short entries/exits use `short_entry` / `short_exit`.
 
 ### Changed
+
+- `SECURITY.md` names an exact supported version rather than the `0.1.x`
+  wildcard, matching the reference repository. The wildcard left the file
+  half-owned: a patch bump did not touch it, a minor bump did, and nothing said
+  which. It is now a tracked version declaration like any other.
 
 - Documented why the equity curve and trade list are not bounded the way bar
   history now is, on `StreamingBacktest` and in `BENCHMARKS.md`: `finish` computes

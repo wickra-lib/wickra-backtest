@@ -100,6 +100,62 @@ package.
   expectation (see `engine.rs` tests) over a smoke test.
 - One logical change per PR; a clear, imperative commit message.
 
+## Releasing
+
+Only maintainers tag releases, but the process is written down because it is
+irreversible: a tag publishes to crates.io, PyPI, npm, NuGet and Maven Central,
+and none of those can be taken back.
+
+**The version lives in twenty-odd declarations** across six package managers --
+the workspace manifest and its internal dependency pins, the Python, Node, R,
+Java and C# manifests, the six per-platform npm packages, the Node lockfile and
+generated loader, the Java example, and `SECURITY.md`. Missing one produces a
+release that installs a package pinning a binary that was never published, and
+that surfaces on a user's machine rather than in CI. So the first step is the
+audit, which CI also runs on every pull request:
+
+```bash
+python3 scripts/check_version_sync.py            # every declaration agrees
+python3 scripts/check_version_sync.py --previous 0.1.0   # and none is stale
+```
+
+It checks declarations, not prose: the `e.g. 0.1.0` in the issue templates is an
+illustration and is deliberately not tracked.
+
+### The flow
+
+1. Bump every declaration, run `cargo build` so `Cargo.lock` follows, and
+   regenerate the Node artefacts (`npm run build` in `bindings/node`).
+2. Move the `[Unreleased]` heading in `CHANGELOG.md` to the new version with the
+   date, and add the two comparison links at the bottom of the file.
+3. Run the audit above with `--previous <the version you came from>`.
+4. Open a pull request. Everything is still reversible up to here.
+5. After it merges, tag the merge commit explicitly by SHA -- not `main`, which
+   may have moved -- and push the tag:
+
+   ```bash
+   git tag -s v0.1.0 <merge-sha> -m "v0.1.0"
+   git push origin v0.1.0
+   ```
+
+### What the tag triggers
+
+Pushing a `v*` tag runs `release.yml`, which publishes the four crates to
+crates.io, wheels and an sdist to PyPI, the Node binding and the WASM package to
+npm, the C# package to NuGet, the Java binding to Maven Central, mirrors the Go
+module to its own repository, and attaches the built C ABI libraries, `.crate`
+files and CycloneDX SBOMs to a GitHub Release with build provenance attestations.
+Every publish step is idempotent, so a re-run after a partial failure is safe;
+what is not safe is a wrong version, because the registries will not accept a
+replacement.
+
+### The first release
+
+The version in every manifest is `0.1.0` and has never been tagged, so the first
+release is `v0.1.0` itself -- there is no bump to run, only the CHANGELOG move
+and the tag. Skipping to `0.1.1` would burn a version number that was never
+published.
+
 ## Design rules
 
 - **Strategies are data, not code.** The `StrategySpec` is JSON so the same

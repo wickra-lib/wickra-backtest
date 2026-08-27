@@ -118,6 +118,12 @@ jobs:
       - name: Compare every binding's surface with the C ABI
         run: python3 scripts/check_binding_surface.py
 
+      # The version lives in twenty-odd declarations across six package managers.
+      # A bump that misses one ships a package pinning a binary that was never
+      # published, and that surfaces on a user's machine after the tag.
+      - name: Every version declaration agrees
+        run: python3 scripts/check_version_sync.py
+
   supply-chain:
     name: cargo-deny
     runs-on: ubuntu-latest
