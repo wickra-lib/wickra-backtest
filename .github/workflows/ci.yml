@@ -103,6 +103,21 @@ jobs:
         timeout-minutes: 6
       - run: cargo build -p wickra-backtest-node
 
+  binding-surface:
+    name: Binding surface parity
+    runs-on: ubuntu-latest
+    timeout-minutes: 10 # a static check; if it is not done in ten minutes it is stuck
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+
+      # Ten language reaches sit on one C ABI, and each is tested separately. The
+      # golden corpus compares values, so a binding that never grew a method has
+      # no test to fail. This holds every language to the header instead.
+      - name: Compare every binding's surface with the C ABI
+        run: python3 scripts/check_binding_surface.py
+
   supply-chain:
     name: cargo-deny
     runs-on: ubuntu-latest

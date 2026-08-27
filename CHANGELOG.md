@@ -302,6 +302,19 @@ to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ### Fixed
 
+- **Nothing held the ten language reaches to the C ABI.** Each binding has its own
+  suite and the golden corpus compares *values*, so a binding that never grew a
+  method has no test to fail — the WASM streaming handle, which no other language
+  can reach, sat there unreported. `scripts/check_binding_surface.py` now derives
+  the contract from `bindings/c/include/wickra_backtest.h` and checks each
+  language's public surface for it, spelled the way that language spells it
+  (`run_json` → Node's `runJson`, Go's `RunJSON`, R's `backtest_run_json`), and
+  runs as a `binding-surface` CI job. It matches *declarations*, not occurrences:
+  a first version searched the raw text and let a renamed Go export pass because
+  its own doc comment still named it. A binding that is ahead of the ABI is
+  reported as a note rather than a failure, which is how the WASM streaming gap
+  now shows up on every run until it is closed.
+
 - **The fuzz job ran on a rolling `nightly`.** A smoke test whose toolchain
   changes underneath it fails on days that have nothing to do with this code, and
   a job that fails at random stops being read. It is pinned to the same dated
