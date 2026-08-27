@@ -429,6 +429,12 @@ to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ### Fixed
 
+- `js-yaml` moves to 4.3.2, past the fix for GHSA-5p4m-2wfm-xmqj (quadratic CPU
+  consumption resolving `!!omap`). It reaches the tree through `@napi-rs/cli`, a
+  build-time dependency of the Node binding, so nothing shipped to users was
+  exposed -- but a patch inside the existing range costs nothing, and the frozen
+  napi major is untouched.
+
 - `links.yml` described a non-blocking link check running on pull requests in
   `ci.yml`. No such job existed -- the comment came from the reference repository,
   where it does. Added, pinned and non-blocking, so the description is true.
