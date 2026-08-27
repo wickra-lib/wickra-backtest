@@ -2,9 +2,17 @@
 **/*.rs.bk
 Cargo.lock.bak
 .DS_Store
+Thumbs.db
+*.swp
 .idea/
 .vscode/
 *.pdb
+
+# Coverage output. `cargo llvm-cov` writes lcov.info to the repository root and
+# scatters *.profraw during instrumentation, so both show up as untracked after
+# running the coverage job's command locally.
+lcov.info
+*.profraw
 
 # Python build artifacts
 __pycache__/
@@ -15,6 +23,7 @@ __pycache__/
 dist/
 .venv/
 build/
+.pytest_cache/
 
 # Node build artifacts (index.js / index.d.ts ARE committed)
 node_modules/

@@ -302,6 +302,14 @@ to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ### Fixed
 
+- **The coverage job's own output was untracked noise.** `cargo llvm-cov` writes
+  `lcov.info` to the repository root and scatters `*.profraw` while
+  instrumenting, and neither was ignored — so running the command CI runs left a
+  dirty tree, which is how a generated file eventually gets committed by
+  accident. Both are ignored now, along with `.pytest_cache/`, `Thumbs.db` and
+  `*.swp`; the first two were the counterparts of rules the file already had for
+  the other platform.
+
 - **`CONTRIBUTING.md` never explained the sign-off it requires.** The `DCO` file
   sits in the repository root and every contribution is made under it, but
   nothing told a contributor to pass `-s`, what the trailer looks like, or that
