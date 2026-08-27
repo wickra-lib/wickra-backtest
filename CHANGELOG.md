@@ -302,6 +302,18 @@ to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ### Fixed
 
+- **The supply-chain gate never looked at the optional dependency trees.**
+  `deny.toml` had no `[graph]` section, so `cargo deny` scanned default features
+  only — while every exception the file defines exists for a crate that appears
+  *only* through an optional feature: `tiny-keccak` via `parquet`,
+  `webpki-roots` via `binance`, and the `paste` advisory-ignore likewise via
+  `parquet`. Deleting both license exceptions and re-running still reported
+  "licenses ok", which is the proof: those crates were not in the graph at all,
+  and neither the exceptions nor the licences of the two feature stacks were ever
+  evaluated. With `all-features = true` the same deletion now produces a
+  rejection. `allow-wildcard-paths` and an explicit `allow-registry` were added
+  alongside, matching the indicator repository.
+
 - **Two clippy lints were switched off globally that the code did not need off.**
   `many_single_char_names` was allowed workspace-wide; exactly one function
   tripped it, and the project's own convention is to give maths-heavy code
