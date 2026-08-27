@@ -302,6 +302,19 @@ to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ### Fixed
 
+- **The facade crate could not name half of what it hands back.** `wickra-backtest`
+  re-exported nineteen items from the core by hand, and the list had drifted:
+  `BacktestReport` was exported while `Metrics`, the type of its own `.metrics`
+  field, was not; `StreamingBacktest` was exported while `Feeds`, which
+  `step_with_feeds` takes, was not; `run_json` — described in the README as the
+  entry point every binding wraps — was absent from the crate named after the
+  library; and no spec type was exported at all, so a `StrategySpec` could only be
+  reached by parsing JSON, never built from typed parts. Twenty-seven names were
+  missing. It is now `pub use wickra_backtest_core::*;`, the same glob the
+  indicator facade uses, which cannot drift. The facade also gains its first six
+  tests, naming exactly the types that were missing so a narrowing back to a list
+  stops compiling.
+
 - **The link checker walked more than links and excluded less than it thought.**
   `lychee.toml` set no `scheme`, so `mailto:`, `file:` and `tel:` URIs were
   followed alongside real external links; it is now restricted to http and https.
