@@ -428,6 +428,13 @@ to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ### Fixed
 
+- The release WASM build failed in `wasm-opt`: the bundled binaryen validates with
+  most post-MVP features off and rejected its own input once the compiler emitted
+  `memory.copy` for the bounded-history ring buffer. `bindings/wasm/Cargo.toml`
+  now enables exactly the six features the module reports using -- all standard,
+  all supported by the runtimes this package targets -- so the optimisation pass
+  is kept rather than switched off.
+
 - The R job installs `jsonlite`, which `bindings/r/tests/golden.R` needs to read
   the shared case corpus. That file had never been executed by any workflow, so
   its dependency had never been required; wiring it into CI is what surfaced it.

@@ -20,3 +20,26 @@ wasm-bindgen = "0.2"
 
 [lints]
 workspace = true
+
+# wasm-opt runs as part of `wasm-pack build`. The binaryen it ships (version 117)
+# validates with most post-MVP features off, and rejects its own input as soon as
+# the compiler emits one of them: "Bulk memory operations require bulk memory".
+# The bounded-history ring buffer is what tips it over here -- rotating the window
+# lowers to `memory.copy` -- but the module legitimately carries all six features
+# listed below, every one of them standard and supported by the runtimes this
+# package targets.
+#
+# The list is exactly what `wasm-opt --print-features` reports for the module, not
+# a blanket enable: a feature that appears here and later stops being used is
+# worth noticing. Turning wasm-opt off would also silence it, at the cost of the
+# optimisation pass.
+[package.metadata.wasm-pack.profile.release]
+wasm-opt = [
+    '-O',
+    '--enable-bulk-memory',
+    '--enable-sign-ext',
+    '--enable-nontrapping-float-to-int',
+    '--enable-mutable-globals',
+    '--enable-reference-types',
+    '--enable-multivalue',
+]
