@@ -8,6 +8,12 @@ to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ### Added
 
+- Python: a `StreamingBacktest` class (`step` / `step_json` / `equity` /
+  `latest_equity` / `num_trades` / `finish` / `close`, plus context-manager
+  support), typed in `__init__.pyi`. `step` takes an optional `feeds` mapping so a
+  strategy reading a reference, derivatives, order-book, trade or cross-section
+  feed can be driven bar by bar, and `time` defaults to the bar index the way
+  `run` defaults it to `range(len)`.
 - C ABI: an opaque streaming handle (`wickra_backtest_stream_new` / `_step` /
   `_step_json` / `_equity_json` / `_latest_equity_json` / `_num_trades` /
   `_finish_json` / `_free`), each wrapped in `catch_unwind` like the batch entry
@@ -184,7 +190,9 @@ to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
   This pins cross-language equality for the feed paths, not just the plain OHLCV
   path — the microstructure differentiator is now regression-proof end to end.
 
-### Changed
+- `EvalIndicator` now requires `Sync` as well as `Send`. Every indicator already
+  satisfied it, so nothing was excluded; the bound lets a streaming run be held
+  by a Python object without opting out of thread safety.
 
 - Intrabar stop / target fills are now gap-aware: a stop still fills at its level
   when price trades through it intrabar, but if the bar *opens* beyond the level
@@ -309,6 +317,14 @@ to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
   and stop-loss / take-profit are checked **intrabar** against each bar's OHLC and
   fill at the level (conservative stop-before-target ordering) instead of at the
   next close. Short entries/exits use `short_entry` / `short_exit`.
+
+### Changed
+
+- `EvalIndicator` now requires `Sync` as well as `Send`. Every indicator already
+  satisfied it, so nothing was excluded from the registry; the bound is what lets
+  a streaming run be owned by a Python object without opting out of thread
+  safety. It lives in `tools/gen_registry.py`, since `registry.rs` is generated
+  and an edit made in place is lost on the next run.
 
 ### Fixed
 

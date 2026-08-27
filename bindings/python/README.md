@@ -32,6 +32,21 @@ print(report["metrics"])
 
 Lists, `array.array` and NumPy arrays all work as inputs (NumPy is not required).
 
+The same strategy also runs one bar at a time, which is what makes a backtest and
+a live loop the same code path — swap the array for a socket and nothing else
+changes:
+
+```python
+with wbt.StreamingBacktest(spec=spec, capital=10_000) as bt:
+    for bar in feed:
+        bt.step(bar.open, bar.high, bar.low, bar.close, bar.volume, bar.time)
+        print(bt.num_trades, bt.latest_equity())
+    report = bt.finish()
+```
+
+Strategies that read a side feed pass it per bar with
+`bt.step(..., feeds={"reference": other_close})`.
+
 ## Documentation
 
 - **Repository:** <https://github.com/wickra-lib/wickra-backtest>

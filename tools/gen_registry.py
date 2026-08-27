@@ -144,7 +144,7 @@ pub struct BarInput<'a> {
 }
 
 /// A uniform, object-safe indicator the engine drives one bar at a time.
-pub trait EvalIndicator: Send {
+pub trait EvalIndicator: Send + Sync {
     /// Feed one bar's [`BarInput`]; returns the primary value, or `None` while
     /// warming up or when the required feed is absent.
     fn update(&mut self, input: &BarInput) -> Option<f64>;
@@ -159,7 +159,7 @@ struct ScalarClose<I>(I);
 
 impl<I> EvalIndicator for ScalarClose<I>
 where
-    I: Indicator<Input = f64, Output = f64> + Send,
+    I: Indicator<Input = f64, Output = f64> + Send + Sync,
 {
     fn update(&mut self, input: &BarInput) -> Option<f64> {
         self.0.update(input.candle.close)
@@ -177,7 +177,7 @@ struct CandleIn<I>(I);
 
 impl<I> EvalIndicator for CandleIn<I>
 where
-    I: Indicator<Input = CoreCandle, Output = f64> + Send,
+    I: Indicator<Input = CoreCandle, Output = f64> + Send + Sync,
 {
     fn update(&mut self, input: &BarInput) -> Option<f64> {
         input.candle.to_core().ok().and_then(|c| self.0.update(c))
@@ -196,7 +196,7 @@ struct PairClose<I>(I);
 
 impl<I> EvalIndicator for PairClose<I>
 where
-    I: Indicator<Input = (f64, f64), Output = f64> + Send,
+    I: Indicator<Input = (f64, f64), Output = f64> + Send + Sync,
 {
     fn update(&mut self, input: &BarInput) -> Option<f64> {
         input
@@ -217,7 +217,7 @@ struct DerivativesIn<I>(I);
 
 impl<I> EvalIndicator for DerivativesIn<I>
 where
-    I: Indicator<Input = CoreDerivativesTick, Output = f64> + Send,
+    I: Indicator<Input = CoreDerivativesTick, Output = f64> + Send + Sync,
 {
     fn update(&mut self, input: &BarInput) -> Option<f64> {
         input.deriv.and_then(|d| self.0.update(d))
@@ -236,7 +236,7 @@ struct OrderBookIn<I>(I);
 
 impl<I> EvalIndicator for OrderBookIn<I>
 where
-    I: Indicator<Input = CoreOrderBook, Output = f64> + Send,
+    I: Indicator<Input = CoreOrderBook, Output = f64> + Send + Sync,
 {
     fn update(&mut self, input: &BarInput) -> Option<f64> {
         input.orderbook.and_then(|ob| self.0.update(ob.clone()))
@@ -256,7 +256,7 @@ struct TradeIn<I>(I);
 
 impl<I> EvalIndicator for TradeIn<I>
 where
-    I: Indicator<Input = CoreTrade, Output = f64> + Send,
+    I: Indicator<Input = CoreTrade, Output = f64> + Send + Sync,
 {
     fn update(&mut self, input: &BarInput) -> Option<f64> {
         let mut last = None;
@@ -280,7 +280,7 @@ struct TradeQuoteIn<I>(I);
 
 impl<I> EvalIndicator for TradeQuoteIn<I>
 where
-    I: Indicator<Input = CoreTradeQuote, Output = f64> + Send,
+    I: Indicator<Input = CoreTradeQuote, Output = f64> + Send + Sync,
 {
     fn update(&mut self, input: &BarInput) -> Option<f64> {
         let mid = input
@@ -312,7 +312,7 @@ struct CrossSectionIn<I>(I);
 
 impl<I> EvalIndicator for CrossSectionIn<I>
 where
-    I: Indicator<Input = CoreCrossSection, Output = f64> + Send,
+    I: Indicator<Input = CoreCrossSection, Output = f64> + Send + Sync,
 {
     fn update(&mut self, input: &BarInput) -> Option<f64> {
         input.cross_section.and_then(|cs| self.0.update(cs.clone()))

@@ -46,7 +46,7 @@ OPTIONAL = {"run"}
 # the gap is printed on every run, and once every binding carries a name the entry
 # below is stale -- the check then fails and tells you to delete it, so the
 # exemption cannot outlive the migration it was written for.
-PENDING = {
+STREAMING = frozenset({
     "stream_new",
     "stream_step",
     "stream_step_json",
@@ -55,6 +55,44 @@ PENDING = {
     "stream_num_trades",
     "stream_finish_json",
     "stream_free",
+})
+# Which bindings have not grown the streaming surface yet. This is keyed by
+# language on purpose: a global list of exempt names would let a binding that
+# already has one quietly lose it again and still pass. An entry is a migration
+# in progress, not a licence -- the moment a binding declares a name listed as
+# pending for it, the check fails and says to delete the entry, so the list can
+# only shrink.
+PENDING = {
+    "node": STREAMING,
+    "wasm": STREAMING,
+    "csharp": STREAMING,
+    "go": STREAMING,
+    "java": STREAMING,
+    "r": STREAMING,
+}
+
+# A streaming run is a class in most languages -- an object you construct, step
+# and dispose -- not eight free functions. The ABI has to spell it flat; a
+# binding should not. Declare the correspondence once, so a class API counts as
+# the capability instead of reading as a hole.
+STREAM_MEMBERS = {
+    "stream_step": "step",
+    "stream_step_json": "step_json",
+    "stream_equity_json": "equity",
+    "stream_latest_equity_json": "latest_equity",
+    "stream_num_trades": "num_trades",
+    "stream_finish_json": "finish",
+    "stream_free": "close",
+}
+
+# For these languages, `stream_new` means the class exists and the rest mean it
+# declares that member. Languages absent here are still checked flat.
+CLASS_STREAMING = {
+    "python": (
+        lambda n: n,
+        r"(?m)^    def @NAME@\b",
+        r"(?m)^class StreamingBacktest\b",
+    ),
 }
 
 # How each language spells an export, where its public surface lives, and how that
@@ -66,7 +104,9 @@ BINDINGS = {
     "python": (
         ["bindings/python/python/wickra_backtest/__init__.py"],
         lambda n: "__version__" if n == "version" else n,
-        r"(?m)^(?:def @NAME@\(|@NAME@\s*[:=]|from .* import .*\b@NAME@\b(?!\s+as\b))",
+        # The last alternative is a name on its own line inside a parenthesised
+        # `from ... import (...)`, which is still an import, not a mention.
+        r"(?m)^(?:def @NAME@\(|@NAME@\s*[:=]|from .* import .*\b@NAME@\b(?!\s+as\b)| +@NAME@,)",
     ),
     "node": (
         ["bindings/node/index.d.ts"],
@@ -108,6 +148,18 @@ def declares(text: str, name: str, pattern: str) -> bool:
     return re.search(pattern.replace("@NAME@", re.escape(name)), text) is not None
 
 
+def exposes(lang: str, text: str, export: str, spell, pattern: str) -> bool:
+    """True when `lang` offers `export`, in whichever shape that language uses."""
+    members = CLASS_STREAMING.get(lang)
+    if members is None or not export.startswith("stream_"):
+        return declares(text, spell(export), pattern)
+    mspell, mpattern, class_pattern = members
+    if export == "stream_new":
+        return re.search(class_pattern, text) is not None
+    member = STREAM_MEMBERS[export]
+    return declares(text, mspell(member), mpattern)
+
+
 def read(paths: list[str]) -> str:
     out = []
     for rel in paths:
@@ -138,13 +190,18 @@ def main() -> int:
         if not text:
             failures.append(f"{lang}: no source found at {', '.join(paths)}")
             continue
+        exempt = PENDING.get(lang, frozenset())
         missing = [spell(e) for e in required
-                   if e not in PENDING and not declares(text, spell(e), pattern)]
+                   if e not in exempt and not exposes(lang, text, e, spell, pattern)]
         pending[lang] = [e for e in required
-                         if e in PENDING and not declares(text, spell(e), pattern)]
-        present = [e for e in contract if declares(text, spell(e), pattern)]
+                         if e in exempt and not exposes(lang, text, e, spell, pattern)]
+        arrived = sorted(e for e in exempt if exposes(lang, text, e, spell, pattern))
+        present = [e for e in contract if exposes(lang, text, e, spell, pattern)]
         if missing:
             failures.append(f"{lang}: missing {', '.join(missing)}")
+        if arrived:
+            failures.append(f"{lang}: now declares {', '.join(arrived)}"
+                            " -- remove it from PENDING in this script")
         print(f"  {lang:<7} {len(present)}/{len(contract)} of the ABI surface"
               f"{'' if not missing else '  <-- DRIFTED'}"
               f"{'' if not pending[lang] else f'  ({len(pending[lang])} pending)'}")
@@ -158,12 +215,6 @@ def main() -> int:
         notes.append("wasm exposes methods no export backs, so no other language "
                      f"can reach them: {', '.join(sorted(set(ahead)))}")
 
-    # An exemption that every binding has outgrown is a stale exemption.
-    landed = sorted(e for e in PENDING
-                    if not any(e in miss for miss in pending.values()))
-    if landed:
-        failures.append("every binding now declares " + ", ".join(landed)
-                        + " -- remove them from PENDING in this script")
     still = sorted({e for miss in pending.values() for e in miss})
     if still:
         notes.append("streaming wrappers still to be written; the C ABI already "
