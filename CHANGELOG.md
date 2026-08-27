@@ -302,6 +302,18 @@ to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ### Fixed
 
+- **The workspace defined no build profiles at all**, so release artifacts were
+  built without LTO and — more seriously — the panic strategy for four cdylibs was
+  whatever the default happened to be. Cargo refuses `panic` in a per-package
+  profile, so the workspace `[profile.release]` is the only place that setting can
+  live: the Python, Node, WASM and C ABI libraries are all built with it. The C ABI
+  wraps every entry point in `catch_unwind` and pyo3 and napi turn a caught panic
+  into a language-level exception; under `abort` none of that can run and a panic
+  reaching an FFI boundary would take the host process down instead of raising.
+  `panic = "unwind"` is now stated with that reasoning rather than inherited by
+  luck, alongside `lto = "fat"`, `codegen-units = 1` and `strip`, plus the bench
+  and dev profiles.
+
 - **The workspace had no `[workspace.lints.rust]` block**, so `unsafe_code`,
   `unused_must_use`, `unreachable_pub` and `missing_debug_implementations` were
   unenforced across all nine crates while the clippy set beside them was strict.
