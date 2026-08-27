@@ -302,6 +302,16 @@ to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ### Fixed
 
+- **`CONTRIBUTING.md` never explained the sign-off it requires.** The `DCO` file
+  sits in the repository root and every contribution is made under it, but
+  nothing told a contributor to pass `-s`, what the trailer looks like, or that
+  the name and email must match the author. The guide also gave one Rust command
+  block for a repository with eight bindings, no project layout, and no lockfile
+  policy — so which `package-lock.json` is committed, and why, was folklore. All
+  four are now written down. The per-binding commands are the ones CI actually
+  runs, checked against the workflow rather than written from memory, which
+  caught three of my own that were plausible and wrong.
+
 - **`SECURITY.md` documented neither how to verify a release nor how advisories
   are triaged**, although the release workflow produces build provenance
   attestations, the README carries a provenance badge, and `osv-scanner.toml`

@@ -3,7 +3,23 @@
 Thanks for your interest in `wickra-backtest` — the streaming-native backtester
 for the [Wickra](https://github.com/wickra-lib/wickra) indicator library.
 
-## Development
+## Project layout
+
+| Path | What it is |
+| --- | --- |
+| `crates/wickra-backtest-core` | The engine: spec, rules, fill model, portfolio, metrics, indicator registry. Everything correctness-critical lives here. |
+| `crates/wickra-backtest-data` | Loaders (CSV, JSON, JSON Lines, Parquet), resampling and the Renko / Kagi / Point-and-Figure transforms. |
+| `crates/wickra-backtest` | The facade users depend on. It re-exports the core surface as a glob, so it cannot drift out of step with it. |
+| `crates/wickra-backtest-cli` | The `wkbt` binary. |
+| `crates/wickra-backtest-bench` | Criterion benchmarks. |
+| `bindings/c` | The C ABI. Every non-Rust binding goes through it, so a change here is a change to eight languages at once. |
+| `bindings/{python,node,wasm}` | Native bindings that link the core directly (PyO3, napi-rs, wasm-bindgen). |
+| `bindings/{csharp,go,java,r}` | Bindings over the C ABI. |
+| `golden/` | The corpus every binding replays. `cases/` and `requests/` are inputs, `expected/` and `expected_json/` are the pinned outputs. |
+| `schema/` | The JSON Schema for `StrategySpec`, generated from the code and drift-tested. |
+| `fuzz/` | A detached workspace with five libFuzzer targets. |
+
+## Building and testing
 
 ```bash
 cargo build --workspace
@@ -18,6 +34,63 @@ Run a backtest locally:
 ```bash
 cargo run --bin wkbt -- run --data examples/sample.csv --spec examples/ema-cross.json
 ```
+
+### Per binding
+
+Each binding has its own suite and CI runs all of them. The commands below are
+the ones CI uses; anything that links the C ABI needs it built first.
+
+```bash
+cargo build -p wickra-backtest-c --release
+
+# Python (PyO3)
+( cd bindings/python && maturin develop && pytest tests -q )
+
+# Node (napi-rs)
+( cd bindings/node && npm install && npx napi build --platform --release && node --test )
+
+# WASM (wasm-bindgen)
+wasm-pack build bindings/wasm --target nodejs --release --out-dir pkg
+node --test bindings/wasm/tests/*.test.cjs
+
+# Go (cgo) -- the C ABI must be on the library path
+( cd bindings/go && go vet ./... && go test ./... )
+
+# C# (P/Invoke)
+dotnet test bindings/csharp/Wickra.Backtest.Tests/Wickra.Backtest.Tests.csproj -c Release
+
+# Java (FFM)
+mvn -B -f bindings/java test
+
+# R (.Call)
+Rscript bindings/r/tests/run_tests.R
+```
+
+Two things are easy to trip over:
+
+- `bindings/go/include/wickra_backtest.h` is a **copy** of the C ABI header and
+  CI diffs the two. Change the ABI and you must copy the header across, or the Go
+  job fails with a stale-header error.
+- `bindings/r` builds against a downloaded release asset by default. Set
+  `WKBT_INC` and `WKBT_LIB` to build against a locally built C ABI instead, and
+  put the library directory on `PATH` (Windows) or `LD_LIBRARY_PATH` /
+  `DYLD_LIBRARY_PATH` — see `bindings/r/configure`.
+
+A binding that grows a method the C ABI does not export, or loses one it does,
+fails `scripts/check_binding_surface.py`, which CI runs as `binding-surface`.
+
+## Lockfile policy
+
+| Component | Lockfile | Tracked? | Why |
+| --- | --- | --- | --- |
+| Workspace (Rust) | `Cargo.lock` | **yes** | The workspace ships binaries (`wkbt`, the fuzz harness) and CI builds from it, so the graph is pinned for reproducible builds. |
+| `bindings/node` | `package-lock.json` | **yes** | Reproducible `npm ci` for the native binding, and the six platform packages are pinned to the exact version alongside it — a bump that misses the lock fails `npm ci` with `EUSAGE`. |
+| `bindings/python` | — | n/a | The published package declares `dependencies = []`; there is nothing to lock at runtime, and the native code is pinned through the workspace `Cargo.lock`. |
+| `fuzz` | — | n/a | `fuzz/` is a detached crate with no committed lock; the smoke job resolves fresh, which is fine because it proves the targets still build rather than reproducing a byte-identical binary. |
+
+When adding a committed Node package, commit its `package-lock.json` too. Do
+**not** add a top-level `package-lock.json` — the repository root is not an npm
+package.
 
 ## Before opening a PR
 
@@ -44,6 +117,28 @@ The registry (`registry.rs`) wraps `wickra-core` indicators behind a uniform
 `EvalIndicator`. New indicators are added there (and, eventually, generated from
 the Wickra manifest). Multi-output indicators expose named fields referenced as
 `"name.field"`.
+
+## Developer Certificate of Origin (DCO)
+
+All contributions are made under the [Developer Certificate of Origin (DCO)
+1.1](DCO). Signing off certifies that you wrote the patch, or otherwise have the
+right to submit it under the project's `MIT OR Apache-2.0` license.
+
+Sign off every commit with a `Signed-off-by` trailer carrying your real name and
+email — Git adds it with `-s`:
+
+```bash
+git commit -s -m "your message"
+```
+
+which produces:
+
+```
+Signed-off-by: Your Name <you@example.com>
+```
+
+The name and email must match the commit author. To sign off a commit you have
+already made, amend it with `git commit -s --amend`.
 
 ## License
 
