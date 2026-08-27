@@ -41,6 +41,21 @@ HEADER = os.path.join(ROOT, "bindings", "c", "include", "wickra_backtest.h")
 ABI_ONLY = {"free_string"}
 # Exports a binding may legitimately wrap instead of re-exposing verbatim.
 OPTIONAL = {"run"}
+# The streaming surface reached the C ABI before its language wrappers did, so a
+# binding may still be missing it. This is a migration in progress, not a licence:
+# the gap is printed on every run, and once every binding carries a name the entry
+# below is stale -- the check then fails and tells you to delete it, so the
+# exemption cannot outlive the migration it was written for.
+PENDING = {
+    "stream_new",
+    "stream_step",
+    "stream_step_json",
+    "stream_equity_json",
+    "stream_latest_equity_json",
+    "stream_num_trades",
+    "stream_finish_json",
+    "stream_free",
+}
 
 # How each language spells an export, where its public surface lives, and how that
 # language DECLARES a name. Matching declarations rather than occurrences matters:
@@ -117,18 +132,22 @@ def main() -> int:
     print(f"C ABI declares {len(exports)} exports; {len(required)} are required of "
           f"every binding ({', '.join(required)}).")
 
-    failures, notes = [], []
+    failures, notes, pending = [], [], {}
     for lang, (paths, spell, pattern) in BINDINGS.items():
         text = read(paths)
         if not text:
             failures.append(f"{lang}: no source found at {', '.join(paths)}")
             continue
-        missing = [spell(e) for e in required if not declares(text, spell(e), pattern)]
+        missing = [spell(e) for e in required
+                   if e not in PENDING and not declares(text, spell(e), pattern)]
+        pending[lang] = [e for e in required
+                         if e in PENDING and not declares(text, spell(e), pattern)]
         present = [e for e in contract if declares(text, spell(e), pattern)]
         if missing:
             failures.append(f"{lang}: missing {', '.join(missing)}")
         print(f"  {lang:<7} {len(present)}/{len(contract)} of the ABI surface"
-              f"{'' if not missing else '  <-- DRIFTED'}")
+              f"{'' if not missing else '  <-- DRIFTED'}"
+              f"{'' if not pending[lang] else f'  ({len(pending[lang])} pending)'}")
 
     # A binding that is ahead of the ABI is worth seeing, but it is not drift in
     # the direction that breaks callers.
@@ -139,6 +158,17 @@ def main() -> int:
         notes.append("wasm exposes methods no export backs, so no other language "
                      f"can reach them: {', '.join(sorted(set(ahead)))}")
 
+    # An exemption that every binding has outgrown is a stale exemption.
+    landed = sorted(e for e in PENDING
+                    if not any(e in miss for miss in pending.values()))
+    if landed:
+        failures.append("every binding now declares " + ", ".join(landed)
+                        + " -- remove them from PENDING in this script")
+    still = sorted({e for miss in pending.values() for e in miss})
+    if still:
+        notes.append("streaming wrappers still to be written; the C ABI already "
+                     f"exports {', '.join(still)}")
+
     for note in notes:
         print(f"\nnote: {note}")
     if failures:
@@ -146,7 +176,8 @@ def main() -> int:
         for line in failures:
             print(f"  {line}", file=sys.stderr)
         return 1
-    print("\nevery binding exposes the surface the C ABI declares.")
+    print("\nevery binding exposes the surface the C ABI declares"
+          f"{' (streaming wrappers pending)' if still else ''}.")
     return 0
 
 

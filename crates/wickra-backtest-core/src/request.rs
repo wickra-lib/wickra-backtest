@@ -152,3 +152,58 @@ mod tests {
         assert!(run_json(request).is_err());
     }
 }
+
+/// One bar's optional side feeds, as a JSON document.
+///
+/// [`RunRequest`] carries the whole run's feeds as parallel arrays, which only
+/// works when every bar is known up front. A streaming caller has one bar at a
+/// time, so it needs the same information in per-bar shape: this is that shape,
+/// and it deserialises from the same field names a `RunRequest` element uses.
+/// Every field is optional — an absent feed is simply not supplied to the bar.
+#[derive(Debug, Clone, Default, Deserialize)]
+pub struct StepFeeds {
+    /// Reference-series close for pairwise indicators.
+    #[serde(default)]
+    pub reference: Option<f64>,
+    /// Derivatives tick for derivatives indicators and funding.
+    #[serde(default)]
+    pub deriv: Option<DerivativesTick>,
+    /// Order-book snapshot for order-book and spread indicators.
+    #[serde(default)]
+    pub orderbook: Option<OrderBook>,
+    /// Trades that printed within this bar, for trade-flow indicators.
+    #[serde(default)]
+    pub trades: Option<Vec<TradePrint>>,
+    /// Market cross-section for this bar, for breadth indicators.
+    #[serde(default)]
+    pub cross_section: Option<CrossSection>,
+}
+
+impl StepFeeds {
+    /// Borrow this document as the engine's per-bar [`Feeds`].
+    #[must_use]
+    pub fn as_feeds(&self) -> Feeds<'_> {
+        Feeds {
+            reference: self.reference,
+            deriv: self.deriv.as_ref(),
+            orderbook: self.orderbook.as_ref(),
+            trades: self.trades.as_deref(),
+            cross_section: self.cross_section.as_ref(),
+        }
+    }
+}
+
+/// One streaming step as a JSON document: the bar, plus that bar's feeds.
+///
+/// This is the streaming counterpart to [`RunRequest`] — the uniform shape a
+/// binding hands to the engine for a single bar, so that every language drives
+/// the streaming path through one document instead of a per-language argument
+/// list that grows with each new feed.
+#[derive(Debug, Clone, Deserialize)]
+pub struct StepRequest {
+    /// The bar to advance by.
+    pub candle: Candle,
+    /// That bar's optional side feeds.
+    #[serde(default)]
+    pub feeds: StepFeeds,
+}

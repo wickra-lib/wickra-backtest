@@ -25,6 +25,14 @@
  */
 #define WICKRA_BT_PANIC 2
 
+/**
+ * An in-progress streaming backtest. Opaque to C; create it with
+ * [`wickra_backtest_stream_new`] and release it with
+ * [`wickra_backtest_stream_free`], or by calling
+ * [`wickra_backtest_stream_finish_json`], which consumes it.
+ */
+typedef struct WickraBacktestStream WickraBacktestStream;
+
 #ifdef __cplusplus
 extern "C" {
 #endif // __cplusplus
@@ -72,6 +80,110 @@ void wickra_backtest_free_string(char *s);
  * The library version as a static NUL-terminated string (do not free).
  */
 const char *wickra_backtest_version(void);
+
+/**
+ * Start a streaming backtest from a JSON strategy spec.
+ *
+ * On success writes the handle to `*out_handle` and returns [`WICKRA_BT_OK`].
+ * On failure writes the message to `*out_err` and leaves `*out_handle` null.
+ *
+ * # Safety
+ * `spec_json` must be a valid NUL-terminated string; `out_handle` and `out_err`
+ * must be valid pointers. Any string written to `*out_err` is freed with
+ * [`wickra_backtest_free_string`].
+ */
+int wickra_backtest_stream_new(const char *spec_json,
+                               double capital,
+                               struct WickraBacktestStream **out_handle,
+                               char **out_err);
+
+/**
+ * Advance the backtest by one candle.
+ *
+ * # Safety
+ * `handle` must come from [`wickra_backtest_stream_new`] and must not have been
+ * freed; `out_err` must be a valid pointer.
+ */
+int wickra_backtest_stream_step(struct WickraBacktestStream *handle,
+                                double open,
+                                double high,
+                                double low,
+                                double close,
+                                double volume,
+                                int64_t time,
+                                char **out_err);
+
+/**
+ * Advance the backtest by one bar described as a JSON document.
+ *
+ * `step_json` is a [`StepRequest`]: `{"candle": {...}, "feeds": {...}}`, where
+ * `feeds` is optional and carries this bar's `reference`, `deriv`, `orderbook`,
+ * `trades` and `cross_section`. Use this rather than
+ * [`wickra_backtest_stream_step`] whenever the strategy reads a side feed —
+ * the scalar form can only supply OHLCV.
+ *
+ * # Safety
+ * `handle` must come from [`wickra_backtest_stream_new`] and must not have been
+ * freed; `step_json` must be a valid NUL-terminated string; `out_err` must be a
+ * valid pointer.
+ */
+int wickra_backtest_stream_step_json(struct WickraBacktestStream *handle,
+                                     const char *step_json,
+                                     char **out_err);
+
+/**
+ * The number of closed trades so far.
+ *
+ * # Safety
+ * `handle` must come from [`wickra_backtest_stream_new`] and must not have been
+ * freed; `out_count` must be a valid pointer.
+ */
+int wickra_backtest_stream_num_trades(const struct WickraBacktestStream *handle,
+                                      uintptr_t *out_count);
+
+/**
+ * The most recent equity point as JSON, or the JSON literal `null` while no bar
+ * has been fed yet.
+ *
+ * # Safety
+ * `handle` must come from [`wickra_backtest_stream_new`] and must not have been
+ * freed; `out_json` must be a valid pointer. Free the string with
+ * [`wickra_backtest_free_string`].
+ */
+int wickra_backtest_stream_latest_equity_json(const struct WickraBacktestStream *handle,
+                                              char **out_json);
+
+/**
+ * The whole equity curve so far, as a JSON array.
+ *
+ * # Safety
+ * `handle` must come from [`wickra_backtest_stream_new`] and must not have been
+ * freed; `out_json` must be a valid pointer. Free the string with
+ * [`wickra_backtest_free_string`].
+ */
+int wickra_backtest_stream_equity_json(const struct WickraBacktestStream *handle, char **out_json);
+
+/**
+ * Close any open position, produce the report JSON, and consume the handle.
+ *
+ * The handle is freed whatever the outcome: it must not be used again, and must
+ * not be passed to [`wickra_backtest_stream_free`].
+ *
+ * # Safety
+ * `handle` must come from [`wickra_backtest_stream_new`] and must not have been
+ * freed; `out_json` must be a valid pointer. Free the string with
+ * [`wickra_backtest_free_string`].
+ */
+int wickra_backtest_stream_finish_json(struct WickraBacktestStream *handle, char **out_json);
+
+/**
+ * Release a handle without producing a report.
+ *
+ * # Safety
+ * `handle` must come from [`wickra_backtest_stream_new`] and must not have been
+ * freed or consumed by [`wickra_backtest_stream_finish_json`]. Null is a no-op.
+ */
+void wickra_backtest_stream_free(struct WickraBacktestStream *handle);
 
 #ifdef __cplusplus
 }  // extern "C"

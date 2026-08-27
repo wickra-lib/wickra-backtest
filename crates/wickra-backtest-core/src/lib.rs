@@ -42,7 +42,7 @@ pub use metrics::Metrics;
 pub use portfolio::Trade;
 pub use registry::EvalIndicator;
 pub use report::{BacktestReport, EquityPoint, REPORT_SCHEMA_VERSION};
-pub use request::{run_json, RunRequest};
+pub use request::{run_json, RunRequest, StepFeeds, StepRequest};
 pub use spec::{
     Condition, Costs, Execution, Feed, FillTiming, IndicatorSpec, IntPredicate, Operand,
     OperandExpr, OrderType, PriceField, Risk, Sizing, Slippage, StrategySpec, SPEC_VERSION,

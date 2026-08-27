@@ -8,6 +8,16 @@ to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ### Added
 
+- C ABI: an opaque streaming handle (`wickra_backtest_stream_new` / `_step` /
+  `_step_json` / `_equity_json` / `_latest_equity_json` / `_num_trades` /
+  `_finish_json` / `_free`), each wrapped in `catch_unwind` like the batch entry
+  points. This unblocks bar-by-bar streaming for every binding that goes through
+  the C ABI — C, C++, C#, Go, Java and R — which until now could only run a
+  whole series at once.
+- `StepFeeds` and `StepRequest`: the per-bar counterparts to `RunRequest`, so a
+  streaming caller supplies one bar's `reference` / `deriv` / `orderbook` /
+  `trades` / `cross_section` as one JSON document instead of a per-language
+  argument list that grows with every new feed.
 - `StreamingBacktest::new_owned` — a streaming backtest that owns its spec, so the
   handle carries no borrow and can be held across `step`s indefinitely (the
   borrowing `new` is unchanged).
