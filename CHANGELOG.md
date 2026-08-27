@@ -302,6 +302,19 @@ to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ### Fixed
 
+- **The R package declared a different licence from the rest of the repository.**
+  `bindings/r/DESCRIPTION` said `License: MIT + file LICENSE` while `Cargo.toml`,
+  `package.json`, `pyproject.toml`, the `.csproj`, `CITATION.cff` and both root
+  LICENSE files all say `MIT OR Apache-2.0`. An R user reading the manifest would
+  have concluded the Apache option was not on offer. It is now
+  `MIT + file LICENSE | Apache License 2.0`. The author was `"Wickra"`, an
+  organisation, where `repo-metadata.toml` states the handle to credit in package
+  manifests is a natural person; the copyright line in `bindings/r/LICENSE` said
+  the same and now matches. `URL`, `BugReports` and `SystemRequirements` were
+  missing entirely — the last one matters most, because building this package
+  needs `WKBT_INC` and `WKBT_LIB` pointing at a locally built C ABI and nothing
+  said so.
+
 - **The catalogue guard would not have noticed ninety-five indicators going
   missing.** `registry_has_full_catalog` asserted `ALL_SPECS.len() >= 400` against
   a catalogue of 495, so the test it exists to be could fail only after a fifth of

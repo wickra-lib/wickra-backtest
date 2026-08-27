@@ -2,12 +2,19 @@ Package: wickrabacktest
 Type: Package
 Title: Wickra Backtest Engine (R Binding)
 Version: 0.1.0
-Authors@R: person("Wickra", role = c("aut", "cre"), email = "support@wickra.org")
+Authors@R: person("kingchenc", role = c("aut", "cre"), email = "support@wickra.org")
 Description: R binding for the wickra-backtest engine. It calls the engine's
     stable C ABI from compiled C glue via .Call, returning the backtest report
     as a JSON string that is byte-identical to the Rust, Python, Node.js, WASM,
     C#, Java and Go bindings.
-License: MIT + file LICENSE
+License: MIT + file LICENSE | Apache License 2.0
+URL: https://github.com/wickra-lib/wickra-backtest,
+    https://wickra-lib.r-universe.dev
+BugReports: https://github.com/wickra-lib/wickra-backtest/issues
 Encoding: UTF-8
 NeedsCompilation: yes
+SystemRequirements: the wickra-backtest C ABI shared library. Build it with
+    `cargo build -p wickra-backtest-c --release`, then set WKBT_INC to
+    bindings/c/include and WKBT_LIB to the directory holding the built library.
+    There is no automatic download yet.
 RoxygenNote: 7.3.2
