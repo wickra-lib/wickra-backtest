@@ -376,6 +376,13 @@ to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ### Changed
 
+- Documented why the equity curve and trade list are not bounded the way bar
+  history now is, on `StreamingBacktest` and in `BENCHMARKS.md`: `finish` computes
+  every metric over the whole series, so dropping points would narrow the report
+  rather than shrink it. An equity point is 16 bytes -- a year of 1-minute bars is
+  about 8 MB -- and a live consumer reading `latestEquity` per bar never needs the
+  accumulated copy.
+
 - `EvalIndicator` now requires `Sync` as well as `Send`. Every indicator already
   satisfied it, so nothing was excluded from the registry; the bound is what lets
   a streaming run be owned by a Python object without opting out of thread

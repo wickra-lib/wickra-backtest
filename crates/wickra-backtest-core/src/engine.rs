@@ -571,6 +571,19 @@ pub fn run_with_cross_section(
 /// then [`StreamingBacktest::finish`]. The historical runner is exactly this fed
 /// from a slice, so **backtest and live share one code path** — point `step` at
 /// a live feed and the same engine becomes the live bot.
+///
+/// # Memory over a long run
+///
+/// Bar history is bounded: only as many rows are retained as the spec's rules can
+/// reach back, so feeding it forever does not grow it.
+///
+/// The equity curve and closed trades are not bounded, and deliberately so —
+/// [`StreamingBacktest::finish`] computes every metric over the whole series, so
+/// discarding points would quietly narrow the report rather than shrink it. An
+/// equity point is 16 bytes, so a year of 1-minute bars costs roughly 8 MB. A live
+/// consumer that reads [`StreamingBacktest::latest_equity`] each bar and persists
+/// it elsewhere never needs the accumulated copy; `finish` is what releases it,
+/// and starting a fresh run costs the indicators their warmup again.
 pub struct StreamingBacktest<'a> {
     spec: Cow<'a, StrategySpec>,
     capital: f64,

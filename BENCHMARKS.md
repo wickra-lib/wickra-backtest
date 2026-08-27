@@ -40,8 +40,14 @@ window on every bar.
 - The engine retains only as many bars as the strategy's rules can reach back
   (the deepest `prev` / `rising` / `falling` / cross, or the vol-target lookback),
   so memory is `O(lookback × indicators)` and does not grow with the length of the
-  run. The report's equity curve and trade list still grow with it, since they are
-  the output.
+  run.
+- The equity curve and trade list do still grow with it, because they are the
+  report: `finish` computes every metric over the whole series. An equity point is
+  16 bytes, so a year of 1-minute bars costs about 8 MB, and trades are far
+  sparser. A live loop that reads `latestEquity` each bar and persists it
+  externally never needs the accumulated copy -- but the engine cannot discard it
+  and still report on it, so it keeps it. Ending the session with `finish` is what
+  releases it; restarting one costs the indicators their warmup.
 - This is a single-symbol, single-strategy micro-benchmark. It measures the
   engine, not a realistic multi-asset optimisation workload.
 
