@@ -406,6 +406,14 @@ to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ### Fixed
 
+- A streaming run could price a bar against a feed that bar did not carry. The
+  batch entry points reject a spec whose costs need an order book or a
+  derivatives tick the run does not supply, but a streaming caller has no
+  up-front moment to check, so `step()` with a `spread` slippage spec priced every
+  fill at zero slippage and reported a cheaper strategy than the one described.
+  The same requirement is now applied per bar, which is the standard the batch
+  path already holds: it requires a book for every candle, not merely for some.
+
 - **The engine retained every bar of a run.** `StreamingBacktest` kept the full
   per-bar history so any rule could look back arbitrarily, and allocated a fresh
   `String` key for every indicator value on every bar. A live loop is a run that

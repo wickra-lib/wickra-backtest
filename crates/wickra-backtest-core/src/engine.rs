@@ -723,6 +723,14 @@ impl<'a> StreamingBacktest<'a> {
     // is a change to the engine, not to a lint configuration.
     #[allow(clippy::too_many_lines)]
     pub fn step_with_feeds(&mut self, candle: &Candle, feeds: &Feeds) -> Result<()> {
+        // Checked per bar, because that is the only place a streaming caller can
+        // be checked: the batch entry points know the whole run's feeds up front
+        // and reject a mismatched spec once, but here they arrive one bar at a
+        // time. The standard is the same either way -- the batch path requires a
+        // book for every candle, not merely for some -- so a bar that cannot be
+        // priced the way the spec asks is rejected rather than priced as if it
+        // could be.
+        require_feeds(&self.spec, feeds.orderbook.is_some(), feeds.deriv.is_some())?;
         let reference = feeds.reference;
         let deriv = feeds.deriv.and_then(|d| d.to_core().ok());
         let orderbook = feeds.orderbook.and_then(|ob| ob.to_core().ok());
@@ -1276,6 +1284,49 @@ mod tests {
                 "costs":{costs}}}"#
         ))
         .unwrap()
+    }
+
+    #[test]
+    fn a_streaming_bar_without_its_required_feed_is_rejected() {
+        // The batch entry points check the whole run's feeds once, up front. A
+        // streaming caller has no "up front", so the same standard has to be
+        // applied per bar -- otherwise `step()` would price a spread-slippage
+        // spec at zero slippage, reporting a cheaper strategy than the one asked
+        // for, which is exactly what the batch check exists to prevent.
+        let spec = spec_with(r#"{"slippage":{"type":"spread"}}"#);
+        let candles = oscillating(10);
+
+        let mut blind = StreamingBacktest::new(&spec, 10_000.0).unwrap();
+        let err = blind.step(&candles[0]).unwrap_err();
+        let BacktestError::InvalidSpec(msg) = err else {
+            panic!("expected InvalidSpec, got {err:?}");
+        };
+        assert!(
+            msg.contains("order-book"),
+            "message should say what is missing: {msg}"
+        );
+
+        // The same spec, fed a book each bar, runs -- so the rejection is about
+        // the feed, not about the spec.
+        let mut fed = StreamingBacktest::new(&spec, 10_000.0).unwrap();
+        for candle in &candles {
+            let book = OrderBook {
+                bids: vec![Level {
+                    price: candle.close - 0.01,
+                    size: 1.0,
+                }],
+                asks: vec![Level {
+                    price: candle.close + 0.01,
+                    size: 1.0,
+                }],
+            };
+            let feeds = Feeds {
+                orderbook: Some(&book),
+                ..Feeds::default()
+            };
+            fed.step_with_feeds(candle, &feeds).unwrap();
+        }
+        assert_eq!(fed.equity().len(), candles.len());
     }
 
     #[test]
