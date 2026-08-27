@@ -8,6 +8,7 @@ Description: R binding for the wickra-backtest engine. It calls the engine's
     as a JSON string that is byte-identical to the Rust, Python, Node.js, WASM,
     C#, Java and Go bindings.
 License: MIT + file LICENSE | Apache License 2.0
+Suggests: jsonlite
 URL: https://github.com/wickra-lib/wickra-backtest,
     https://wickra-lib.r-universe.dev
 BugReports: https://github.com/wickra-lib/wickra-backtest/issues

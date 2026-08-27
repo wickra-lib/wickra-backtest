@@ -428,6 +428,11 @@ to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ### Fixed
 
+- The R job installs `jsonlite`, which `bindings/r/tests/golden.R` needs to read
+  the shared case corpus. That file had never been executed by any workflow, so
+  its dependency had never been required; wiring it into CI is what surfaced it.
+  Declared in the package's `Suggests` rather than left implicit.
+
 - `js-yaml` moves to 4.3.2, past the fix for GHSA-5p4m-2wfm-xmqj (quadratic CPU
   consumption resolving `!!omap`). It reaches the tree through `@napi-rs/cli`, a
   build-time dependency of the Node binding, so nothing shipped to users was

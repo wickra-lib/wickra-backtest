@@ -521,6 +521,10 @@ jobs:
             export LD_LIBRARY_PATH="$WKBT_LIB:$LD_LIBRARY_PATH"
             export DYLD_LIBRARY_PATH="$WKBT_LIB:$DYLD_LIBRARY_PATH"
           fi
+          # golden.R parses the shared case corpus, and R has no JSON reader in
+          # base. Declared in the package's Suggests so the dependency is
+          # recorded rather than assumed to be on whatever machine runs it.
+          Rscript -e 'if (!requireNamespace("jsonlite", quietly = TRUE)) install.packages("jsonlite", repos = "https://cloud.r-project.org")'
           R CMD INSTALL bindings/r
           Rscript bindings/r/tests/run_tests.R
           Rscript bindings/r/tests/streaming.R
