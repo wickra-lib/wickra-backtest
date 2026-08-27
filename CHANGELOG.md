@@ -302,6 +302,15 @@ to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ### Fixed
 
+- **The catalogue guard would not have noticed ninety-five indicators going
+  missing.** `registry_has_full_catalog` asserted `ALL_SPECS.len() >= 400` against
+  a catalogue of 495, so the test it exists to be could fail only after a fifth of
+  the registry vanished. It now asserts the exact count. The floor was written by
+  `tools/gen_registry.py`, which regenerates the whole file, so fixing it only in
+  the generated output would have lasted until the next run — the generator now
+  emits the number it counted, and the check fails on a single missing entry
+  (verified by removing one).
+
 - **The roadmap understated the project.** Two entries sat under "Planned" that had
   already shipped: the Binance historical importer (`fetch_klines` behind the
   `binance` feature, wired to `wkbt fetch`) and the nightly fuzz targets. The fuzz

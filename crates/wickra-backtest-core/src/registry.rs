@@ -2782,10 +2782,15 @@ mod tests {
 
     #[test]
     fn registry_has_full_catalog() {
-        assert!(
-            ALL_SPECS.len() >= 400,
-            "catalog too small: {}",
-            ALL_SPECS.len()
+        // Exact, not a floor. The previous bound was `>= 400` against a catalogue
+        // of 495, so ninety-five indicators could disappear and the test would
+        // still pass. The generator writes this number from the sources it read,
+        // so a mismatch means the catalogue moved and this file needs
+        // regenerating -- a decision, rather than a drift nobody notices.
+        assert_eq!(
+            ALL_SPECS.len(),
+            495,
+            "catalogue size changed; regenerate registry.rs from the wickra-core sources"
         );
     }
 
