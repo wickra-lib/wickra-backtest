@@ -302,6 +302,15 @@ to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ### Fixed
 
+- **`spec_version` was parsed and never checked**, so `{"spec_version": 999}` ran
+  as if it were version 1. A field whose entire purpose is forward-compatibility
+  that is not enforced is worse than no field: it tells a future format it will be
+  noticed, and then reads it anyway while ignoring whatever that format added —
+  producing a run that looks successful and answers a different question than the
+  spec asked. A version above what the build understands is now rejected, naming
+  the version it saw and the range it reads. Older versions stay readable, because
+  the DSL only grows within a version.
+
 - **`IndicatorSpec.feed` was described as load-bearing by five documents and read
   by no code.** The strategy-spec guide, the microstructure guide twice, the
   cookbook and a shipped example all declare it; the only reference in the source

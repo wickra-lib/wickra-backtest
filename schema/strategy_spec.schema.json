@@ -126,7 +126,7 @@
       ]
     },
     "spec_version": {
-      "description": "Spec format version (defaults to [`SPEC_VERSION`]).",
+      "description": "Spec format version (defaults to [`SPEC_VERSION`]).\n\nA spec from an older format still parses -- the DSL only grows within a version -- but one declaring a newer format is rejected rather than read with fields this build does not know about.",
       "default": 1,
       "type": "integer",
       "format": "uint32",

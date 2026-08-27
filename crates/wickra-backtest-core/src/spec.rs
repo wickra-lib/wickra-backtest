@@ -26,6 +26,10 @@ fn default_spec_version() -> u32 {
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize, schemars::JsonSchema)]
 pub struct StrategySpec {
     /// Spec format version (defaults to [`SPEC_VERSION`]).
+    ///
+    /// A spec from an older format still parses -- the DSL only grows within a
+    /// version -- but one declaring a newer format is rejected rather than
+    /// read with fields this build does not know about.
     #[serde(default = "default_spec_version")]
     pub spec_version: u32,
     /// Primary trading symbol.
@@ -83,6 +87,17 @@ impl StrategySpec {
         }
         if let Some(c) = &self.short_exit {
             check_condition(c, &declared)?;
+        }
+        // Refuse a format this build cannot know how to read. Accepting it would
+        // mean silently ignoring whatever the newer version added, which produces
+        // a run that looks successful and answers a different question than the
+        // spec asked. Older versions stay readable: the DSL only grows within a
+        // version, so nothing an old spec says has changed meaning.
+        if self.spec_version == 0 || self.spec_version > SPEC_VERSION {
+            return Err(BacktestError::InvalidSpec(format!(
+                "spec_version {} is not supported; this build reads 1..={SPEC_VERSION}",
+                self.spec_version
+            )));
         }
         // A declared feed is redundant -- the indicator type already determines it --
         // so the only thing it can do is contradict the indicator, and that is what
@@ -580,6 +595,38 @@ mod tests {
         }"#;
         let err = StrategySpec::parse(json).unwrap_err();
         assert!(matches!(err, BacktestError::UndeclaredRef(r) if r == "b"));
+    }
+
+    #[test]
+    fn a_spec_version_this_build_cannot_read_is_rejected() {
+        let spec = |version: &str| {
+            format!(
+                r#"{{
+                  {version}
+                  "symbol": "X", "timeframe": "1h",
+                  "indicators": {{"a": {{"type": "Sma", "params": [5]}}}},
+                  "entry": {{"gt": ["a", "a"]}},
+                  "exit": {{"in_position": true}},
+                  "sizing": {{"type": "fixed_qty", "qty": 1.0}}
+                }}"#
+            )
+        };
+        // Omitted defaults to the current version.
+        assert!(StrategySpec::parse(&spec("")).is_ok());
+        assert!(StrategySpec::parse(&spec(r#""spec_version": 1,"#)).is_ok());
+        // A newer format would carry fields this build does not know, and reading
+        // it while ignoring them answers a different question than the spec asked.
+        let err = StrategySpec::parse(&spec(r#""spec_version": 999,"#)).unwrap_err();
+        let BacktestError::InvalidSpec(msg) = err else {
+            panic!("expected InvalidSpec");
+        };
+        assert!(
+            msg.contains("999"),
+            "message should name the version: {msg}"
+        );
+        // Zero is not a format anyone wrote; it is a missing value that survived
+        // serialisation somewhere.
+        assert!(StrategySpec::parse(&spec(r#""spec_version": 0,"#)).is_err());
     }
 
     #[test]
