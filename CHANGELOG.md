@@ -302,6 +302,17 @@ to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ### Fixed
 
+- **`SECURITY.md` documented neither how to verify a release nor how advisories
+  are triaged**, although the release workflow produces build provenance
+  attestations, the README carries a provenance badge, and `osv-scanner.toml`
+  exists precisely as the exploitability record. A reader had a signed artifact
+  and no instruction for checking it, and a suppressed advisory with no stated
+  policy behind it. "Verifying releases" now names what carries provenance and
+  how to check it, and "Vulnerability exploitability (VEX)" names the two files
+  that hold the record — `deny.toml` and `osv-scanner.toml` — and states that an
+  advisory is never suppressed to make a counter reach zero. `osv-scanner.toml`
+  now cross-references that section, as the indicator repository's does.
+
 - **Four manifests disagreed with `repo-metadata.toml`, the file that exists to
   stop exactly that.** CODEOWNERS assigned `@kingchenc` where the metadata states
   in its own comment that `github` is "the org @-mention slug used in CODEOWNERS
