@@ -1,19 +1,27 @@
 ---
 name: Feature request
-about: Suggest an indicator, a strategy primitive or an engine capability
-title: "[feature] "
-labels: enhancement
+about: Suggest a capability the backtester does not have.
+title: "[Feature] <short description>"
+labels: ["enhancement"]
+assignees: []
 ---
 
-**What problem does this solve?**
-The use case or strategy you can't express today.
+## What do you want to do?
 
-**Proposed solution**
-What you'd like to see — a new spec field, sizing model, cost/risk control,
-data loader, indicator, or binding API.
+<!-- The goal, not the API. "Size positions by ATR" beats "add an atr_sizing field". -->
 
-**Alternatives considered**
-Other ways you've tried to achieve this.
+## Why can't you do it today?
 
-**Additional context**
-Links, references or prior art.
+<!-- Which part of the spec or engine stops you. -->
+
+## Sketch
+
+<!-- What the strategy spec would look like if this existed. -->
+
+```json
+{ }
+```
+
+## Alternatives you considered
+
+<!-- Including doing it outside the engine. -->

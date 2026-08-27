@@ -302,6 +302,17 @@ to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ### Fixed
 
+- **Two issue templates covered a repository with ten bindings and a JSON rule
+  DSL.** A bug in a backtester is usually "this number is wrong", which needs a
+  spec, a slice of data and a hand-computed expectation — none of which the old
+  form asked for. There are now seven: bug and feature in short and detailed
+  forms, documentation, question, and performance regression. The detailed bug
+  form asks for a cross-binding comparison, because all ten go through one engine
+  and a disagreement is a marshalling bug rather than an engine one; the detailed
+  feature form asks whether the change adds a C ABI export, because that is a
+  change to every binding at once. The two existing templates were converted to
+  the same style rather than left beside the new ones in a different one.
+
 - **The coverage job's own output was untracked noise.** `cargo llvm-cov` writes
   `lcov.info` to the repository root and scatters `*.profraw` while
   instrumenting, and neither was ignored — so running the command CI runs left a
