@@ -8,6 +8,9 @@ to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ### Added
 
+- `scripts/update-lockfiles.sh`, which regenerates the Rust, Node and Python
+  lockfiles in one place.
+
 - `BacktestReport` carries `symbol` and `timeframe`, echoed from the spec, so a
   stored report says what it is a report of. They are labels rather than
   guarantees: the engine reads whatever candles it is given and does not check
@@ -391,6 +394,12 @@ to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
   next close. Short entries/exits use `short_entry` / `short_exit`.
 
 ### Changed
+
+- CI installs its Python dev tooling from hash-locked requirements under
+  `.github/requirements/` with `--require-hashes`, and installs Node
+  dependencies with `npm ci` rather than `npm install`, so both are pinned to a
+  lockfile instead of to whatever the registry served that morning. Regenerate
+  either with `./scripts/update-lockfiles.sh`.
 
 - The engine's per-bar loop is split into named phases -- fill the working order,
   record the bar, apply intrabar exits, charge funding, mark equity, decide the

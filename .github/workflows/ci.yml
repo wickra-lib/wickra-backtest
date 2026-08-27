@@ -193,9 +193,24 @@ jobs:
       - uses: Swatinem/rust-cache@6323deb102c322ba6fcbdcafc7e3dddab59af2b6 # v2.9.2
         continue-on-error: true # cache is an optimisation; never block on a stuck/slow restore
         timeout-minutes: 6
-      - run: pip install maturin pytest
+      - name: Install Python dev dependencies
+        shell: bash
+        run: |
+          # Hash-locked dev tooling (OpenSSF Scorecard PinnedDependencies).
+          # Split by Python version: a resolution for 3.9 is not one for 3.13 --
+          # 3.9 additionally needs the exceptiongroup, tomli and typing-extensions
+          # backports. Refresh both with scripts/update-lockfiles.sh.
+          if [ "${{ matrix.python-version }}" = "3.9" ]; then
+            python -m pip install --require-hashes -r .github/requirements/ci-dev-py39.txt
+          else
+            python -m pip install --require-hashes -r .github/requirements/ci-dev-py3.txt
+          fi
       - run: maturin build --out dist
         working-directory: bindings/python
+      # The wheel this job just built, from disk with the network switched off.
+      # There is no hash to pin it to: it does not exist until the line above
+      # runs, and pinning one would mean committing a hash that changes with
+      # every build.
       - run: pip install --no-index --find-links bindings/python/dist wickra-backtest
       - run: pytest bindings/python/tests -q
 
@@ -313,12 +328,12 @@ jobs:
           node-version: ${{ matrix.node-version }}
           cache: npm
           cache-dependency-path: bindings/node/package-lock.json
-      # npm install (not npm ci): the per-platform optionalDependencies point at
-      # native packages that are not published until the first release, so they
-      # are absent from the lock file and `npm ci` would reject the tree as out
-      # of sync. install treats the missing optional packages as non-fatal.
+      # npm ci, not npm install: the lockfile is the pin. The six per-platform
+      # optionalDependencies are declared but have no resolved entries in it --
+      # they are built by this very job -- and npm skips an optional dependency
+      # it cannot resolve, so ci succeeds rather than rejecting the lock.
       - name: Install Node dependencies
-        run: cd bindings/node && npm install --no-audit --no-fund
+        run: cd bindings/node && npm ci --no-audit --no-fund
       # --platform puts the target triple into the filename so the loader finds
       # the freshly built binary instead of a per-platform npm subpackage.
       - name: Build native module
