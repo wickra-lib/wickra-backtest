@@ -590,7 +590,7 @@
       "description": "The data feed an indicator is driven by.",
       "oneOf": [
         {
-          "description": "OHLCV candles (default).",
+          "description": "OHLCV candles (default). Also the feed for pairwise indicators, which are fed the bar close alongside the reference series' close.",
           "type": "string",
           "enum": [
             "kline"
@@ -608,6 +608,27 @@
           "type": "string",
           "enum": [
             "orderbook"
+          ]
+        },
+        {
+          "description": "Trade prints quoted against the book mid.",
+          "type": "string",
+          "enum": [
+            "trade_quote"
+          ]
+        },
+        {
+          "description": "Perpetual/derivatives ticks — funding, open interest, mark and index.",
+          "type": "string",
+          "enum": [
+            "derivatives"
+          ]
+        },
+        {
+          "description": "The market cross-section, for breadth indicators.",
+          "type": "string",
+          "enum": [
+            "cross_section"
           ]
         }
       ]
@@ -639,11 +660,13 @@
       ],
       "properties": {
         "feed": {
-          "description": "Which feed drives it.",
-          "default": "kline",
-          "allOf": [
+          "description": "Which feed drives it. Optional, and redundant when present: the indicator type already determines its feed. State it and the spec is cross-checked against the registry, so a rename or a copied block that no longer matches the indicator fails at parse instead of silently producing no values.",
+          "anyOf": [
             {
               "$ref": "#/definitions/Feed"
+            },
+            {
+              "type": "null"
             }
           ]
         },

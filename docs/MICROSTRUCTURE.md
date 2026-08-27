@@ -7,8 +7,9 @@ are the same `wickra-core` kernels that run live, a microstructure backtest is
 value-identical to a live run.
 
 A microstructure strategy is still just a [strategy spec](STRATEGY_SPEC.md): you
-declare an indicator with the appropriate `feed`, reference it in your rules, and
-supply the matching per-bar feed alongside the candles. The uniform way to pass
+declare an indicator, reference it in your rules, and supply the matching per-bar
+feed alongside the candles. The indicator's type decides which feed it consumes;
+stating `feed` is optional and only asks the parser to check that the two agree. The uniform way to pass
 feeds is a single [`run_json`](STRATEGY_SPEC.md) request bundle.
 
 ## The feed families

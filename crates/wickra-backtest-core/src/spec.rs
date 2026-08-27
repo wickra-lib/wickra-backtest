@@ -13,6 +13,7 @@ use std::collections::{BTreeMap, BTreeSet};
 use serde::{Deserialize, Serialize};
 
 use crate::error::{BacktestError, Result};
+use crate::registry::feed_of;
 
 /// Current strategy-spec format version. Bumped on breaking DSL changes.
 pub const SPEC_VERSION: u32 = 1;
@@ -83,6 +84,21 @@ impl StrategySpec {
         if let Some(c) = &self.short_exit {
             check_condition(c, &declared)?;
         }
+        // A declared feed is redundant -- the indicator type already determines it --
+        // so the only thing it can do is contradict the indicator, and that is what
+        // this catches. An unknown kind is left to `build`, which reports it with a
+        // better message than this could.
+        for (name, ind) in &self.indicators {
+            let (Some(declared), Some(actual)) = (ind.feed, feed_of(&ind.kind)) else {
+                continue;
+            };
+            if declared != actual {
+                return Err(BacktestError::InvalidSpec(format!(
+                    "indicator '{name}' ({}) declares feed {declared:?} but consumes {actual:?}",
+                    ind.kind
+                )));
+            }
+        }
         match self.execution.order_type {
             OrderType::Limit if self.execution.limit_offset_pct.is_none() => {
                 return Err(BacktestError::InvalidSpec(
@@ -137,9 +153,12 @@ pub struct IndicatorSpec {
     /// Constructor parameters.
     #[serde(default)]
     pub params: Vec<f64>,
-    /// Which feed drives it.
-    #[serde(default)]
-    pub feed: Feed,
+    /// Which feed drives it. Optional, and redundant when present: the indicator
+    /// type already determines its feed. State it and the spec is cross-checked
+    /// against the registry, so a rename or a copied block that no longer matches
+    /// the indicator fails at parse instead of silently producing no values.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub feed: Option<Feed>,
 }
 
 /// The data feed an indicator is driven by.
@@ -148,13 +167,20 @@ pub struct IndicatorSpec {
 )]
 #[serde(rename_all = "snake_case")]
 pub enum Feed {
-    /// OHLCV candles (default).
+    /// OHLCV candles (default). Also the feed for pairwise indicators, which are
+    /// fed the bar close alongside the reference series' close.
     #[default]
     Kline,
     /// Trade prints.
     Trade,
     /// Order-book snapshots.
     Orderbook,
+    /// Trade prints quoted against the book mid.
+    TradeQuote,
+    /// Perpetual/derivatives ticks — funding, open interest, mark and index.
+    Derivatives,
+    /// The market cross-section, for breadth indicators.
+    CrossSection,
 }
 
 /// A price field of the current bar.
@@ -535,7 +561,10 @@ mod tests {
         let spec = StrategySpec::parse(json).unwrap();
         assert_eq!(spec.spec_version, SPEC_VERSION);
         assert_eq!(spec.execution.fill_timing, FillTiming::NextOpen);
-        assert_eq!(spec.indicators["sma"].feed, Feed::Kline);
+        // Not stated, so nothing to cross-check; the indicator's own family
+        // decides, and `feed_of` reports it.
+        assert_eq!(spec.indicators["sma"].feed, None);
+        assert_eq!(crate::registry::feed_of("Sma"), Some(Feed::Kline));
         assert!(spec.risk.stop_loss_pct.is_none());
         assert!((spec.costs.maker_bps).abs() < f64::EPSILON);
     }
@@ -551,6 +580,52 @@ mod tests {
         }"#;
         let err = StrategySpec::parse(json).unwrap_err();
         assert!(matches!(err, BacktestError::UndeclaredRef(r) if r == "b"));
+    }
+
+    #[test]
+    fn a_declared_feed_must_match_the_indicator_that_declares_it() {
+        let spec = |feed: &str| {
+            format!(
+                r#"{{
+                  "symbol": "X", "timeframe": "1h",
+                  "indicators": {{"a": {{"type": "Sma", "params": [5]{feed}}}}},
+                  "entry": {{"gt": ["a", "a"]}},
+                  "exit": {{"in_position": true}},
+                  "sizing": {{"type": "fixed_qty", "qty": 1.0}}
+                }}"#
+            )
+        };
+        // Omitted: the indicator's own family decides, and nothing to contradict.
+        assert!(StrategySpec::parse(&spec("")).is_ok());
+        // Declared and correct: Sma is fed the bar close.
+        assert!(StrategySpec::parse(&spec(r#", "feed": "kline""#)).is_ok());
+        // Declared and wrong. This is the case that used to be accepted in silence:
+        // the field was never read, so the spec ran and the indicator quietly
+        // consumed candles regardless of what it claimed.
+        let err = StrategySpec::parse(&spec(r#", "feed": "trade""#)).unwrap_err();
+        let BacktestError::InvalidSpec(msg) = err else {
+            panic!("expected InvalidSpec");
+        };
+        assert!(
+            msg.contains("'a'"),
+            "message should name the indicator: {msg}"
+        );
+        assert!(
+            msg.contains("Trade") && msg.contains("Kline"),
+            "both feeds: {msg}"
+        );
+    }
+
+    #[test]
+    fn every_feed_family_is_reachable_from_the_registry() {
+        use crate::registry::feed_of;
+        // One indicator per family, so a family losing its mapping is caught here
+        // rather than by a spec that silently stops being checked.
+        assert_eq!(feed_of("Sma"), Some(Feed::Kline));
+        assert_eq!(feed_of("Atr"), Some(Feed::Kline));
+        assert_eq!(feed_of("Beta"), Some(Feed::Kline));
+        assert_eq!(feed_of("FundingRate"), Some(Feed::Derivatives));
+        assert_eq!(feed_of("Nope"), None);
     }
 
     #[test]

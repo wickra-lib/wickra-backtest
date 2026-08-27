@@ -302,6 +302,20 @@ to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ### Fixed
 
+- **`IndicatorSpec.feed` was described as load-bearing by five documents and read
+  by no code.** The strategy-spec guide, the microstructure guide twice, the
+  cookbook and a shipped example all declare it; the only reference in the source
+  was the field's own definition. `"feed": "trade"` on an order-book indicator was
+  accepted in silence, and the indicator then consumed whatever it was wired to,
+  producing no values and therefore no trades — a wrong answer that looks like a
+  strategy that simply never triggered. The registry now exposes `feed_of`,
+  generated from the same table as `build` so the two cannot disagree, and
+  `validate` rejects a spec whose declared feed contradicts its indicator, naming
+  both. The field is optional now rather than defaulting to `kline`: omitted means
+  the indicator decides, which is the honest default, and `Feed` gained the three
+  families it was missing (`trade_quote`, `derivatives`, `cross_section`) so every
+  indicator has a feed that can be named at all.
+
 - **The committed JSON Schema advertised an order type the engine refused.**
   `OrderType::StopLimit` was declared, listed in `schema/strategy_spec.schema.json`
   as a valid value and documented in `docs/STRATEGY_SPEC.md`, while `validate()`

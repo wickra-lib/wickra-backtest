@@ -120,11 +120,13 @@ use wickra_core::{
 
 use crate::data::Candle;
 use crate::error::{BacktestError, Result};
+use crate::spec::Feed;
 
 /// Everything an indicator may consume on one bar. Single-instrument indicators
 /// use `candle`; pairwise indicators also use `reference`; derivatives,
 /// order-book and trade indicators use `deriv` / `orderbook` / `trades`. Feeds
 /// that are absent are `None` / empty.
+#[derive(Debug)]
 pub struct BarInput<'a> {
     /// The current bar.
     pub candle: &'a Candle,
@@ -679,6 +681,9 @@ mod tests {
 '''
 
 
+NL = "\n"
+
+
 def main():
     ap = argparse.ArgumentParser()
     ap.add_argument("--wickra", required=True)
@@ -709,6 +714,8 @@ def main():
     trade_scalars = []  # (ty, args, is_result) for Input = Trade, f64 out
     tq_scalars = []     # (ty, args, is_result) for Input = TradeQuote, f64 out
     cs_scalars = []     # (ty, args, is_result) for Input = CrossSection, f64 out
+    # (indicator kind, Feed variant) for the generated feed_of table.
+    feeds = []
     skip = Counter()
 
     for text in files.values():
@@ -836,6 +843,7 @@ def main():
             continue
         arm = f'        "{ty}" => Ok(Box::new(ScalarClose({ctor_expr(ty, argtypes, is_result)}))),'
         arms.append(arm)
+        feeds.append((ty, "Kline"))
         seen.add(ty)
         specs.append((ty, default_for(ty, argtypes)))
 
@@ -845,6 +853,7 @@ def main():
             continue
         arm = f'        "{ty}" => Ok(Box::new(CandleIn({ctor_expr(ty, argtypes, is_result)}))),'
         arms.append(arm)
+        feeds.append((ty, "Kline"))
         seen.add(ty)
         specs.append((ty, default_for(ty, argtypes)))
 
@@ -852,6 +861,7 @@ def main():
     for ty, inp, argtypes, is_result, _fields in multis:
         arm = f'        "{ty}" => Ok(Box::new({ty}Wrap::wrap({ctor_expr(ty, argtypes, is_result)}))),'
         arms.append(arm)
+        feeds.append((ty, "Kline"))
         seen.add(ty)
         specs.append((ty, default_for(ty, argtypes)))
 
@@ -859,6 +869,7 @@ def main():
     for ty, argtypes, is_result in pairs:
         arm = f'        "{ty}" => Ok(Box::new(PairClose({ctor_expr(ty, argtypes, is_result)}))),'
         arms.append(arm)
+        feeds.append((ty, "Kline"))
         seen.add(ty)
         specs.append((ty, default_for(ty, argtypes)))
 
@@ -866,6 +877,7 @@ def main():
     for ty, argtypes, is_result, _fields in pair_multis:
         arm = f'        "{ty}" => Ok(Box::new({ty}Wrap::wrap({ctor_expr(ty, argtypes, is_result)}))),'
         arms.append(arm)
+        feeds.append((ty, "Kline"))
         seen.add(ty)
         specs.append((ty, default_for(ty, argtypes)))
 
@@ -873,11 +885,13 @@ def main():
     for ty, argtypes, is_result in deriv_scalars:
         arm = f'        "{ty}" => Ok(Box::new(DerivativesIn({ctor_expr(ty, argtypes, is_result)}))),'
         arms.append(arm)
+        feeds.append((ty, "Derivatives"))
         seen.add(ty)
         specs.append((ty, default_for(ty, argtypes)))
     for ty, argtypes, is_result, _fields in deriv_multis:
         arm = f'        "{ty}" => Ok(Box::new({ty}Wrap::wrap({ctor_expr(ty, argtypes, is_result)}))),'
         arms.append(arm)
+        feeds.append((ty, "Derivatives"))
         seen.add(ty)
         specs.append((ty, default_for(ty, argtypes)))
 
@@ -885,6 +899,7 @@ def main():
     for ty, argtypes, is_result in ob_scalars:
         arm = f'        "{ty}" => Ok(Box::new(OrderBookIn({ctor_expr(ty, argtypes, is_result)}))),'
         arms.append(arm)
+        feeds.append((ty, "Orderbook"))
         seen.add(ty)
         specs.append((ty, default_for(ty, argtypes)))
 
@@ -892,6 +907,7 @@ def main():
     for ty, argtypes, is_result in trade_scalars:
         arm = f'        "{ty}" => Ok(Box::new(TradeIn({ctor_expr(ty, argtypes, is_result)}))),'
         arms.append(arm)
+        feeds.append((ty, "Trade"))
         seen.add(ty)
         specs.append((ty, default_for(ty, argtypes)))
 
@@ -899,6 +915,7 @@ def main():
     for ty, argtypes, is_result in tq_scalars:
         arm = f'        "{ty}" => Ok(Box::new(TradeQuoteIn({ctor_expr(ty, argtypes, is_result)}))),'
         arms.append(arm)
+        feeds.append((ty, "TradeQuote"))
         seen.add(ty)
         specs.append((ty, default_for(ty, argtypes)))
 
@@ -906,6 +923,7 @@ def main():
     for ty, argtypes, is_result in cs_scalars:
         arm = f'        "{ty}" => Ok(Box::new(CrossSectionIn({ctor_expr(ty, argtypes, is_result)}))),'
         arms.append(arm)
+        feeds.append((ty, "CrossSection"))
         seen.add(ty)
         specs.append((ty, default_for(ty, argtypes)))
 
@@ -916,6 +934,31 @@ def main():
 
     arms.append("        other => Err(BacktestError::UnknownIndicator(other.to_string())),")
 
+    # One match arm per indicator, built from the same table as `build`, so the
+    # two cannot disagree about which input a given indicator is wired to.
+    feed_arms = [
+        f'        "{k}" => Some(Feed::{f}),' for k, f in sorted(set(feeds))
+    ]
+    feed_fn = NL.join([
+        "",
+        "/// The feed family an indicator consumes, or `None` for an unknown kind.",
+        "///",
+        "/// `StrategySpec::validate` uses this to reject a spec whose declared",
+        "/// `feed` contradicts the indicator it names.",
+        "///",
+        "///",
+        "/// A lookup table with one arm per indicator: long by construction, and",
+        "/// with an identical body for every member of a family.",
+        "#[allow(clippy::too_many_lines, clippy::match_same_arms)]",
+        "#[must_use]",
+        "pub fn feed_of(kind: &str) -> Option<Feed> {",
+        "    match kind {",
+        *feed_arms,
+        "        _ => None,",
+        "    }",
+        "}",
+        "",
+    ])
     spec_lines = "\n".join(f'    ("{k}", &[{fmt_params(pp)}]),' for k, pp in specs)
     specs_const = (
         f"\n/// Every registered indicator with valid default parameters "
@@ -931,6 +974,7 @@ def main():
         + HELPERS
         + "\n".join(arms)
         + "\n    }\n}\n"
+        + feed_fn
         + specs_const
         + FOOT_TESTS
     )

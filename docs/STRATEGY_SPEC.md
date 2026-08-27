@@ -47,7 +47,7 @@ or the spec is rejected at parse time.
 |----------|---------|
 | `type`   | The Wickra indicator name (e.g. `Ema`, `Rsi`, `Macd`, `Atr`). |
 | `params` | The constructor parameters, in order. Defaults to `[]`. |
-| `feed`   | `kline` (default), `trade` or `orderbook` — the input the indicator consumes. |
+| `feed`   | Optional. The input the indicator consumes: `kline`, `trade`, `orderbook`, `trade_quote`, `derivatives` or `cross_section`. Redundant — the `type` already determines it — so its only effect is to be cross-checked: a spec whose declared feed contradicts its indicator is rejected at parse. Omit it and the indicator decides. |
 
 Multi-output indicators expose their fields as `"name.field"` in operands — for
 example `macd.macd`, `macd.signal`, `macd.histogram`, `bb.upper`, `bb.middle`,
