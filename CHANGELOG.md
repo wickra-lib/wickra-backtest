@@ -412,6 +412,14 @@ to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ### Fixed
 
+- `links.yml` described a non-blocking link check running on pull requests in
+  `ci.yml`. No such job existed -- the comment came from the reference repository,
+  where it does. Added, pinned and non-blocking, so the description is true.
+- `lychee.toml` now excludes the CHANGELOG's own release links. They 404 between
+  the release commit landing and the tag being pushed, and that gap is deliberate:
+  a tag is irreversible, so it waits for a human. Same reasoning as the registry
+  URLs the file already excluded.
+
 - A streaming run could price a bar against a feed that bar did not carry. The
   batch entry points reject a spec whose costs need an order book or a
   derivatives tick the run does not supply, but a streaming caller has no

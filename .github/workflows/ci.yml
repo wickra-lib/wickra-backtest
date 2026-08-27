@@ -124,6 +124,24 @@ jobs:
       - name: Every version declaration agrees
         run: python3 scripts/check_version_sync.py
 
+  # An early heads-up on a broken link in a pull request. Deliberately
+  # non-blocking: external link rot is non-deterministic, and a third-party site
+  # rate-limiting must never fail someone's PR. The authoritative run is the
+  # weekly schedule in links.yml.
+  links:
+    name: External links (non-blocking)
+    runs-on: ubuntu-latest
+    continue-on-error: true
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: lycheeverse/lychee-action@e7477775783ea5526144ba13e8db5eec57747ce8 # v2.9.0
+        with:
+          args: --config lychee.toml --no-progress --root-dir "${{ github.workspace }}" "*.md" "bindings/*/README.md"
+          fail: true
+
   supply-chain:
     name: cargo-deny
     runs-on: ubuntu-latest

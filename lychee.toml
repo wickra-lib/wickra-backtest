@@ -31,4 +31,13 @@ exclude = [
     "^https?://www\\.nuget\\.org/packages/Wickra\\.Backtest",
     "^https?://central\\.sonatype\\.com/artifact/org\\.wickra/wickra-backtest",
     "^https?://wickra-lib\\.r-universe\\.dev",
+    # The CHANGELOG's own reference links. The first release writes a
+    # `releases/tag/vX` link and every one after it a `compare/vA...vB`; the
+    # `[Unreleased]` link points at a tag too. All of them 404 between the
+    # release commit landing and the tag being pushed, and that gap is
+    # deliberate -- a tag is irreversible, so it waits for a human. Excluded for
+    # the same reason as the registry URLs above: they resolve after the
+    # publish, not before.
+    "^https?://github\\.com/wickra-lib/wickra-backtest/releases/tag/",
+    "^https?://github\\.com/wickra-lib/wickra-backtest/compare/",
 ]
