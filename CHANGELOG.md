@@ -8,6 +8,9 @@ to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ### Added
 
+- `StreamingBacktest.stepJson` on the WASM binding: it could previously carry only
+  a reference series (`stepWithRef`), so a strategy reading a derivatives,
+  order-book, trade or cross-section feed was unreachable from the browser.
 - Runnable examples for Rust, Go, C# and Java under `examples/`, completing one
   per language alongside the existing C pair. The Rust example is a workspace
   member, so it compiles and lints with everything else.
@@ -78,9 +81,11 @@ to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 - `StreamingBacktest::new_owned` — a streaming backtest that owns its spec, so the
   handle carries no borrow and can be held across `step`s indefinitely (the
   borrowing `new` is unchanged).
-- WASM: a `StreamingBacktest` handle (`new` / `step` / `stepWithRef` / `equity` /
-  `latestEquity` / `numTrades` / `finish`) that drives the engine bar-by-bar in
-  the browser — the same kernel and the same values as the batch `run`.
+- WASM: a `StreamingBacktest` handle (`step` / `stepJson` / `equityJson` /
+  `latestEquityJson` / `numTrades` / `isFinished` / `finishJson` / `close`) that
+  drives the engine bar-by-bar in the browser — the same kernel and the same
+  values as the batch `run`. The surface matches the Node binding's, since both
+  are consumed from JavaScript.
 - Workspace scaffold: `wickra-backtest-core` (engine core), `wickra-backtest-data`
   (loaders) and the `wickra-backtest` facade, depending on `wickra-core`.
 - `BacktestError` error type and crate `version()` helpers.
@@ -378,6 +383,13 @@ to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
   and an edit made in place is lost on the next run.
 
 ### Fixed
+
+- The WASM streaming class named its members differently from the Node one, even
+  though both are consumed from JavaScript: `step` took a JSON candle rather than
+  scalars, and the accessors dropped the `Json` suffix their JSON-string returns
+  imply. Moving between the two packages meant relearning the surface. They now
+  match, and `check_binding_surface.py` recognises the class spelling instead of
+  reporting the whole reach as missing.
 
 - The Node package exported the streaming class under two names, `StreamingBacktest`
   and `StreamingBacktestNode`. Naming the Rust struct for JS directly, rather than

@@ -25,20 +25,22 @@ const CANDLES = [
 test('wasm StreamingBacktest steps bar-by-bar and matches the batch path', () => {
   const bt = new wasm.StreamingBacktest(JSON.stringify(SPEC), 1000);
   for (const candle of CANDLES) {
-    bt.step(JSON.stringify(candle));
+    bt.step(candle.open, candle.high, candle.low, candle.close, 0, candle.time);
   }
-  assert.ok(bt.numTrades() >= 1, 'expected at least one trade');
-  const equity = JSON.parse(bt.equity());
+  assert.ok(bt.numTrades >= 1, 'expected at least one trade');
+  const equity = JSON.parse(bt.equityJson());
   assert.strictEqual(equity.length, CANDLES.length);
 
-  const report = JSON.parse(bt.finish());
+  const report = JSON.parse(bt.finishJson());
   // The same engine as the batch run_json (see run_json.test.cjs).
   assert.strictEqual(report.metrics.num_trades, 1);
 });
 
 test('wasm StreamingBacktest is consumed after finish', () => {
   const bt = new wasm.StreamingBacktest(JSON.stringify(SPEC), 1000);
-  bt.step(JSON.stringify(CANDLES[0]));
-  bt.finish();
-  assert.throws(() => bt.step(JSON.stringify(CANDLES[0])));
+  const c = CANDLES[0];
+  bt.step(c.open, c.high, c.low, c.close, 0, c.time);
+  bt.finishJson();
+  assert.strictEqual(bt.isFinished, true);
+  assert.throws(() => bt.step(c.open, c.high, c.low, c.close, 0, c.time));
 });

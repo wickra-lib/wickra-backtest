@@ -21,16 +21,9 @@ test('wasm streaming golden parity', () => {
     const c = JSON.parse(fs.readFileSync(path.join(casesDir, f), 'utf8'));
     const bt = new wasm.StreamingBacktest(JSON.stringify(c.spec), c.capital);
     for (let i = 0; i < c.close.length; i++) {
-      bt.step(JSON.stringify({
-        time: c.time[i],
-        open: c.open[i],
-        high: c.high[i],
-        low: c.low[i],
-        close: c.close[i],
-        volume: c.volume[i],
-      }));
+      bt.step(c.open[i], c.high[i], c.low[i], c.close[i], c.volume[i], c.time[i]);
     }
-    const got = bt.finish();
+    const got = bt.finishJson();
     const want = fs.readFileSync(path.join(golden, 'expected', `${c.name}.json`), 'utf8').trim();
     assert.strictEqual(got, want, `streaming mismatch for ${c.name}`);
   }

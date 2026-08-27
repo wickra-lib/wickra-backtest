@@ -11,9 +11,9 @@
 // driven by a websocket instead of a file, which is the whole difference between
 // this and a live strategy.
 //
-// The WASM streaming reach takes each bar as a JSON candle and releases the run
-// with `free`, where the C-ABI bindings take scalars and call `close`. The engine
-// underneath is the same, so the reports match regardless.
+// The streaming surface is the same as the Node binding's, deliberately: both are
+// consumed from JavaScript, so moving between the two packages should not mean
+// relearning method names.
 
 const fs = require('node:fs');
 const path = require('node:path');
@@ -53,9 +53,9 @@ function main() {
 
   const live = new wasm.StreamingBacktest(spec, CAPITAL);
   for (const b of bars) {
-    live.step(JSON.stringify(b));
+    live.step(b.open, b.high, b.low, b.close, b.volume, b.time);
   }
-  const streamed = live.finish();
+  const streamed = live.finishJson();
 
   const report = JSON.parse(streamed);
   const m = report.metrics;
