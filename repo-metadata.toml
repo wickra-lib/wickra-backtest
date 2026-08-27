@@ -5,8 +5,10 @@
 org          = "wickra-lib"
 name         = "wickra-backtest"
 url          = "https://github.com/wickra-lib/wickra-backtest"
+docs_url     = "https://backtest.wickra.org"
 homepage     = "https://wickra.org"
 issues_url   = "https://github.com/wickra-lib/wickra-backtest/issues"
+discussions  = "https://github.com/wickra-lib/wickra-backtest/discussions"
 security_url = "https://github.com/wickra-lib/wickra-backtest/security/advisories/new"
 
 [maintainer]
@@ -18,7 +20,8 @@ email  = "support@wickra.org"
 github = "wickra-lib"
 
 [badges]
-ci_workflow = "ci.yml"
+codecov_repo = "wickra-lib/wickra-backtest"
+ci_workflow  = "ci.yml"
 
 [audit]
 # Forbidden substrings that must not appear in source (the pre-org-migration

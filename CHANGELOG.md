@@ -302,6 +302,19 @@ to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ### Fixed
 
+- **Four manifests disagreed with `repo-metadata.toml`, the file that exists to
+  stop exactly that.** CODEOWNERS assigned `@kingchenc` where the metadata states
+  in its own comment that `github` is "the org @-mention slug used in CODEOWNERS
+  and prose" and `handle` is the separate natural-person credit; it is now
+  `@wickra-lib`. `Cargo.toml` listed `authors = ["kingchenc"]` without the email
+  the same file defines. `repo-metadata.toml` itself was missing `docs_url`,
+  `discussions` and `codecov_repo` although the README carries a codecov badge and
+  both URLs resolve. And `bindings/node/package.json` described its build targets
+  with napi 2's `name` / `triples` keys under `@napi-rs/cli` 3.x, which reads
+  `binaryName` / `targets` — not cosmetic, since `release.yml` runs
+  `npx napi artifacts`, which reads that block. The package also gained the `bugs`
+  field npm shows on the package page.
+
 - **The R package could not be installed by anyone but CI.** `src/Makevars`
   required `WKBT_INC` and `WKBT_LIB` to be set before `R CMD INSTALL`, pointing at
   a locally built C ABI — while `release.yml` prints an r-universe install command

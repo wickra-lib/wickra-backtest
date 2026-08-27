@@ -1,2 +1,10 @@
-# Default owner for everything in this repository.
-*       @kingchenc
+# Code owners for wickra-backtest.
+#
+# The owner listed here is requested for review automatically on every pull
+# request. See https://docs.github.com/articles/about-code-owners.
+#
+# This is the org slug `repo-metadata.toml` names for CODEOWNERS and prose, not
+# the maintainer handle -- that one is the natural-person credit in package
+# manifests and does not move with an org transfer.
+
+*       @wickra-lib

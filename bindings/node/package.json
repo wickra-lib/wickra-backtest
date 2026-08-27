@@ -18,6 +18,9 @@
     "type": "git",
     "url": "https://github.com/wickra-lib/wickra-backtest"
   },
+  "bugs": {
+    "url": "https://github.com/wickra-lib/wickra-backtest/issues"
+  },
   "homepage": "https://github.com/wickra-lib/wickra-backtest",
   "engines": {
     "node": ">= 22"
@@ -29,18 +32,15 @@
     "*.node"
   ],
   "napi": {
-    "name": "wickra-backtest",
-    "triples": {
-      "defaults": false,
-      "additional": [
-        "x86_64-unknown-linux-gnu",
-        "aarch64-unknown-linux-gnu",
-        "x86_64-apple-darwin",
-        "aarch64-apple-darwin",
-        "x86_64-pc-windows-msvc",
-        "aarch64-pc-windows-msvc"
-      ]
-    }
+    "binaryName": "wickra-backtest",
+    "targets": [
+      "x86_64-unknown-linux-gnu",
+      "aarch64-unknown-linux-gnu",
+      "x86_64-apple-darwin",
+      "aarch64-apple-darwin",
+      "x86_64-pc-windows-msvc",
+      "aarch64-pc-windows-msvc"
+    ]
   },
   "optionalDependencies": {
     "wickra-backtest-linux-x64-gnu": "0.1.0",
