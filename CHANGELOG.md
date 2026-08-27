@@ -302,6 +302,15 @@ to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ### Fixed
 
+- **Four of the five Python versions this project ships were never tested.**
+  `pyproject.toml` declares `requires-python = ">=3.9"` and `release.yml` builds
+  abi3-py39 wheels, so a single wheel serves 3.9 through 3.13 — while CI ran the
+  binding on 3.12 alone. The matrix is now three operating systems by
+  `3.9 / 3.11 / 3.12 / 3.13`, twelve checks instead of three, matching the
+  indicator repository. An abi3 wheel is exactly the case where testing one
+  interpreter proves the least: the whole point is that the same binary is loaded
+  by all of them.
+
 - **`ci.yml` carried none of the hardening the rest of the repository already
   had.** The workflow had no `env:` block at all, while this repo's own
   `release.yml` carries the network-retry block verbatim and `bench.yml` carries
