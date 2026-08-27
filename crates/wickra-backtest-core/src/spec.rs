@@ -114,6 +114,15 @@ impl StrategySpec {
                 self.spec_version
             )));
         }
+        // Risk-per-trade sizes the position from the distance to the stop, so
+        // without a stop there is no distance and nothing to size from. The
+        // documentation already says the two go together; this makes it true.
+        if matches!(self.sizing, Sizing::RiskPerTrade { .. }) && self.risk.stop_loss_pct.is_none() {
+            return Err(BacktestError::InvalidSpec(
+                "sizing risk_per_trade requires risk.stop_loss_pct: the position size is                  derived from the distance to the stop"
+                    .into(),
+            ));
+        }
         // A declared feed is redundant -- the indicator type already determines it --
         // so the only thing it can do is contradict the indicator, and that is what
         // this catches. An unknown kind is left to `build`, which reports it with a

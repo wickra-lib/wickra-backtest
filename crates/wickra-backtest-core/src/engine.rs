@@ -292,6 +292,37 @@ pub struct Feeds<'a> {
     pub cross_section: Option<&'a CrossSection>,
 }
 
+/// Reject a spec that prices a run against a feed the run does not carry.
+///
+/// Both cases below produce a number rather than a failure when the feed is
+/// missing: spread slippage costs zero, and funding is never charged. The report
+/// then looks like a successful backtest of a cheaper strategy than the one that
+/// was described, which is the expensive kind of wrong -- nothing about it says
+/// the model was silently reduced.
+///
+/// The batch entry points know their feeds up front, so they check here.
+/// [`StreamingBacktest`] cannot: its caller supplies feeds bar by bar, and
+/// whether a book arrives is not knowable when the handle is built.
+pub(crate) fn require_feeds(
+    spec: &StrategySpec,
+    has_orderbook: bool,
+    has_deriv: bool,
+) -> Result<()> {
+    if matches!(spec.costs.slippage, Slippage::Spread) && !has_orderbook {
+        return Err(BacktestError::InvalidSpec(
+            "costs.slippage spread needs an order-book feed; without one every fill              would be priced at zero slippage"
+                .into(),
+        ));
+    }
+    if spec.costs.funding && !has_deriv {
+        return Err(BacktestError::InvalidSpec(
+            "costs.funding needs a derivatives feed; without one no funding would be              charged at all"
+                .into(),
+        ));
+    }
+    Ok(())
+}
+
 /// Run a backtest of `spec` over `candles` with the default capital.
 pub fn run(spec: &StrategySpec, candles: &[Candle]) -> Result<BacktestReport> {
     run_with_capital(spec, candles, DEFAULT_CAPITAL)
@@ -304,6 +335,7 @@ pub fn run_with_capital(
     capital: f64,
 ) -> Result<BacktestReport> {
     spec.validate()?;
+    require_feeds(spec, false, false)?;
     if candles.is_empty() {
         return Err(BacktestError::InvalidData("no candles".into()));
     }
@@ -332,6 +364,7 @@ where
     F: FnMut(usize, &StreamingBacktest),
 {
     spec.validate()?;
+    require_feeds(spec, false, false)?;
     if candles.is_empty() {
         return Err(BacktestError::InvalidData("no candles".into()));
     }
@@ -354,6 +387,7 @@ pub fn run_with_ref(
     capital: f64,
 ) -> Result<BacktestReport> {
     spec.validate()?;
+    require_feeds(spec, false, false)?;
     if candles.is_empty() {
         return Err(BacktestError::InvalidData("no candles".into()));
     }
@@ -379,6 +413,7 @@ pub fn run_with_deriv(
     capital: f64,
 ) -> Result<BacktestReport> {
     spec.validate()?;
+    require_feeds(spec, false, true)?;
     if candles.is_empty() {
         return Err(BacktestError::InvalidData("no candles".into()));
     }
@@ -410,6 +445,7 @@ pub fn run_with_orderbook(
     capital: f64,
 ) -> Result<BacktestReport> {
     spec.validate()?;
+    require_feeds(spec, true, false)?;
     if candles.is_empty() {
         return Err(BacktestError::InvalidData("no candles".into()));
     }
@@ -441,6 +477,7 @@ pub fn run_with_trades(
     capital: f64,
 ) -> Result<BacktestReport> {
     spec.validate()?;
+    require_feeds(spec, false, false)?;
     if candles.is_empty() {
         return Err(BacktestError::InvalidData("no candles".into()));
     }
@@ -472,6 +509,7 @@ pub fn run_with_cross_section(
     capital: f64,
 ) -> Result<BacktestReport> {
     spec.validate()?;
+    require_feeds(spec, false, false)?;
     if candles.is_empty() {
         return Err(BacktestError::InvalidData("no candles".into()));
     }
@@ -1009,6 +1047,7 @@ fn intrabar_exit(
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::data::Level;
     use crate::spec::StrategySpec;
 
     fn bar(time: i64, open: f64, high: f64, low: f64, close: f64) -> Candle {
@@ -1115,6 +1154,87 @@ mod tests {
                 assert!(px <= 101.0, "buy filled above its limit: {px}");
             }
         }
+    }
+
+    // --- a run must carry the feeds its spec prices against ------------------
+    //
+    // Both of these used to produce a report. Spread slippage without a book cost
+    // nothing, and funding without a derivatives feed was never charged, so the
+    // run answered for a cheaper strategy than the one described and said nothing
+    // about it.
+
+    fn oscillating(n: i64) -> Vec<Candle> {
+        (0..n)
+            .map(|i| {
+                let px = 100.0 + ((i as f64) * 0.4).sin() * 6.0;
+                bar(i, px, px + 0.5, px - 0.5, px)
+            })
+            .collect()
+    }
+
+    fn spec_with(costs: &str) -> StrategySpec {
+        StrategySpec::parse(&format!(
+            r#"{{"symbol":"x","timeframe":"1h",
+                "indicators":{{"a":{{"type":"Sma","params":[5]}}}},
+                "entry":{{"cross_above":[{{"price":"close"}},"a"]}},
+                "exit":{{"cross_below":[{{"price":"close"}},"a"]}},
+                "sizing":{{"type":"fixed_qty","qty":1}},
+                "costs":{costs}}}"#
+        ))
+        .unwrap()
+    }
+
+    #[test]
+    fn spread_slippage_without_an_order_book_is_rejected() {
+        let spec = spec_with(r#"{"slippage":{"type":"spread"}}"#);
+        let candles = oscillating(60);
+        let err = run(&spec, &candles).unwrap_err();
+        let BacktestError::InvalidSpec(msg) = err else {
+            panic!("expected InvalidSpec, got {err:?}");
+        };
+        assert!(
+            msg.contains("order-book"),
+            "message should say what is missing: {msg}"
+        );
+
+        // The same spec with a book runs, which is what makes the rejection a
+        // statement about the feed rather than about the spec.
+        let books: Vec<OrderBook> = candles
+            .iter()
+            .map(|c| OrderBook {
+                bids: vec![Level {
+                    price: c.close - 0.01,
+                    size: 1.0,
+                }],
+                asks: vec![Level {
+                    price: c.close + 0.01,
+                    size: 1.0,
+                }],
+            })
+            .collect();
+        assert!(run_with_orderbook(&spec, &candles, &books, DEFAULT_CAPITAL).is_ok());
+    }
+
+    #[test]
+    fn funding_without_a_derivatives_feed_is_rejected() {
+        let spec = spec_with(r#"{"funding":true}"#);
+        let candles = oscillating(60);
+        let err = run(&spec, &candles).unwrap_err();
+        let BacktestError::InvalidSpec(msg) = err else {
+            panic!("expected InvalidSpec, got {err:?}");
+        };
+        assert!(
+            msg.contains("derivatives"),
+            "message should say what is missing: {msg}"
+        );
+    }
+
+    #[test]
+    fn a_spec_that_prices_nothing_special_needs_no_extra_feed() {
+        // The guard must not reject the ordinary case: fixed-bps slippage and no
+        // funding run over plain candles.
+        let spec = spec_with(r#"{"slippage":{"type":"fixed_bps","bps":1.0}}"#);
+        assert!(run(&spec, &oscillating(60)).is_ok());
     }
 
     /// A generated indicator — one that was never in the original hand-written

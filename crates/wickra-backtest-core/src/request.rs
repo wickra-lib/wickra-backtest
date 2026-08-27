@@ -47,6 +47,10 @@ impl RunRequest {
     /// Run the backtest, threading any present feeds bar by bar.
     pub fn run(&self) -> Result<BacktestReport> {
         self.spec.validate()?;
+        // This request states its feeds up front, so a spec that prices the run
+        // against a feed it does not carry is caught here rather than producing a
+        // report of a cheaper strategy than the one described.
+        crate::engine::require_feeds(&self.spec, self.books.is_some(), self.derivs.is_some())?;
         let n = self.candles.len();
         if n == 0 {
             return Err(BacktestError::InvalidData("no candles".into()));

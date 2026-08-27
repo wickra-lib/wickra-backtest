@@ -302,6 +302,16 @@ to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ### Fixed
 
+- **A run could price a strategy against a feed it did not carry, and say
+  nothing.** `costs.slippage: spread` with no order book charged zero slippage on
+  every fill; `costs.funding: true` with no derivatives feed charged no funding at
+  all. Both produced a complete, plausible report — of a cheaper strategy than the
+  one described. The batch entry points and `run_json` know their feeds up front
+  and now reject the combination, naming which feed is missing and what it would
+  have cost. `StreamingBacktest` deliberately does not check: its caller supplies
+  feeds bar by bar, so whether a book will arrive is not knowable when the handle
+  is built.
+
 - **`ref_symbol` was documented as something it is not.** "Optional reference
   symbol for pair indicators" reads as the way to give a pairwise indicator its
   second series — it is not. The reference is passed with the request, through
