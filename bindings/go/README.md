@@ -78,6 +78,31 @@ The returned JSON is the same `BacktestReport` as every other binding. An invali
 spec or mismatched inputs return an `error` wrapping the engine message; no panic
 crosses the FFI boundary.
 
+The same strategy also runs one bar at a time, which is what makes a backtest and
+a live loop the same code path -- swap the slice for a socket and nothing else
+changes:
+
+```go
+bt, err := wickrabacktest.NewStreamingBacktest(spec, 10_000.0)
+if err != nil {
+	return err
+}
+defer bt.Close()
+
+for _, bar := range feed {
+	if err := bt.Step(bar.Open, bar.High, bar.Low, bar.Close, bar.Volume, bar.Time); err != nil {
+		return err
+	}
+}
+report, err := bt.FinishJSON()
+```
+
+`StreamingBacktest` owns a native handle, so `Close` must be called -- normally
+with `defer`. `FinishJSON` also releases it, and `Close` afterwards is a no-op, so
+the two compose. `StepSimple` uses zero volume and the bar index as its
+timestamp, mirroring `RunSimple`. Strategies reading a side feed drive the run
+with `StepJSON`, passing `{"candle": ..., "feeds": ...}` per bar.
+
 ## Documentation
 
 - **Repository:** <https://github.com/wickra-lib/wickra-backtest>

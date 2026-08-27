@@ -8,6 +8,12 @@ to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ### Added
 
+- Go: a `StreamingBacktest` type over the C ABI's streaming handle (`Step` /
+  `StepSimple` / `StepJSON` / `EquityJSON` / `LatestEquityJSON` / `NumTrades` /
+  `IsFinished` / `FinishJSON` / `Close`). `Close` is explicit and idempotent, and
+  composes with `FinishJSON`; there is no finalizer, because Go's own contract
+  for a resource-holding value is a deferred `Close`, not a cleanup that may or
+  may not run.
 - C#: a `StreamingBacktest` class over the C ABI's streaming handle (`Step` /
   `StepJson` / `EquityJson` / `LatestEquityJson` / `NumTrades` / `IsFinished` /
   `FinishJson`), implementing `IDisposable` with a finalizer as a backstop, since

@@ -64,7 +64,6 @@ STREAMING = frozenset({
 # only shrink.
 PENDING = {
     "wasm": STREAMING,
-    "go": STREAMING,
     "java": STREAMING,
     "r": STREAMING,
 }
@@ -112,6 +111,13 @@ CLASS_STREAMING = {
         r"(?m)^    public .*\b@NAME@\s*[({=]",
         r"public sealed class StreamingBacktest\b",
     ),
+    "go": (
+        NODE_MEMBERS,
+        lambda n: "".join("JSON" if part == "json" else part.capitalize()
+                          for part in n.split("_")),
+        r"(?m)^func \([^)]*\*StreamingBacktest\) @NAME@\s*\(",
+        r"(?m)^func NewStreamingBacktest\s*\(",
+    ),
     "node": (
         NODE_MEMBERS,
         lambda n: re.sub(r"_(\w)", lambda m: m.group(1).upper(), n),
@@ -152,7 +158,7 @@ BINDINGS = {
         r"public static [^\n]*\b@NAME@\s*[\({=]",
     ),
     "go": (
-        ["bindings/go/backtest.go"],
+        ["bindings/go/backtest.go", "bindings/go/streaming.go"],
         lambda n: "".join("JSON" if p == "json" else p.capitalize() for p in n.split("_")),
         r"(?m)^func @NAME@\s*\(",
     ),
