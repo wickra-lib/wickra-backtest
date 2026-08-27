@@ -23,6 +23,23 @@ cargo run --bin wkbt -- run \
 The same strategy spec is just data, so it runs identically from every Wickra
 language binding — the backtest values match live, by construction.
 
+## One example per language
+
+Each directory holds one runnable program that does the same thing: read
+`sample.csv` and `ema-cross.json`, run the whole series at once, then feed the
+same bars one at a time and check that the two reports agree. That check is the
+point -- a live loop is the streaming path with a socket in place of the file, so
+a backtest is not a separate model of the strategy.
+
+| Language | Run it | Needs |
+|---|---|---|
+| Python | `python examples/python/backtest.py` | `maturin develop` in `bindings/python` |
+| Node | `node examples/node/backtest.js` | `npm run build` in `bindings/node` |
+| WASM | `node examples/wasm/backtest.cjs` | `wasm-pack build bindings/wasm --target nodejs --out-dir pkg` |
+| R | `Rscript examples/r/backtest.R` | `R CMD INSTALL bindings/r` |
+
+Every one of them prints the same numbers, because they share one engine.
+
 ## C / C++
 
 `c/` holds two programs that link the generated header and the compiled C ABI, so

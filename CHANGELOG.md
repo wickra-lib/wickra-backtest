@@ -8,6 +8,10 @@ to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ### Added
 
+- Runnable examples for Python, Node, WASM and R under `examples/`, each reading
+  the same `sample.csv` and `ema-cross.json`, running the series both ways and
+  checking the two reports agree. `SUPPORT.md` pointed at "the runnable examples"
+  when only the C ones existed.
 - A completeness guard for the WASM binding, which had none, and exact-set
   assertions in the Python and Node guards. They compared against a list of names
   that had to exist, so a binding growing a method no other binding has passed
