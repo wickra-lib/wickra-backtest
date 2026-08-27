@@ -30,6 +30,7 @@ use crate::error::{BacktestError, Result};
 /// use `candle`; pairwise indicators also use `reference`; derivatives,
 /// order-book and trade indicators use `deriv` / `orderbook` / `trades`. Feeds
 /// that are absent are `None` / empty.
+#[derive(Debug)]
 pub struct BarInput<'a> {
     /// The current bar.
     pub candle: &'a Candle,

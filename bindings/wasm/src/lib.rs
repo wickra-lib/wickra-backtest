@@ -80,6 +80,7 @@ pub fn version() -> String {
 /// browser (a live or replayed feed). The handle owns its spec, so it carries no
 /// borrow across steps.
 #[wasm_bindgen]
+#[derive(Debug)]
 pub struct StreamingBacktest {
     inner: Option<CoreStreaming<'static>>,
 }

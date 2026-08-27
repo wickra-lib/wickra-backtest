@@ -302,6 +302,20 @@ to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ### Fixed
 
+- **The workspace had no `[workspace.lints.rust]` block**, so `unsafe_code`,
+  `unused_must_use`, `unreachable_pub` and `missing_debug_implementations` were
+  unenforced across all nine crates while the clippy set beside them was strict.
+  The four lints are now set, with `unsafe_code = "forbid"`. The two crates that
+  cannot live under a forbid opt out and restate the same set locally rather than
+  losing every lint with it: the C ABI, which is the FFI boundary and needs
+  `unsafe`, and the Node binding, whose `#[napi]` macro expands to
+  `#[allow(unsafe_code)]` — a forbid cannot be lifted, so that one uses `deny`,
+  which the macro can override while hand-written unsafe still has to be argued
+  for. Turning the block on immediately found seven types with no `Debug`
+  implementation, including `StreamingBacktest` itself; six are derives, and the
+  streaming handle has a hand-written one because it holds
+  `Box<dyn EvalIndicator>`, which no derive can reach.
+
 - **Nothing held the ten language reaches to the C ABI.** Each binding has its own
   suite and the golden corpus compares *values*, so a binding that never grew a
   method has no test to fail — the WASM streaming handle, which no other language

@@ -24,6 +24,7 @@
 
 use std::borrow::Cow;
 use std::collections::BTreeMap;
+use std::fmt;
 
 use wickra_core::OrderBook as CoreOrderBook;
 
@@ -39,20 +40,21 @@ use crate::spec::{Execution, FillTiming, OrderType, Risk, Sizing, Slippage, Stra
 /// Default starting capital for the runner.
 pub const DEFAULT_CAPITAL: f64 = 10_000.0;
 
-#[derive(Clone, Copy)]
+#[derive(Debug, Clone, Copy)]
 enum Side {
     Long,
     Short,
 }
 
 /// A resting limit or stop trigger.
-#[derive(Clone, Copy)]
+#[derive(Debug, Clone, Copy)]
 enum LevelKind {
     Limit,
     Stop,
 }
 
 /// What a working order does once it fills.
+#[derive(Debug)]
 enum Action {
     /// An entry. `trigger` is `None` for a market order (fills at the next
     /// open) or a resting limit/stop level (fills when the bar reaches it).
@@ -66,6 +68,7 @@ enum Action {
 
 /// A working order, decided on a bar's close and filled on a later bar. `delay`
 /// counts down the simulated execution latency before the order is eligible.
+#[derive(Debug)]
 struct Pending {
     action: Action,
     delay: u32,
@@ -251,7 +254,7 @@ fn execute_exit(
 /// The optional non-OHLCV feeds for one bar: a reference-series close (pairwise),
 /// a derivatives tick (derivatives) and an order-book snapshot (order-book).
 /// Absent feeds are `None`; indicators that need a missing feed yield nothing.
-#[derive(Default)]
+#[derive(Debug, Default)]
 pub struct Feeds<'a> {
     /// Reference-series close for pairwise indicators.
     pub reference: Option<f64>,
@@ -487,6 +490,25 @@ pub struct StreamingBacktest<'a> {
     extreme: f64,
     // (time, close) of the most recent bar, for the final mark-out.
     last: Option<(i64, f64)>,
+}
+
+/// Hand-written because the indicator map holds `Box<dyn EvalIndicator>`, which no
+/// derive can reach. The evaluators are shown by name: their internal state is the
+/// indicator's business, and printing it would make this unreadable at any real
+/// bar count.
+impl fmt::Debug for StreamingBacktest<'_> {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        f.debug_struct("StreamingBacktest")
+            .field("capital", &self.capital)
+            .field("warmup", &self.warmup)
+            .field("indicators", &self.indicators.keys().collect::<Vec<_>>())
+            .field("bars", &self.history.len())
+            .field("equity_points", &self.equity.len())
+            .field("trades", &self.pf.trades.len())
+            .field("pending", &self.pending)
+            .field("entry_bar", &self.entry_bar)
+            .finish_non_exhaustive()
+    }
 }
 
 impl<'a> StreamingBacktest<'a> {
