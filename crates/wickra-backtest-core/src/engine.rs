@@ -27,7 +27,10 @@ use std::collections::BTreeMap;
 use std::fmt;
 use std::sync::Arc;
 
-use wickra_core::OrderBook as CoreOrderBook;
+use wickra_core::{
+    CrossSection as CoreCrossSection, DerivativesTick as CoreDerivativesTick,
+    OrderBook as CoreOrderBook, Trade as CoreTrade,
+};
 
 use crate::data::{Candle, CrossSection, DerivativesTick, OrderBook, TradePrint};
 use crate::error::{BacktestError, Result};
@@ -291,6 +294,22 @@ pub struct Feeds<'a> {
     pub trades: Option<&'a [TradePrint]>,
     /// Market cross-section for this bar, for breadth indicators.
     pub cross_section: Option<&'a CrossSection>,
+}
+
+/// One bar's inputs, converted from the wire types once and handed to each phase.
+///
+/// The conversions are not free and more than one phase needs them, so they
+/// happen here rather than per phase. `index` is the bar's absolute position in
+/// the run, which is not the same as its position in the retained window.
+#[derive(Debug)]
+struct Bar<'a> {
+    candle: &'a Candle,
+    reference: Option<f64>,
+    deriv: Option<CoreDerivativesTick>,
+    orderbook: Option<CoreOrderBook>,
+    cross_section: Option<CoreCrossSection>,
+    trades: Vec<CoreTrade>,
+    index: usize,
 }
 
 /// One declared indicator, with the keys its values are recorded under.
@@ -717,11 +736,11 @@ impl<'a> StreamingBacktest<'a> {
     /// Process one bar with its optional non-OHLCV [`Feeds`]. Pairwise indicators
     /// consume the reference; derivatives / order-book indicators consume the
     /// tick / snapshot; other indicators ignore them.
-    // 207 lines: one bar advances every part of the simulation in a fixed
-    // order -- indicators, pending fills, intrabar exits, funding, mark-out --
-    // and the order is the correctness argument. Splitting it is worthwhile but
-    // is a change to the engine, not to a lint configuration.
-    #[allow(clippy::too_many_lines)]
+    /// Advance the simulation by one bar.
+    ///
+    /// # Errors
+    ///
+    /// Returns an error if the bar cannot be priced the way the spec asks.
     pub fn step_with_feeds(&mut self, candle: &Candle, feeds: &Feeds) -> Result<()> {
         // Checked per bar, because that is the only place a streaming caller can
         // be checked: the batch entry points know the whole run's feeds up front
@@ -731,19 +750,43 @@ impl<'a> StreamingBacktest<'a> {
         // priced the way the spec asks is rejected rather than priced as if it
         // could be.
         require_feeds(&self.spec, feeds.orderbook.is_some(), feeds.deriv.is_some())?;
-        let reference = feeds.reference;
-        let deriv = feeds.deriv.and_then(|d| d.to_core().ok());
-        let orderbook = feeds.orderbook.and_then(|ob| ob.to_core().ok());
-        let cross_section = feeds.cross_section.and_then(|cs| cs.to_core().ok());
-        let trades: Vec<_> = feeds
-            .trades
-            .unwrap_or(&[])
-            .iter()
-            .filter_map(|tp| tp.to_core().ok())
-            .collect();
-        let t = self.bars_seen;
+        let bar = Bar {
+            candle,
+            reference: feeds.reference,
+            deriv: feeds.deriv.and_then(|d| d.to_core().ok()),
+            orderbook: feeds.orderbook.and_then(|ob| ob.to_core().ok()),
+            cross_section: feeds.cross_section.and_then(|cs| cs.to_core().ok()),
+            trades: feeds
+                .trades
+                .unwrap_or(&[])
+                .iter()
+                .filter_map(|tp| tp.to_core().ok())
+                .collect(),
+            index: self.bars_seen,
+        };
         self.last = Some((candle.time, candle.close));
 
+        // The order below is the correctness argument, not a matter of taste. A
+        // fill is priced against this bar before the bar is recorded, so a rule
+        // cannot see the close it is about to be filled at; indicators update
+        // before intrabar stops read them; equity is marked after every cost has
+        // been charged; and only then does the next signal get to look at the
+        // completed bar. Reordering any two of these is a change in what the
+        // engine means, which is why they are named here rather than left as
+        // comment headings inside one long body.
+        self.fill_working_order(&bar)?;
+        let idx = self.record_bar(&bar);
+        self.apply_intrabar_exits(&bar);
+        self.charge_funding(&bar);
+        self.mark_equity(&bar);
+        self.decide_next_action(&bar, idx)
+    }
+
+    /// 1. Fill the working order against this bar, look-ahead-free.
+    fn fill_working_order(&mut self, bar: &Bar) -> Result<()> {
+        let candle = bar.candle;
+        let orderbook = &bar.orderbook;
+        let t = bar.index;
         // 1. Fill the working order against this bar (look-ahead-free). Execution
         //    latency counts down first; then a market order fills at the open and
         //    a resting limit/stop fills only when the bar reaches its level —
@@ -798,6 +841,20 @@ impl<'a> StreamingBacktest<'a> {
             }
         }
 
+        Ok(())
+    }
+
+    /// 2. Update every indicator and record the bar.
+    ///
+    /// Returns the bar's index in the retained window, which is not its index in
+    /// the run: the window is bounded and the run is not.
+    fn record_bar(&mut self, bar: &Bar) -> usize {
+        let candle = bar.candle;
+        let reference = bar.reference;
+        let deriv = bar.deriv;
+        let orderbook = &bar.orderbook;
+        let cross_section = &bar.cross_section;
+        let trades: &[CoreTrade] = &bar.trades;
         // 2. Update indicators and record the bar.
         let mut values = BTreeMap::new();
         for ind in &mut self.indicators {
@@ -806,7 +863,7 @@ impl<'a> StreamingBacktest<'a> {
                 reference,
                 deriv,
                 orderbook: orderbook.as_ref(),
-                trades: &trades,
+                trades,
                 cross_section: cross_section.as_ref(),
             };
             if let Some(v) = ind.eval.update(&input) {
@@ -841,8 +898,12 @@ impl<'a> StreamingBacktest<'a> {
         }
         self.bars_seen += 1;
         // Window-relative: the current bar is always the last retained one.
-        let idx = self.history.len() - 1;
+        self.history.len() - 1
+    }
 
+    /// 3. Intrabar stop-loss / take-profit / trailing-stop against this bar.
+    fn apply_intrabar_exits(&mut self, bar: &Bar) {
+        let candle = bar.candle;
         // 3. Intrabar stop-loss / take-profit / trailing-stop against this bar's OHLC.
         if self.pf.in_position() {
             // Extend the favourable extreme with this bar before checking the trail.
@@ -876,7 +937,11 @@ impl<'a> StreamingBacktest<'a> {
                 }
             }
         }
+    }
 
+    /// 3b. Charge perpetual funding to an open position from the feed.
+    fn charge_funding(&mut self, bar: &Bar) {
+        let deriv = bar.deriv;
         // 3b. Charge perpetual funding to the open position from the feed.
         if self.spec.costs.funding && self.pf.in_position() {
             if let Some(d) = deriv {
@@ -885,13 +950,23 @@ impl<'a> StreamingBacktest<'a> {
                 self.pf.apply_funding(payment);
             }
         }
+    }
 
+    /// 4. Mark equity at the close.
+    fn mark_equity(&mut self, bar: &Bar) {
+        let candle = bar.candle;
         // 4. Mark equity at the close.
         self.equity.push(EquityPoint {
             time: candle.time,
             equity: self.pf.equity(candle.close),
         });
+    }
 
+    /// 5. Decide the next signal action.
+    fn decide_next_action(&mut self, bar: &Bar, idx: usize) -> Result<()> {
+        let candle = bar.candle;
+        let orderbook = &bar.orderbook;
+        let t = bar.index;
         // 5. Decide the next signal action. Skip warmup.
         //
         // Counted in bars fed, not in retained rows: warmup is about indicators

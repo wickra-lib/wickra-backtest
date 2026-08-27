@@ -392,6 +392,14 @@ to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ### Changed
 
+- The engine's per-bar loop is split into named phases -- fill the working order,
+  record the bar, apply intrabar exits, charge funding, mark equity, decide the
+  next action -- so `step_with_feeds` reads as the six-line list that its order
+  actually is. The order was already the correctness argument; it was stated in
+  comment headings inside a 267-line body, and is now stated in code. No
+  behaviour changes: the bodies moved verbatim and the golden corpus is
+  byte-identical.
+
 - `SECURITY.md` names an exact supported version rather than the `0.1.x`
   wildcard, matching the reference repository. The wildcard left the file
   half-owned: a patch bump did not touch it, a minor bump did, and nothing said
