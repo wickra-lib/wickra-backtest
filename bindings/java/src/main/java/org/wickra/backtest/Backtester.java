@@ -22,11 +22,14 @@ import java.lang.invoke.MethodHandle;
  */
 public final class Backtester {
 
-    private static final Linker LINKER = Linker.nativeLinker();
+    // Package-private rather than private: StreamingBacktest resolves its own
+    // symbols through the same lookup, so the library is loaded once and both
+    // reaches share one linker instead of duplicating the static init.
+    static final Linker LINKER = Linker.nativeLinker();
     private static final SymbolLookup LOOKUP;
     private static final MethodHandle RUN;
     private static final MethodHandle RUN_JSON;
-    private static final MethodHandle FREE;
+    static final MethodHandle FREE;
     private static final MethodHandle VERSION;
 
     static {
@@ -56,7 +59,7 @@ public final class Backtester {
     private Backtester() {
     }
 
-    private static MemorySegment symbol(String name) {
+    static MemorySegment symbol(String name) {
         return LOOKUP.find(name).orElseThrow(
                 () -> new UnsatisfiedLinkError("wickra-backtest: missing symbol " + name));
     }

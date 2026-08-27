@@ -8,6 +8,11 @@ to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ### Added
 
+- Java: a `StreamingBacktest` class over the C ABI's streaming handle (`step` /
+  `stepJson` / `equityJson` / `latestEquityJson` / `numTrades` / `isFinished` /
+  `finishJson` / `close`), implementing `AutoCloseable`. `finishJson` releases the
+  handle too, so a try-with-resources `close` after it is a no-op rather than a
+  double free.
 - Go: a `StreamingBacktest` type over the C ABI's streaming handle (`Step` /
   `StepSimple` / `StepJSON` / `EquityJSON` / `LatestEquityJSON` / `NumTrades` /
   `IsFinished` / `FinishJSON` / `Close`). `Close` is explicit and idempotent, and

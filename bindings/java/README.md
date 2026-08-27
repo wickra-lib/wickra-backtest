@@ -75,6 +75,27 @@ The returned JSON is the same `BacktestReport` as every other binding
 or mismatched inputs throw `IllegalStateException` / `IllegalArgumentException`;
 no panic ever crosses the FFI boundary.
 
+The same strategy also runs one bar at a time, which is what makes a backtest and
+a live loop the same code path -- swap the array for a socket and nothing else
+changes:
+
+```java
+try (StreamingBacktest bt = new StreamingBacktest(spec, 10_000.0)) {
+    for (Bar bar : feed) {
+        bt.step(bar.open(), bar.high(), bar.low(), bar.close(), bar.volume(), bar.time());
+        System.out.println(bt.numTrades() + " " + bt.latestEquityJson());
+    }
+    String report = bt.finishJson();
+}
+```
+
+`StreamingBacktest` owns a native handle, so it is `AutoCloseable` and belongs in
+a try-with-resources block. `finishJson()` also releases the handle, and `close()`
+afterwards is a no-op, so the two compose. The four-argument `step` uses zero
+volume and the bar index as its timestamp. Strategies reading a side feed drive
+the run with `stepJson`, passing `{"candle": ..., "feeds": ...}` per bar; using a
+finished run throws `IllegalStateException`.
+
 ## Documentation
 
 - **Repository:** <https://github.com/wickra-lib/wickra-backtest>

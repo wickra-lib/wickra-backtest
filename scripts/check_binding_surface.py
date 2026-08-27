@@ -64,7 +64,6 @@ STREAMING = frozenset({
 # only shrink.
 PENDING = {
     "wasm": STREAMING,
-    "java": STREAMING,
     "r": STREAMING,
 }
 
@@ -118,6 +117,12 @@ CLASS_STREAMING = {
         r"(?m)^func \([^)]*\*StreamingBacktest\) @NAME@\s*\(",
         r"(?m)^func NewStreamingBacktest\s*\(",
     ),
+    "java": (
+        NODE_MEMBERS,
+        lambda n: re.sub(r"_(\w)", lambda m: m.group(1).upper(), n),
+        r"(?m)^    public .*\b@NAME@\s*\(",
+        r"public final class StreamingBacktest\b",
+    ),
     "node": (
         NODE_MEMBERS,
         lambda n: re.sub(r"_(\w)", lambda m: m.group(1).upper(), n),
@@ -163,7 +168,10 @@ BINDINGS = {
         r"(?m)^func @NAME@\s*\(",
     ),
     "java": (
-        ["bindings/java/src/main/java/org/wickra/backtest/Backtester.java"],
+        [
+            "bindings/java/src/main/java/org/wickra/backtest/Backtester.java",
+            "bindings/java/src/main/java/org/wickra/backtest/StreamingBacktest.java",
+        ],
         lambda n: re.sub(r"_(\w)", lambda m: m.group(1).upper(), n),
         r"public static [^\n]*\b@NAME@\s*\(",
     ),
