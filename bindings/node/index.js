@@ -587,6 +587,8 @@ if (!nativeBinding) {
 }
 
 module.exports = nativeBinding
+module.exports.StreamingBacktest = nativeBinding.StreamingBacktest
+module.exports.StreamingBacktestNode = nativeBinding.StreamingBacktestNode
 module.exports.run = nativeBinding.run
 module.exports.runJson = nativeBinding.runJson
 module.exports.version = nativeBinding.version

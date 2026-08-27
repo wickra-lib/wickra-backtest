@@ -67,6 +67,26 @@ const report = JSON.parse(runJson(JSON.stringify({ capital: 1000, spec, candles,
 
 See the [microstructure guide](../../docs/MICROSTRUCTURE.md) for the feed shapes.
 
+The same strategy also runs one bar at a time, which is what makes a backtest and
+a live loop the same code path -- swap the array for a socket and nothing else
+changes:
+
+```js
+const { StreamingBacktest } = require('.');
+
+const bt = new StreamingBacktest(specJson, 10000);
+for (const bar of feed) {
+  bt.step(bar.open, bar.high, bar.low, bar.close, bar.volume, bar.time);
+  console.log(bt.numTrades, JSON.parse(bt.latestEquityJson()));
+}
+const report = JSON.parse(bt.finishJson());
+```
+
+`volume` defaults to 0 and `time` to the number of bars fed so far. Strategies
+that read a side feed drive the run with `stepJson` instead, passing
+`{ candle, feeds }` per bar. `finishJson()` ends the run; `close()` discards one
+without producing a report.
+
 ## Test
 
 ```bash

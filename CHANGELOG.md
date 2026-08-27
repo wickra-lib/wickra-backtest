@@ -8,6 +8,11 @@ to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ### Added
 
+- Node: a `StreamingBacktest` class (`step` / `stepJson` / `equityJson` /
+  `latestEquityJson` / `numTrades` / `isFinished` / `finishJson` / `close`), with
+  the regenerated `index.js` and `index.d.ts`. Reporting methods return JSON
+  strings the way `run` already does, rather than mirroring the whole report
+  shape in napi objects; `volume` defaults to 0 and `time` to the bar index.
 - Python: a `StreamingBacktest` class (`step` / `step_json` / `equity` /
   `latest_equity` / `num_trades` / `finish` / `close`, plus context-manager
   support), typed in `__init__.pyi`. `step` takes an optional `feeds` mapping so a

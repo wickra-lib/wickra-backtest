@@ -63,7 +63,6 @@ STREAMING = frozenset({
 # pending for it, the check fails and says to delete the entry, so the list can
 # only shrink.
 PENDING = {
-    "node": STREAMING,
     "wasm": STREAMING,
     "csharp": STREAMING,
     "go": STREAMING,
@@ -84,14 +83,32 @@ STREAM_MEMBERS = {
     "stream_finish_json": "finish",
     "stream_free": "close",
 }
+# Node reports through JSON strings, the way its `run` already does, so its
+# members say so. A binding names things the way its own language reads; the
+# mapping is what keeps that from looking like a missing capability.
+NODE_MEMBERS = {
+    **STREAM_MEMBERS,
+    "stream_equity_json": "equity_json",
+    "stream_latest_equity_json": "latest_equity_json",
+    "stream_finish_json": "finish_json",
+}
 
 # For these languages, `stream_new` means the class exists and the rest mean it
 # declares that member. Languages absent here are still checked flat.
 CLASS_STREAMING = {
     "python": (
+        STREAM_MEMBERS,
         lambda n: n,
         r"(?m)^    def @NAME@\b",
         r"(?m)^class StreamingBacktest\b",
+    ),
+    # index.d.ts is generated from the Rust source, so checking it proves the
+    # class actually reached the published surface, not merely the crate.
+    "node": (
+        NODE_MEMBERS,
+        lambda n: re.sub(r"_(\w)", lambda m: m.group(1).upper(), n),
+        r"(?m)^  (?:get )?@NAME@\s*[(:]",
+        r"export declare class StreamingBacktest\b",
     ),
 }
 
@@ -153,11 +170,10 @@ def exposes(lang: str, text: str, export: str, spell, pattern: str) -> bool:
     members = CLASS_STREAMING.get(lang)
     if members is None or not export.startswith("stream_"):
         return declares(text, spell(export), pattern)
-    mspell, mpattern, class_pattern = members
+    member_names, mspell, mpattern, class_pattern = members
     if export == "stream_new":
         return re.search(class_pattern, text) is not None
-    member = STREAM_MEMBERS[export]
-    return declares(text, mspell(member), mpattern)
+    return declares(text, mspell(member_names[export]), mpattern)
 
 
 def read(paths: list[str]) -> str:
