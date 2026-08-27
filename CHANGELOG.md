@@ -302,6 +302,17 @@ to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ### Fixed
 
+- **Both crate front pages announced themselves as unfinished scaffolding.**
+  `wickra-backtest-core` and `wickra-backtest` opened with
+  `Status: **scaffold** (handoff-20, Phase 0). The public surface below is the
+  intended shape; modules are filled in over Phases 1–5.` — the text docs.rs puts
+  at the top of the page, describing a state the code left long ago. The core also
+  promised that live execution "will live in a separate `wickra-bot`", a crate
+  that does not exist and is not planned: live execution is the same engine driven
+  one bar at a time through `StreamingBacktest`, which is the actual reason
+  "backtest == live" holds. And `examples/README.md` said the spec runs from every
+  language binding "once those land" — all ten landed.
+
 - **The facade crate could not name half of what it hands back.** `wickra-backtest`
   re-exported nineteen items from the core by hand, and the list had drifted:
   `BacktestReport` was exported while `Metrics`, the type of its own `.metrics`

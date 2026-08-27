@@ -21,4 +21,4 @@ cargo run --bin wkbt -- run \
 ```
 
 The same strategy spec is just data, so it runs identically from every Wickra
-language binding once those land — the backtest values match live, by construction.
+language binding — the backtest values match live, by construction.

@@ -10,8 +10,6 @@
 //! The same engine, fed live instead of historical bars, becomes the live bot —
 //! so **backtest == live, byte-identical**, and (because the strategy is a JSON
 //! spec, not code) identical across every Wickra language binding.
-//!
-//! Status: **scaffold** (handoff-20, Phase 0).
 
 #![forbid(unsafe_code)]
 

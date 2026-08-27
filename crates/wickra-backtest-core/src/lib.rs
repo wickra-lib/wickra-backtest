@@ -10,12 +10,11 @@
 //! strategy is data (JSON) rather than code, a backtest and a live run over the
 //! same spec produce identical signals — across all Wickra language bindings.
 //!
-//! This crate is the shared engine core; the historical-data driver lives in
-//! `wickra-backtest` and live execution will live in a separate `wickra-bot`,
-//! both depending on this core so "backtest == live" holds by construction.
-//!
-//! Status: **scaffold** (handoff-20, Phase 0). The public surface below is the
-//! intended shape; modules are filled in over Phases 1–5.
+//! This crate is the shared engine core, and `wickra-backtest` is the facade over
+//! it. Live execution is not a second crate: it is the same engine driven one bar
+//! at a time through [`StreamingBacktest`] instead of over a stored series, so
+//! "backtest == live" holds because there is one implementation, not because two
+//! of them agree.
 
 #![forbid(unsafe_code)]
 
