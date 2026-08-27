@@ -8,6 +8,9 @@ to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ### Added
 
+- Runnable examples for Rust, Go, C# and Java under `examples/`, completing one
+  per language alongside the existing C pair. The Rust example is a workspace
+  member, so it compiles and lints with everything else.
 - Runnable examples for Python, Node, WASM and R under `examples/`, each reading
   the same `sample.csv` and `ema-cross.json`, running the series both ways and
   checking the two reports agree. `SUPPORT.md` pointed at "the runnable examples"

@@ -37,6 +37,10 @@ a backtest is not a separate model of the strategy.
 | Node | `node examples/node/backtest.js` | `npm run build` in `bindings/node` |
 | WASM | `node examples/wasm/backtest.cjs` | `wasm-pack build bindings/wasm --target nodejs --out-dir pkg` |
 | R | `Rscript examples/r/backtest.R` | `R CMD INSTALL bindings/r` |
+| Rust | `cargo run -p wickra-backtest-examples` | nothing |
+| Go | `cd examples/go && go run .` | the C ABI staged under `bindings/go/lib/<goos>_<goarch>/` |
+| C# | `dotnet run --project examples/csharp` | `cargo build -p wickra-backtest-c` |
+| Java | `mvn -f examples/java compile exec:exec` | `cargo build -p wickra-backtest-c`, then `mvn -f bindings/java install` |
 
 Every one of them prints the same numbers, because they share one engine.
 

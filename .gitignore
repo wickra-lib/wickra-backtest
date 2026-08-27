@@ -38,6 +38,7 @@ obj/
 
 # Java / Maven build artifacts
 bindings/java/target/
+examples/java/target/
 
 # R build artifacts
 bindings/r/.rlib/

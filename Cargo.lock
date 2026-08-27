@@ -1921,6 +1921,15 @@ dependencies = [
 ]
 
 [[package]]
+name = "wickra-backtest-examples"
+version = "0.1.0"
+dependencies = [
+ "serde_json",
+ "wickra-backtest",
+ "wickra-backtest-data",
+]
+
+[[package]]
 name = "wickra-backtest-node"
 version = "0.1.0"
 dependencies = [

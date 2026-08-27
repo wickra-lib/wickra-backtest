@@ -1,0 +1,21 @@
+[package]
+name = "wickra-backtest-examples"
+version.workspace = true
+publish = false
+description = "Runnable Rust examples for the wickra-backtest engine."
+authors.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+repository.workspace = true
+homepage.workspace = true
+
+[lints]
+workspace = true
+
+[dependencies]
+wickra-backtest = { path = "../../crates/wickra-backtest" }
+# The CSV loader the CLI uses, so the example reads the shared sample the same
+# way the rest of the project does rather than hand-rolling a parser.
+wickra-backtest-data = { path = "../../crates/wickra-backtest-data" }
+serde_json = { workspace = true }
