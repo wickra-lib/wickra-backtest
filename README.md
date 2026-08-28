@@ -244,6 +244,51 @@ The Go, Java and R bindings load the C ABI shared library at run time; put
 nightly toolchain — see [`fuzz/`](fuzz/); the same never-panic invariants are
 covered on stable by the property tests.
 
+## Testing
+
+Every layer is covered; the commands are in
+[Building from source](#building-from-source).
+
+- `wickra-backtest-core` — 113 unit tests: hand-computed round trips (entry at
+  the next open, exit on the signal after it), every sizing model, the cost and
+  slippage models, intrabar stops and liquidation, funding, the rule evaluator,
+  bounded history, and the feed requirements a spec declares. Plus five
+  integration suites: property tests, the shipped example specs, and the three
+  golden runners (batch, streaming, and the microstructure requests).
+- `wickra-backtest-data` — 17 unit tests over CSV, JSONL, JSON-array and Binance
+  kline decoding, plus the resamplers.
+- `bindings/c` — 12 Rust tests driving the ABI itself, including the streaming
+  handle's lifecycle and every error path, so a null or finished handle is
+  proven to be reported rather than dereferenced.
+- `bindings/python` — 21 pytest cases: smoke, streaming, golden parity,
+  completeness of the module and class surface, and the feed path.
+- `bindings/node` — 19 `node --test` cases, same shape.
+- `bindings/wasm` — 8 `node --test` cases against the built package.
+- `bindings/csharp` — 15 xUnit cases. `bindings/java` — 15 JUnit cases.
+  `bindings/go` — 15 `go test` cases. `bindings/r` — 3 script suites.
+- `fuzz/` — five targets covering the whole untrusted-input surface: the spec
+  parser, the JSON request, the engine loop, the fill model and the data loader.
+
+On top of those, **all ten languages** replay a shared, language-neutral golden
+corpus — four OHLCV cases and five microstructure requests in `golden/` — and
+assert equality with the Rust reference report. Since the streaming work, each
+also replays the corpus **one bar at a time** and asserts the same report, so
+the claim that a backtest and a live loop agree is pinned per language rather
+than argued.
+
+> **What "parity" means here, precisely.** The reports are compared
+> **byte for byte**, not to a tolerance. That is possible because every binding
+> calls the same Rust engine — the arithmetic is not reimplemented anywhere — and
+> because the indicators the corpus names use only IEEE-754 arithmetic, which
+> every conforming platform rounds identically. It is not free, though: a spec
+> can name any indicator in the core, and some of those call a transcendental
+> from the platform's math library (`ln`, `atan`, `exp` and friends). No
+> mainstream libm rounds those correctly, and implementations differ in the last
+> bit — the sibling indicator library measured a one-ulp difference on 24 of 67
+> bars for a single indicator. A golden case built on one of those would have to
+> compare to a relative tolerance instead. None currently does, and that is a
+> property of the corpus worth keeping deliberately rather than by accident.
+
 ## Requirements
 
 The minimum supported version per language. The same engine kernel runs behind

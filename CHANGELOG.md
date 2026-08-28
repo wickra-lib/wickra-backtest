@@ -8,6 +8,13 @@ to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ### Added
 
+- A Testing section in the README: the per-layer inventory, what the shared
+  golden corpus actually pins across the ten languages, and what "parity" means
+  precisely -- the reports are compared byte for byte rather than to a tolerance,
+  which holds only because the corpus names indicators that use IEEE arithmetic
+  alone. A case built on a transcendental indicator would need a tolerance, and
+  that is now a stated property of the corpus rather than an accident.
+
 - `scripts/check_r_abi_skew.py`, run by CI on every pull request: it asserts that
   the R wrapper links against the C ABI of the version `DESCRIPTION` names. R is
   the one binding whose native half comes from a published release rather than
