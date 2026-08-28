@@ -144,6 +144,14 @@ jobs:
       - name: Binding READMEs link absolutely
         run: python3 scripts/check_readme_links.py
 
+      # Cargo decides what to package from git, so the licence texts cannot be
+      # staged at publish time the way the npm ones are: untracked makes
+      # `cargo publish` refuse the dirty tree, gitignored drops them from the
+      # .crate. Committed copies are the only thing that works, so their drift is
+      # what needs watching.
+      - name: Published packages carry their licence texts
+        run: python3 scripts/check_license_copies.py
+
   # An early heads-up on a broken link in a pull request. Deliberately
   # non-blocking: external link rot is non-deterministic, and a third-party site
   # rate-limiting must never fail someone's PR. The authoritative run is the

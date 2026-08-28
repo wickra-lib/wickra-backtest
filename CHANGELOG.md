@@ -520,6 +520,12 @@ to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ### Fixed
 
+- The four published crates, the Python wheel and the sdist ship the licence
+  texts. They declared `MIT OR Apache-2.0` and carried neither document, because
+  the files live at the repository root and every one of these packages is built
+  from a subdirectory. `scripts/check_license_copies.py` derives the locations
+  from the workspace, so a new publishable crate starts requiring them.
+
 - The homepage every package declares is now the same URL. Twelve slots named the
   repository and two named the project site; `repo-metadata.toml` already calls
   that site `docs_url`, so it moves to the Documentation slot in the Python
