@@ -78,6 +78,24 @@ with wbt.StreamingBacktest(spec=spec) as live:
 The two reports are byte-identical. That is the whole claim, and a shared
 [golden corpus](golden/) holds every one of the ten bindings to it.
 
+## Documentation
+
+- **[Strategy spec reference](docs/STRATEGY_SPEC.md)** — the full DSL: operands,
+  conditions, sizing, costs, slippage, risk, execution and the report shape.
+- **[Cookbook](docs/COOKBOOK.md)** — six ready-to-run strategies (RSI mean
+  reversion, MACD trend, Bollinger breakout, Donchian breakout, funding carry,
+  order-book imbalance), each validated against the engine.
+- **[Microstructure guide](docs/MICROSTRUCTURE.md)** — backtesting on the order
+  book, trades, perpetual funding and market breadth (the differentiator).
+- **[Architecture](ARCHITECTURE.md)** — crates, data flow and design decisions.
+- **[Benchmarks](BENCHMARKS.md)** — throughput methodology and caveats.
+- **[Examples](examples/)** — runnable specs and a sample dataset.
+- The JSON Schema for the spec is at
+  [`schema/strategy_spec.schema.json`](schema/strategy_spec.schema.json) and is
+  printed by `wkbt schema`.
+
+## Why Wickra Backtest
+
 What it does differently:
 
 - **O(1) per tick** — years of tick data in seconds, not hours (no recompute-on-every-tick).
@@ -110,23 +128,9 @@ because none of them needs to.
 **Alpha / work in progress.** The engine, the data-driven `StrategySpec`, the
 full execution and cost model, the microstructure feeds and all ten language
 bindings are implemented and tested; a shared [golden corpus](golden/) pins the
-cross-language equality byte-for-byte. Not yet released to any registry.
-
-## Documentation
-
-- **[Strategy spec reference](docs/STRATEGY_SPEC.md)** — the full DSL: operands,
-  conditions, sizing, costs, slippage, risk, execution and the report shape.
-- **[Cookbook](docs/COOKBOOK.md)** — six ready-to-run strategies (RSI mean
-  reversion, MACD trend, Bollinger breakout, Donchian breakout, funding carry,
-  order-book imbalance), each validated against the engine.
-- **[Microstructure guide](docs/MICROSTRUCTURE.md)** — backtesting on the order
-  book, trades, perpetual funding and market breadth (the differentiator).
-- **[Architecture](ARCHITECTURE.md)** — crates, data flow and design decisions.
-- **[Benchmarks](BENCHMARKS.md)** — throughput methodology and caveats.
-- **[Examples](examples/)** — runnable specs and a sample dataset.
-- The JSON Schema for the spec is at
-  [`schema/strategy_spec.schema.json`](schema/strategy_spec.schema.json) and is
-  printed by `wkbt schema`.
+cross-language equality byte-for-byte. Released as **v0.1.0** to crates.io,
+PyPI, npm, NuGet, Maven Central and the Go module proxy; the R package is
+registered with R-universe, which builds it from this repository.
 
 ## Quickstart
 
@@ -197,10 +201,62 @@ The C, C++, C#, Go, Java and R bindings all call through the same C ABI hub; the
 both the plain OHLCV path and the order-book / trade / derivatives /
 cross-section feed paths.
 
-## Performance
+## Benchmarks
 
 O(1) per bar — about **1.7M bars/second** on one core (a year of 1-minute bars in
-~0.3 s). See [BENCHMARKS.md](BENCHMARKS.md) for the methodology and caveats.
+~0.3 s). The cost of a bar is bounded by the indicators the spec configures, never
+by how much history precedes it. Full tables and how to reproduce them live in
+**[BENCHMARKS.md](BENCHMARKS.md)**.
+
+### Pick your language with eyes open — per-binding throughput
+
+Every binding drives the **same** Rust engine, so this is **not** a speed claim —
+it is the raw cost of crossing each language's FFI boundary, measured with the
+[shared example strategy](examples/ema-cross.json) over 100,000 bars (median of
+three runs, one development machine). **Batch collapses towards the floor;
+streaming is where the boundary shows** — so if you drive a live loop bar by bar,
+the table tells you which binding keeps up.
+
+| Binding | streaming | ns/bar | batch | ns/bar |
+|---------|----------:|-------:|------:|-------:|
+| C       | 6,750,000 b/s |   148 | 6,548,000 b/s |   153 |
+| C#      | 6,188,000 b/s |   162 | 6,315,000 b/s |   158 |
+| Go      | 4,621,000 b/s |   216 | 6,448,000 b/s |   155 |
+| Java    | 4,493,000 b/s |   223 | 5,565,000 b/s |   180 |
+| WASM    | 4,127,000 b/s |   242 | 4,878,000 b/s |   205 |
+| Node    | 3,438,000 b/s |   291 | 2,530,000 b/s |   395 |
+| Python  | 1,411,000 b/s |   709 | 1,486,000 b/s |   673 |
+| R       |   284,000 b/s | 3,527 | 6,213,000 b/s |   161 |
+
+**C is the floor**: it calls the exported functions directly, with no marshalling
+of its own, so its ~148 ns/bar is the engine plus a function call — every other
+row is that number plus what the language adds. Two results are the opposite of
+what one might assume: **Node's batch path is slower than its streaming path**
+(marshalling six JavaScript arrays across napi costs more than 100,000 scalar
+calls), and **WASM beats the native Node binding on both paths**. All ten share
+one verified implementation, so the *numbers* differ but the *values* do not.
+Methodology and the per-binding discussion are in
+[BENCHMARKS.md](BENCHMARKS.md#per-binding-throughput--the-cost-of-the-boundary).
+
+## Requirements
+
+The minimum supported version per language. The same engine kernel runs behind
+every binding; the C-ABI bindings that compile on install — Go (cgo) and R
+(`.Call`) — also need a C compiler, and Java runs with
+`--enable-native-access=ALL-UNNAMED`.
+
+| Language | Package                                   | Minimum supported          |
+|----------|-------------------------------------------|----------------------------|
+| Rust     | crates.io · `wickra-backtest`             | 1.86 (MSRV)                |
+| Python   | PyPI · `wickra-backtest` (abi3 wheel)     | 3.9 (tested through 3.13)  |
+| Node.js  | npm · `wickra-backtest` (N-API 8)         | 22 (tested on 22 · 24 LTS) |
+| WASM     | npm · `wickra-backtest-wasm`              | any modern JS engine       |
+| C        | `wickra_backtest.h` + library (releases)  | C99 compiler               |
+| C++      | the C ABI + optional `wickra_backtest.hpp` | C++14 compiler            |
+| C#       | NuGet · `Wickra.Backtest`                 | .NET 8 (`net8.0`)          |
+| Go       | module · `wickra-lib/wickra-backtest-go`  | Go 1.23 (cgo)              |
+| Java     | Maven Central · `org.wickra:wickra-backtest` | Java 22 (FFM / Panama)  |
+| R        | r-universe · `wickrabacktest`             | R ≥ 2.10 (Rtools on Win.)  |
 
 ## Project layout
 
@@ -225,7 +281,7 @@ wickra-backtest/
 └── fuzz/         cargo-fuzz targets (nightly)
 ```
 
-## Building from source
+## Building everything from source
 
 ```bash
 # Rust core + tests + lints
@@ -308,26 +364,6 @@ than argued.
 > compare to a relative tolerance instead. None currently does, and that is a
 > property of the corpus worth keeping deliberately rather than by accident.
 
-## Requirements
-
-The minimum supported version per language. The same engine kernel runs behind
-every binding; the C-ABI bindings that compile on install — Go (cgo) and R
-(`.Call`) — also need a C compiler, and Java runs with
-`--enable-native-access=ALL-UNNAMED`.
-
-| Language | Package                                   | Minimum supported          |
-|----------|-------------------------------------------|----------------------------|
-| Rust     | crates.io · `wickra-backtest`             | 1.86 (MSRV)                |
-| Python   | PyPI · `wickra-backtest` (abi3 wheel)     | 3.9 (tested through 3.13)  |
-| Node.js  | npm · `wickra-backtest` (N-API 8)         | 22 (tested on 22 · 24 LTS) |
-| WASM     | npm · `wickra-backtest-wasm`              | any modern JS engine       |
-| C        | `wickra_backtest.h` + library (releases)  | C99 compiler               |
-| C++      | the C ABI + optional `wickra_backtest.hpp` | C++14 compiler            |
-| C#       | NuGet · `Wickra.Backtest`                 | .NET 8 (`net8.0`)          |
-| Go       | module · `wickra-lib/wickra-backtest-go`  | Go 1.23 (cgo)              |
-| Java     | Maven Central · `org.wickra:wickra-backtest` | Java 22 (FFM / Panama)  |
-| R        | r-universe · `wickrabacktest`             | R ≥ 2.10 (Rtools on Win.)  |
-
 ## Ecosystem
 
 Part of the [Wickra](https://github.com/wickra-lib/wickra) family — each one a
@@ -392,5 +428,17 @@ the full terms.
 ---
 
 <p align="center">
-  Built on <a href="https://github.com/wickra-lib/wickra">Wickra</a>. If it saved you time, ⭐ the repo.
+  <a href="https://github.com/wickra-lib/wickra-backtest/stargazers">
+    <img alt="GitHub stars" src="https://raw.githubusercontent.com/wickra-lib/.github/main/profile/badges/wickra-backtest/stars.svg">
+  </a>
+  <a href="https://github.com/wickra-lib/wickra-backtest/network/members">
+    <img alt="GitHub forks" src="https://raw.githubusercontent.com/wickra-lib/.github/main/profile/badges/wickra-backtest/forks.svg">
+  </a>
+  <a href="https://github.com/wickra-lib/wickra-backtest/issues">
+    <img alt="GitHub issues" src="https://raw.githubusercontent.com/wickra-lib/.github/main/profile/badges/wickra-backtest/issues.svg">
+  </a>
+</p>
+
+<p align="center">
+  Built on <a href="https://github.com/wickra-lib/wickra">Wickra</a>. If it saved you time, the cheapest way to say thanks is to ⭐ the repo.
 </p>
