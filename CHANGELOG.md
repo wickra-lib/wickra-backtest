@@ -6,6 +6,8 @@ to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## [Unreleased]
 
+## [0.1.0] - 2026-08-28
+
 ### Added
 
 - Tests for `wickra-backtest-cli`, which had none: twelve unit tests beside the
@@ -1035,4 +1037,5 @@ to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
   floating major is accurate only until the tag moves, and then it silently
   becomes a false claim a reviewer has no way to spot.
 
-[Unreleased]: https://github.com/wickra-lib/wickra-backtest/commits/main
+[Unreleased]: https://github.com/wickra-lib/wickra-backtest/compare/v0.1.0...HEAD
+[0.1.0]: https://github.com/wickra-lib/wickra-backtest/releases/tag/v0.1.0
