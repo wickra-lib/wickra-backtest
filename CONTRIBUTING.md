@@ -142,6 +142,19 @@ illustration and is deliberately not tracked.
    git push origin v0.1.0
    ```
 
+6. Once the publish jobs are green, drop the pre-release wording. Three places
+   say "not released yet" and none of them updates itself:
+
+   - the **Status** section of `README.md`, which currently ends "Not yet
+     released to any registry";
+   - the hand-written **status badge** at the top of `README.md`
+     (`status-alpha%20(WIP)`) -- the seventeen registry badges beside it are
+     generated from the organisation's badge assets and flip on their own, so
+     this is the only badge that needs touching;
+   - the repository **description** on GitHub, which ends "(WIP)".
+
+   Being visibly unreleased is currently true and should stay until it is not.
+
 ### What the tag triggers
 
 Pushing a `v*` tag runs `release.yml`, which publishes the four crates to

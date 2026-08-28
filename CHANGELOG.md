@@ -8,6 +8,11 @@ to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ### Added
 
+- The release flow in `CONTRIBUTING.md` now names the three places that say this
+  project is unreleased and do not update themselves: the README's Status
+  section, its hand-written status badge, and the repository description. The
+  seventeen registry badges beside that one are generated and flip on their own.
+
 - A comparison table in the README covering the backtesters this project is
   measured against, on axes that can be checked: languages, engine model, whether
   a strategy is data or code, whether order-book and funding feeds are
