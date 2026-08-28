@@ -1,7 +1,9 @@
 # Configuration for the lychee link checker (used by the links CI workflow).
 
-# Treat these as success in addition to 2xx.
-accept = [200, 206, 429]
+# Treat these as success in addition to 2xx. 429 and the 5xx entries say the
+# same thing: the host is having a moment, which is not the link being wrong.
+# A 404 still fails, because that is link rot.
+accept = [200, 206, 429, 502, 503, 504]
 
 # Retry transient failures.
 max_retries = 3
@@ -19,17 +21,15 @@ scheme = ["https", "http"]
 exclude_all_private = true
 
 
-# Exclude links that are not meant to resolve at check time: placeholder
-# hosts and the package-registry URLs that 404 until a release is published.
+# Exclude only what genuinely cannot be checked. Everything the 0.1.0 release
+# published -- PyPI, pkg.go.dev, NuGet, Maven Central -- came off this list once
+# it started answering, so those URLs are covered now rather than skipped
+# forever by an exclusion written for a repository that had published nothing.
 # Loopback and private addresses are handled by exclude_all_private above.
 exclude = [
     "example\\.com",
     "^https?://crates\\.io/crates/wickra-backtest",
-    "^https?://pypi\\.org/project/wickra-backtest",
     "^https?://www\\.npmjs\\.com/package/wickra-backtest",
-    "^https?://pkg\\.go\\.dev/github\\.com/wickra-lib/wickra-backtest-go",
-    "^https?://www\\.nuget\\.org/packages/Wickra\\.Backtest",
-    "^https?://central\\.sonatype\\.com/artifact/org\\.wickra/wickra-backtest",
     "^https?://wickra-lib\\.r-universe\\.dev",
     # The CHANGELOG's own reference links. The first release writes a
     # `releases/tag/vX` link and every one after it a `compare/vA...vB`; the
