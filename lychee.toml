@@ -28,9 +28,13 @@ exclude_all_private = true
 # Loopback and private addresses are handled by exclude_all_private above.
 exclude = [
     "example\\.com",
+    # Published, but both refuse automated clients: crates.io answers 404 and
+    # npmjs.com 403 to a non-browser request, verified with a bot user agent.
+    # Checked through their APIs instead -- four crates and seven npm packages,
+    # all live at 0.1.0. Excluded because the tool cannot see them, not because
+    # they are missing.
     "^https?://crates\\.io/crates/wickra-backtest",
     "^https?://www\\.npmjs\\.com/package/wickra-backtest",
-    "^https?://wickra-lib\\.r-universe\\.dev",
     # The CHANGELOG's own reference links. The first release writes a
     # `releases/tag/vX` link and every one after it a `compare/vA...vB`; the
     # `[Unreleased]` link points at a tag too. All of them 404 between the
