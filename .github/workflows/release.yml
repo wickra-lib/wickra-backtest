@@ -844,7 +844,22 @@ jobs:
   github-release:
     name: Attach assets to the draft GitHub Release
     timeout-minutes: 45
-    needs: [cargo-publish, python-publish, node-publish, wasm-publish, c-abi-build]
+    # Every job that either produces an asset staged below or publishes
+    # something the release notes claim. csharp-publish is the one that was
+    # missing and mattered: it uploads the nupkg this job stages, so without the
+    # dependency the release was assembled before the package existed and, with
+    # fail_on_unmatched_files false, shipped without it in silence. java-publish
+    # and go-mirror produce no asset, but the notes tell readers Maven Central
+    # and the Go module are live -- a release should not say so before they are.
+    needs:
+      - cargo-publish
+      - python-publish
+      - node-publish
+      - wasm-publish
+      - c-abi-build
+      - csharp-publish
+      - java-publish
+      - go-mirror
     runs-on: ubuntu-latest
     permissions:
       contents: write
