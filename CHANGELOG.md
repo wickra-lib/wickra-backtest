@@ -8,6 +8,14 @@ to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ### Added
 
+- Dependabot watches every manifest that has an external dependency: the
+  hash-locked CI tooling, the Java example's `org.json`, the fuzz harness's
+  `libfuzzer-sys` (its own workspace, so neither the cargo entry nor `cargo deny`
+  reached it), and the Go example's module. Version-update PRs are disabled for
+  the CI requirements -- security updates are not -- because those two files are
+  resolved per target Python by `scripts/update-lockfiles.sh` and a direct edit
+  drops the 3.9 backports.
+
 - Retry wrappers around the setup actions in `release.yml`, matching the ones
   `ci.yml` already had. The Windows CDN flake that occasionally hangs
   `actions/setup-node` reaches five runners in the Node build matrix, and a

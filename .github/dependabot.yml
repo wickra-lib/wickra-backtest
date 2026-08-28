@@ -35,6 +35,25 @@ updates:
         patterns: ["*"]
         exclude-patterns: ["napi", "napi-derive", "napi-build"]
 
+  # The fuzz harness detaches itself from the workspace (cargo-fuzz builds it
+  # with its own sanitizer flags), which also puts it outside the entry above and
+  # outside `cargo deny`. libfuzzer-sys is a real external dependency with no
+  # other watcher.
+  - package-ecosystem: cargo
+    directory: "/fuzz"
+    schedule:
+      interval: monthly
+      time: "06:00"
+      timezone: "Etc/UTC"
+    open-pull-requests-limit: 10
+    cooldown:
+      default-days: 7
+    commit-message:
+      prefix: "deps(fuzz)"
+    groups:
+      fuzz:
+        patterns: ["*"]
+
   # Node binding npm dependencies.
   - package-ecosystem: npm
     directory: "/bindings/node"
@@ -67,6 +86,28 @@ updates:
       python-binding:
         patterns: ["*"]
 
+  # The hash-locked CI dev tooling. Nothing watched these before, so a advisory
+  # against maturin or pytest would have sat in the tree unnoticed.
+  - package-ecosystem: pip
+    directory: "/.github/requirements"
+    schedule:
+      interval: monthly
+      time: "06:00"
+      timezone: "Etc/UTC"
+    # Version-update PRs disabled (0), security updates unaffected. The two files
+    # are resolved per target Python by scripts/update-lockfiles.sh (uv honours
+    # each row's --python-version); Dependabot edits the .txt directly and does
+    # not, so a routine bump would drop the 3.9 backports the floor row needs.
+    # Regenerate with the script; take the security PRs.
+    open-pull-requests-limit: 0
+    cooldown:
+      default-days: 7
+    commit-message:
+      prefix: "deps(ci-pip)"
+    groups:
+      ci-pip:
+        patterns: ["*"]
+
   # GitHub Actions — keeps the SHA-pinned actions current (Dependabot reads
   # the version comment after each pinned SHA and bumps both together).
   - package-ecosystem: github-actions
@@ -92,7 +133,11 @@ updates:
 
   # Java binding (Maven) — tracks the C-ABI binding's build/publishing plugins.
   - package-ecosystem: maven
-    directory: "/bindings/java"
+    directories:
+      - "/bindings/java"
+      # The example depends on org.json, which the binding does not -- an
+      # external package that nothing was watching.
+      - "/examples/java"
     schedule:
       interval: monthly
       time: "06:00"
@@ -127,7 +172,11 @@ updates:
   # Go binding (Go modules). The binding's own go.mod has no external deps but
   # Dependabot keeps the toolchain/directive current.
   - package-ecosystem: gomod
-    directory: "/bindings/go"
+    directories:
+      - "/bindings/go"
+      # A separate module that `replace`s the binding with this tree's, so it is
+      # not covered by the entry above.
+      - "/examples/go"
     schedule:
       interval: monthly
       time: "06:00"
