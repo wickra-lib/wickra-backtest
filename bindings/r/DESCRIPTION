@@ -9,7 +9,7 @@ Description: R binding for the wickra-backtest engine. It calls the engine's
     C#, Java and Go bindings.
 License: MIT + file LICENSE | Apache License 2.0
 Suggests: jsonlite
-URL: https://github.com/wickra-lib/wickra-backtest,
+URL: https://github.com/wickra-lib/wickra-backtest, https://backtest.wickra.org,
     https://wickra-lib.r-universe.dev
 BugReports: https://github.com/wickra-lib/wickra-backtest/issues
 Encoding: UTF-8

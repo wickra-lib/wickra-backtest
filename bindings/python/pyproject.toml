@@ -34,9 +34,8 @@ dependencies = []
 test = ["pytest>=7"]
 
 [project.urls]
-# The project site is also its documentation, so it fills the Homepage slot and
-# there is no separate Documentation entry pointing at the same page.
-Homepage = "https://backtest.wickra.org"
+Homepage = "https://github.com/wickra-lib/wickra-backtest"
+Documentation = "https://backtest.wickra.org"
 Repository = "https://github.com/wickra-lib/wickra-backtest"
 Issues = "https://github.com/wickra-lib/wickra-backtest/issues"
 Changelog = "https://github.com/wickra-lib/wickra-backtest/blob/main/CHANGELOG.md"

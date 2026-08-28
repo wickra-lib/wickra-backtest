@@ -520,6 +520,11 @@ to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ### Fixed
 
+- The homepage every package declares is now the same URL. Twelve slots named the
+  repository and two named the project site; `repo-metadata.toml` already calls
+  that site `docs_url`, so it moves to the Documentation slot in the Python
+  metadata and joins the R package's URL list, where it was missing.
+
 - Every link in the binding READMEs is absolute. These are the long descriptions
   PyPI, NuGet, pkg.go.dev and r-universe render, and a link like
   `../../docs/COOKBOOK.md` resolves on GitHub and is dead on all four --
