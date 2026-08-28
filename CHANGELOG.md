@@ -8,6 +8,10 @@ to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ### Added
 
+- The README opens with an install command and a runnable example showing the
+  same spec run both ways, and the language table carries an install command and
+  an example link per binding rather than a quickstart pointer.
+
 - `scripts/update-lockfiles.sh`, which regenerates the Rust, Node and Python
   lockfiles in one place.
 
@@ -427,6 +431,12 @@ to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
   and an edit made in place is lost on the next run.
 
 ### Fixed
+
+- The README advertised the indicator library's live demo and sent readers to its
+  sites, while this project's own site and in-browser demo -- live for weeks --
+  appeared once, as a badge. It also listed itself among the projects its core
+  powers, and every binding README carried the core's banner text. All now point
+  at this project.
 
 - The release WASM build failed in `wasm-opt`: the bundled binaryen validates with
   most post-MVP features off and rejected its own input once the compiler emitted

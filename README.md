@@ -1,5 +1,5 @@
 <p align="center">
-  <a href="https://wickra.org"><img src="https://raw.githubusercontent.com/wickra-lib/.github/main/profile/wickra-banner.webp?v=514" alt="Wickra — streaming-first technical indicators" width="100%"></a>
+  <a href="https://wickra.org"><img src="https://raw.githubusercontent.com/wickra-lib/.github/main/profile/wickra-banner.webp?v=514" alt="Wickra Backtest — backtest and live are byte-identical" width="100%"></a>
 </p>
 
 [![Built on Wickra](https://img.shields.io/badge/built%20on-wickra-3b82f6)](https://github.com/wickra-lib/wickra)
@@ -21,7 +21,7 @@
 [![Build provenance](https://raw.githubusercontent.com/wickra-lib/.github/main/profile/badges/wickra-backtest/provenance.svg)](https://github.com/wickra-lib/wickra-backtest/attestations)
 [![Docs](https://raw.githubusercontent.com/wickra-lib/.github/main/profile/badges/wickra-backtest/docs.svg)](https://backtest.wickra.org)
 [![Verified across 10 languages](https://raw.githubusercontent.com/wickra-lib/.github/main/profile/badges/wickra-backtest/verified.svg)](golden/)
-[![Live demo](https://img.shields.io/badge/live%20demo-live.wickra.org-3b82f6)](https://live.wickra.org)
+[![Live demo](https://img.shields.io/badge/live%20demo-backtest--live.wickra.org-3b82f6)](https://backtest-live.wickra.org)
 
 ---
 
@@ -29,9 +29,9 @@
 event-driven backtester built on the [Wickra](https://github.com/wickra-lib/wickra)
 indicator core.
 
-> **▶ Live demo:** all 514 indicators over real Binance market data, computed live in your browser — **[live.wickra.org](https://live.wickra.org)** · zero backend, powered by `wickra-wasm`.
+> **▶ Live demo:** run a strategy in your browser and watch the equity curve build bar by bar — **[backtest-live.wickra.org](https://backtest-live.wickra.org)** · zero backend, the same engine this repository ships, compiled to WebAssembly.
 
-> **Part of the [Wickra ecosystem](https://github.com/wickra-lib):** the same data-driven core and ten-language binding surface also power [wickra-exchange](https://github.com/wickra-lib/wickra-exchange), [wickra-backtest](https://github.com/wickra-lib/wickra-backtest), [wickra-terminal](https://github.com/wickra-lib/wickra-terminal), [wickra-screener](https://github.com/wickra-lib/wickra-screener), [wickra-xray](https://github.com/wickra-lib/wickra-xray), [wickra-radar](https://github.com/wickra-lib/wickra-radar), [wickra-copilot](https://github.com/wickra-lib/wickra-copilot) and [wickra-shazam](https://github.com/wickra-lib/wickra-shazam).
+> **Part of the [Wickra ecosystem](https://github.com/wickra-lib):** the same data-driven core and ten-language binding surface also power [wickra-exchange](https://github.com/wickra-lib/wickra-exchange), [wickra-terminal](https://github.com/wickra-lib/wickra-terminal), [wickra-screener](https://github.com/wickra-lib/wickra-screener), [wickra-xray](https://github.com/wickra-lib/wickra-xray), [wickra-radar](https://github.com/wickra-lib/wickra-radar), [wickra-copilot](https://github.com/wickra-lib/wickra-copilot) and [wickra-shazam](https://github.com/wickra-lib/wickra-shazam).
 
 The engine consumes the **exact same `wickra-core` O(1) indicator kernels** that
 power live Wickra, and a strategy is **data (a JSON spec), not code** — so a
@@ -45,6 +45,38 @@ trade, trade-quote and cross-section indicator, with multi-output fields
 addressed as `"name.field"` (`macd.signal`, `bb.upper`, `adx.plus_di`, …). The
 registry is generated directly from the wickra-core sources, so it stays in
 lock-step with the kernel.
+
+```bash
+pip install wickra-backtest
+```
+
+```python
+import wickra_backtest as wbt
+
+spec = {                                  # a strategy is data, not code
+    "symbol": "BTCUSDT", "timeframe": "1h",
+    "indicators": {"fast": {"type": "Ema", "params": [12]},
+                   "slow": {"type": "Ema", "params": [26]}},
+    "entry": {"cross_above": ["fast", "slow"]},
+    "exit":  {"cross_below": ["fast", "slow"]},
+    "sizing": {"type": "fixed_fraction", "fraction": 0.95},
+}
+
+# Backtest: the whole series at once.
+report = wbt.run(opens, highs, lows, closes, spec=spec)
+print(report["metrics"]["return_pct"], report["metrics"]["sharpe"])
+
+# Live: the same spec, the same engine, one bar at a time. Point `step` at a
+# socket instead of an array and nothing else changes.
+with wbt.StreamingBacktest(spec=spec) as live:
+    for bar in feed:
+        live.step(bar.open, bar.high, bar.low, bar.close)
+        print(live.num_trades, live.latest_equity())
+    report = live.finish()
+```
+
+The two reports are byte-identical. That is the whole claim, and a shared
+[golden corpus](golden/) holds every one of the ten bindings to it.
 
 Why it is different from vectorbt / backtrader:
 
@@ -125,17 +157,21 @@ Every binding takes the same OHLCV arrays (or a `run_json` request) and JSON spe
 and returns the same report — byte-identical (a dict in Python). Each has a
 quickstart:
 
-| Language | Binding | Quickstart |
-|----------|---------|------------|
-| Rust     | `wickra-backtest` crate | this README |
-| Python   | PyO3 / maturin | [bindings/python](bindings/python/README.md) |
-| Node.js  | napi-rs | [bindings/node](bindings/node/README.md) |
-| WASM     | wasm-bindgen | [bindings/wasm](bindings/wasm/README.md) |
-| C / C++  | C ABI (cbindgen) | [bindings/c](bindings/c/README.md) |
-| C#       | P/Invoke | [bindings/csharp](bindings/csharp/README.md) |
-| Go       | cgo | [bindings/go](bindings/go/README.md) |
-| Java     | FFM / Panama | [bindings/java](bindings/java/README.md) |
-| R        | `.Call` | [bindings/r](bindings/r/README.md) |
+| Binding | Install | Example |
+|---------|---------|---------|
+| Rust | `cargo add wickra-backtest` | [`examples/rust`](examples/rust/src/main.rs) |
+| Python (PyO3) | `pip install wickra-backtest` | [`examples/python/backtest.py`](examples/python/backtest.py) |
+| Node.js (napi-rs) | `npm install wickra-backtest` | [`examples/node/backtest.js`](examples/node/backtest.js) |
+| Browser / WASM | `npm install wickra-backtest-wasm` | [`examples/wasm/backtest.cjs`](examples/wasm/backtest.cjs) |
+| C / C++ (C ABI) | header + library, see [`bindings/c`](bindings/c/README.md) | [`examples/c/streaming.c`](examples/c/streaming.c) |
+| C# (C ABI) | `dotnet add package Wickra.Backtest`, see [`bindings/csharp`](bindings/csharp/README.md) | [`examples/csharp`](examples/csharp/Program.cs) |
+| Go (cgo, C ABI) | `go get github.com/wickra-lib/wickra-backtest-go`, see [`bindings/go`](bindings/go/README.md) | [`examples/go`](examples/go/backtest.go) |
+| Java (FFM, C ABI) | Maven Central `org.wickra:wickra-backtest`, see [`bindings/java`](bindings/java/README.md) | [`examples/java`](examples/java/src/main/java/org/wickra/backtest/examples/Backtest.java) |
+| R (`.Call`, C ABI) | `R CMD INSTALL bindings/r`, see [`bindings/r`](bindings/r/README.md) | [`examples/r/backtest.R`](examples/r/backtest.R) |
+
+Every example does the same thing in its own language: read the shared sample
+data, run the series both ways, and fail if the two reports differ.
+[`examples/README.md`](examples/README.md) is the cross-language index.
 
 The C, C++, C#, Go, Java and R bindings all call through the same C ABI hub; the
 [golden corpus](golden/) asserts every language produces the same report, for
@@ -243,8 +279,10 @@ data-driven core with a CLI and the same ten-language binding surface:
 - [**wickra-copilot**](https://github.com/wickra-lib/wickra-copilot) — local market copilot grounded in real order-book, liquidation and funding microstructure
 - [**wickra-shazam**](https://github.com/wickra-lib/wickra-shazam) — match an asset's current microstructure fingerprint against its entire history
 
-Docs at [docs.wickra.org](https://docs.wickra.org); the marketing site and
-in-browser demo at [wickra.org](https://wickra.org).
+This project's own site is [backtest.wickra.org](https://backtest.wickra.org) and
+its in-browser demo [backtest-live.wickra.org](https://backtest-live.wickra.org).
+The indicator core it is built on documents itself at
+[docs.wickra.org](https://docs.wickra.org).
 
 ## Contributing
 
