@@ -50,6 +50,17 @@ jobs:
       # maturin (which supplies the platform link flags); exclude it here.
       - run: cargo build --workspace --all-features --exclude wickra-backtest-python
       - run: cargo test --workspace --all-features --exclude wickra-backtest-python
+      # `cargo publish` packages the crate and then compiles it from the extracted
+      # tarball. Nothing here did that, so a file missing from the package, or a
+      # crate that does not build once its path dependencies are gone, would first
+      # be discovered mid-release with the earlier crates already published and
+      # irreversible. The four are packaged in one command so they resolve against
+      # each other rather than against a crates.io that has not seen them yet.
+      # Platform-independent, so once is enough.
+      - name: Package every publishable crate the way a release would
+        if: runner.os == 'Linux'
+        run: |
+          cargo package -p wickra-backtest-core -p wickra-backtest-data                         -p wickra-backtest -p wickra-backtest-cli
       # examples/rust is a workspace member, so the two lines above already
       # compile it. Running it is the part that was missing: the example asserts
       # streaming and batch agree and exits non-zero when they do not, which
@@ -387,6 +398,27 @@ jobs:
       # module the tests just built through its published entry point.
       - name: Run the Node example
         run: node examples/node/backtest.js
+      # `files` decides what npm ships, and a name dropped from it is not an
+      # error -- it is a package that installs and cannot load. Check the tarball
+      # the release would upload, on the platform whose binary it carries.
+      - name: The npm tarball carries the module it promises
+        shell: bash
+        working-directory: bindings/node
+        run: |
+          npm pack --dry-run --json | node -e '
+            const chunks = [];
+            process.stdin.on("data", c => chunks.push(c)).on("end", () => {
+              const pkg = JSON.parse(chunks.join(""))[0];
+              const names = pkg.files.map(f => f.path);
+              const required = ["index.js", "index.d.ts", "package.json"];
+              const missing = required.filter(n => !names.includes(n));
+              if (!names.some(n => n.endsWith(".node"))) missing.push("the native .node binary");
+              if (missing.length) {
+                console.error(`::error::${pkg.name} would publish without ${missing.join(", ")}`);
+                process.exit(1);
+              }
+              console.log(`${pkg.name}: ${names.length} files, entry points present`);
+            });'
 
   wasm:
     name: WASM build
@@ -497,6 +529,12 @@ jobs:
       # target/debug native library beside its own executable.
       - name: Run the C# example
         run: dotnet run --project examples/csharp -c Release
+      # The .csproj packaging metadata is only exercised by packing: a missing
+      # PackageIcon is NU5019 and a wrong PackagePath is silent. Until now the
+      # only place that ran was the publish job, after the tag.
+      - name: Pack the NuGet package
+        if: runner.os == 'Linux'
+        run: dotnet pack bindings/csharp/Wickra.Backtest/Wickra.Backtest.csproj -c Release -o nupkg
 
   java:
     name: Java on ${{ matrix.os }}

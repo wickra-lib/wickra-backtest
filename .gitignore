@@ -39,6 +39,8 @@ pkg/
 # .NET build artifacts
 bin/
 obj/
+# CI packs the NuGet package here to check the packaging metadata.
+nupkg/
 
 # Java / Maven build artifacts
 bindings/java/target/

@@ -8,6 +8,12 @@ to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ### Added
 
+- CI packs what a release publishes. The four crates are packaged and verified
+  the way `cargo publish` does, the npm tarball is checked for its entry points
+  and native binary, and the NuGet package is packed. None of that ran before the
+  tag, so a packaging fault could only appear mid-release, with earlier packages
+  already published.
+
 - `artifacts` and `version` scripts for the Node binding. `napi version` rewrites
   the six platform packages' versions, which a release currently edits by hand;
   the release workflow now moves the downloaded binaries through `npm run
