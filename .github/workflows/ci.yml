@@ -251,7 +251,19 @@ jobs:
       # runs, and pinning one would mean committing a hash that changes with
       # every build.
       - run: pip install --no-index --find-links bindings/python/dist wickra-backtest
-      - run: pytest bindings/python/tests -q
+      # 3.10 and up run the whole suite under pytest. The 3.9 row cannot: pytest
+      # 9.x requires 3.10, so pinning it there would mean carrying a version
+      # below the fix for GHSA-6w46-j5rx-g56g with no backport available. It
+      # runs the pytest-free part instead -- the golden-corpus and completeness
+      # checks, which are what the floor interpreter is there to verify.
+      - name: Test the binding
+        shell: bash
+        run: |
+          if [ "${{ matrix.python-version }}" = "3.9" ]; then
+            python bindings/python/tests/run_without_pytest.py
+          else
+            pytest bindings/python/tests -q
+          fi
       # The example is what SUPPORT.md sends people to, so it is run against the
       # wheel this job just installed rather than left to rot.
       - run: python examples/python/backtest.py

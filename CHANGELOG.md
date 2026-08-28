@@ -602,6 +602,14 @@ to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ### Fixed
 
+- The Python 3.9 CI row no longer pins a vulnerable pytest. It could only ever
+  pin 8.4.2 -- pytest 9.x requires Python 3.10, and the fix for
+  GHSA-6w46-j5rx-g56g has no 8.x backport -- so the row now installs no pytest
+  and runs the part of the suite that never needed one: the golden-corpus and
+  completeness checks, which are what the floor interpreter is there to verify.
+  The error-path tests use `pytest.raises` and run on 3.10 and up, where the
+  whole suite runs as before.
+
 - The DCO section in CONTRIBUTING said "sign off every commit", which read as
   binding on everyone and was honoured by nothing but Dependabot. It now says
   what it actually governs -- commits submitted by pull request -- and that the

@@ -2,15 +2,13 @@
 # because a resolution for 3.9 is not the same as one for 3.13, and the wheels
 # have to exist for the interpreter that installs them.
 # Locked output: ci-dev-py39.txt. Refresh via scripts/update-lockfiles.sh.
-maturin
-# Held at 8.4.2 by the interpreter, not by choice: pytest 9.x requires Python
-# 3.10 or newer, and this row exists to test the 3.9 floor that the abi3-py39
-# wheel supports. That leaves it below the fix for GHSA-6w46-j5rx-g56g
-# (vulnerable tmpdir handling, fixed in 9.0.3), which has no 8.x backport.
 #
-# Accepted rather than fixable. The advisory needs a second local user on the
-# same machine to exploit the temp directory pytest creates; this runs only on
-# ephemeral single-tenant CI runners, is dev tooling that ships in no package,
-# and is reachable by nothing but the job itself. It goes away when the 3.9 row
-# does -- which is a support decision, not a security one.
-pytest
+# No pytest here, deliberately. pytest 9.x requires Python 3.10, so this row
+# could only ever pin 8.4.2 -- below the fix for GHSA-6w46-j5rx-g56g, with no
+# 8.x backport. Keeping a vulnerable package pinned to run tests that mostly do
+# not need it is the wrong trade, so the 3.9 row runs
+# bindings/python/tests/run_without_pytest.py instead: the golden-corpus and
+# completeness checks, which are the ones worth running on the floor
+# interpreter and which never needed a framework. The error-path tests use
+# pytest.raises and run on 3.10 and up, where the whole suite runs as before.
+maturin
