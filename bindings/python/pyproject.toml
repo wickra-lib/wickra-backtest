@@ -15,17 +15,49 @@ classifiers = [
     "Development Status :: 3 - Alpha",
     "Intended Audience :: Financial and Insurance Industry",
     "Programming Language :: Python :: 3",
+    "Programming Language :: Python :: 3 :: Only",
+    # One abi3-py39 wheel serves every version from the floor up, so each is
+    # listed: PyPI shows them, and pip uses them to explain a version mismatch.
+    "Programming Language :: Python :: 3.9",
+    "Programming Language :: Python :: 3.10",
+    "Programming Language :: Python :: 3.11",
+    "Programming Language :: Python :: 3.12",
+    "Programming Language :: Python :: 3.13",
     "Programming Language :: Rust",
     "Topic :: Office/Business :: Financial :: Investment",
 ]
+# Zero third-party runtime dependencies: reports come back as plain dicts and
+# lists, so `pip install wickra-backtest` pulls nothing else.
 dependencies = []
 
 [project.optional-dependencies]
 test = ["pytest>=7"]
 
 [project.urls]
+# The project site is also its documentation, so it fills the Homepage slot and
+# there is no separate Documentation entry pointing at the same page.
+Homepage = "https://backtest.wickra.org"
 Repository = "https://github.com/wickra-lib/wickra-backtest"
+Issues = "https://github.com/wickra-lib/wickra-backtest/issues"
+Changelog = "https://github.com/wickra-lib/wickra-backtest/blob/main/CHANGELOG.md"
 
 [tool.maturin]
 module-name = "wickra_backtest._wickra_backtest"
 python-source = "python"
+# maturin packages the python-source tree as it finds it on disk, so a local
+# build after a test run would otherwise ship the bytecode cache that importing
+# the package left behind -- pinned to whichever interpreter happened to build,
+# inside a wheel that claims 3.9 upwards.
+exclude = ["**/__pycache__/**"]
+# Strip the extension module: nobody debugging their own strategy needs our
+# symbols. Only affects the ELF/Mach-O wheels -- MSVC keeps debug info in a
+# separate .pdb, so the Windows wheel is the same size either way.
+strip = true
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+addopts = "-ra -q"
+# A warning from the extension module is a defect, not decoration: a
+# DeprecationWarning out of PyO3 is how an API removal announces itself one
+# release before it breaks the build.
+filterwarnings = ["error"]

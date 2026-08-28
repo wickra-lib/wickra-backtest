@@ -8,6 +8,13 @@ to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ### Added
 
+- The Python package declares what it supports and where it lives: per-version
+  classifiers for the whole abi3-py39 range, `3 :: Only`, and Homepage, Issues
+  and Changelog URLs beside the Repository one. Wheels are stripped.
+- pytest configuration for the Python binding, with `filterwarnings = ["error"]`
+  so a DeprecationWarning out of PyO3 fails the suite in the release that
+  announces the removal rather than the one that performs it.
+
 - CI runs all ten language examples. Each one runs in the job that has just built
   that language's binding -- Python after the wheel is installed, Node after the
   native module is built, Go and C# and Java and R after the C ABI is -- so the
@@ -496,6 +503,10 @@ to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
   and an edit made in place is lost on the next run.
 
 ### Fixed
+
+- The Python wheel shipped a `__pycache__` directory when built from a tree that
+  had run the test suite: a `.pyc` pinned to whichever interpreter did the build,
+  inside a wheel that claims 3.9 upwards. maturin now excludes it.
 
 - `R CMD check` failed outright on `bindings/r/tests/golden.R`: it reads the
   shared corpus at the repository root, which does not exist inside a built
