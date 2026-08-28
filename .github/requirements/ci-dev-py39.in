@@ -3,4 +3,14 @@
 # have to exist for the interpreter that installs them.
 # Locked output: ci-dev-py39.txt. Refresh via scripts/update-lockfiles.sh.
 maturin
+# Held at 8.4.2 by the interpreter, not by choice: pytest 9.x requires Python
+# 3.10 or newer, and this row exists to test the 3.9 floor that the abi3-py39
+# wheel supports. That leaves it below the fix for GHSA-6w46-j5rx-g56g
+# (vulnerable tmpdir handling, fixed in 9.0.3), which has no 8.x backport.
+#
+# Accepted rather than fixable. The advisory needs a second local user on the
+# same machine to exploit the temp directory pytest creates; this runs only on
+# ephemeral single-tenant CI runners, is dev tooling that ships in no package,
+# and is reachable by nothing but the job itself. It goes away when the 3.9 row
+# does -- which is a support decision, not a security one.
 pytest
