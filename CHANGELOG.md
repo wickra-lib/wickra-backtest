@@ -8,6 +8,10 @@ to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ### Added
 
+- `SECURITY.md` gains the sections a security review looks for: what a reporter
+  should expect, what is in scope, an evidence-backed assurance case, how secrets
+  are handled, the support timeline, and the remediation policy.
+
 - CI runs `R CMD check` on the built tarball, which is what r-universe runs
   before it will serve the package. `R CMD INSTALL` compiles and loads the
   package but checks nothing, so an undocumented export, a codoc mismatch or a
