@@ -8,6 +8,13 @@ to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ### Added
 
+- A drift guard for the Python type stub. `__init__.pyi` is hand-written and was
+  checked by nothing: the completeness test read the module surface and never the
+  stub. Five tests now compare the two -- declared names, class members, which
+  members are properties, and parameter names, order, keyword-only-ness and
+  whether a default exists. Stub drift is a type-checker error in someone else's
+  project, so it has to fail here instead.
+
 - The Python package declares what it supports and where it lives: per-version
   classifiers for the whole abi3-py39 range, `3 :: Only`, and Homepage, Issues
   and Changelog URLs beside the Repository one. Wheels are stripped.
