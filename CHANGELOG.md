@@ -8,6 +8,11 @@ to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ### Added
 
+- `LICENSES/MIT.txt` and `LICENSES/Apache-2.0.txt`: the SPDX-named copies licence
+  scanners look for, so the `MIT OR Apache-2.0` expression every manifest
+  declares resolves to the texts without guessing which root file is which. The
+  licence-copy check covers them, so they cannot drift from the root pair.
+
 - `SUPPORT.md` leads with the documentation and says what support actually is:
   one maintainer, best effort, no service-level agreement. The bug section now
   names the reproducer this engine needs -- the spec, the bars, the binding --

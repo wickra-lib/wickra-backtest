@@ -34,6 +34,16 @@ LICENCES = ("LICENSE-MIT", "LICENSE-APACHE")
 # says publish = false -- so it cannot be derived from the workspace below.
 EXTRA = ("bindings/python",)
 
+# SPDX-named copies at LICENSES/<identifier>.txt. Not a package -- this is the
+# layout licence scanners look for, so the `MIT OR Apache-2.0` that every
+# manifest declares resolves to the actual texts without anyone having to guess
+# which root file is which. Byte-identical to that pair, hence checked here
+# rather than trusted.
+SPDX_COPIES = {
+    "LICENSES/MIT.txt": "LICENSE-MIT",
+    "LICENSES/Apache-2.0.txt": "LICENSE-APACHE",
+}
+
 
 def workspace_members() -> list[str]:
     with open(os.path.join(ROOT, "Cargo.toml"), encoding="utf-8") as handle:
@@ -78,6 +88,20 @@ def main() -> int:
         failures.extend(problems)
         status = "licence texts present" if not problems else f"{len(problems)} problem(s)"
         print(f"  {directory:<32} {status}")
+
+    spdx_problems = []
+    for copy, original in sorted(SPDX_COPIES.items()):
+        path = os.path.join(ROOT, copy)
+        if not os.path.isfile(path):
+            spdx_problems.append(f"{copy} is missing")
+            continue
+        with open(path, "rb") as handle:
+            if handle.read() != originals[original]:
+                spdx_problems.append(f"{copy} differs from {original}")
+    failures.extend(spdx_problems)
+    status = ("SPDX-named copies present" if not spdx_problems
+              else f"{len(spdx_problems)} problem(s)")
+    print(f"  {'LICENSES/':<32} {status}")
 
     if failures:
         print("\npublished packages would ship without their licence texts:", file=sys.stderr)
