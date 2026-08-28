@@ -8,6 +8,12 @@ to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ### Added
 
+- Tests for `wickra-backtest-cli`, which had none: twelve unit tests beside the
+  source for the argument and output helpers, and eleven that run the built
+  `wkbt` binary -- argument parsing, the mutually exclusive transform group,
+  every output file, the exit codes and error messages, and that `--stream`
+  produces byte-identical output to the batch path from the command line.
+
 - `LICENSES/MIT.txt` and `LICENSES/Apache-2.0.txt`: the SPDX-named copies licence
   scanners look for, so the `MIT OR Apache-2.0` expression every manifest
   declares resolves to the texts without guessing which root file is which. The

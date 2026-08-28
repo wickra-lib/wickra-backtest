@@ -292,3 +292,153 @@ fn write_jsonl_line<T: Serialize>(writer: &mut BufWriter<File>, item: &T) -> Res
     let line = serde_json::to_string(item).map_err(|e| e.to_string())?;
     writeln!(writer, "{line}").map_err(|e| format!("writing equity stream: {e}"))
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use clap::CommandFactory;
+
+    /// A unique path under the system temp directory, so tests running in
+    /// parallel cannot collide on a filename.
+    fn temp_path(name: &str) -> PathBuf {
+        std::env::temp_dir().join(format!("wkbt_cli_test_{name}"))
+    }
+
+    #[test]
+    fn clap_definition_is_valid() {
+        // clap's own sanity check: duplicate long names, a group naming an
+        // argument that does not exist, a default that fails to parse. All of
+        // them panic at run time on the user's first invocation otherwise.
+        Cli::command().debug_assert();
+    }
+
+    #[test]
+    fn parse_pnf_accepts_box_and_reversal() {
+        assert_eq!(parse_pnf("1.0:3"), Ok((1.0, 3)));
+        assert_eq!(parse_pnf("0.5:2"), Ok((0.5, 2)));
+    }
+
+    #[test]
+    fn parse_pnf_tolerates_surrounding_space() {
+        assert_eq!(parse_pnf(" 1.5 : 4 "), Ok((1.5, 4)));
+    }
+
+    #[test]
+    fn parse_pnf_rejects_a_missing_separator() {
+        let err = parse_pnf("1.0").unwrap_err();
+        assert!(err.contains("BOX:REVERSAL"), "{err}");
+    }
+
+    #[test]
+    fn parse_pnf_rejects_a_non_numeric_box() {
+        let err = parse_pnf("wide:3").unwrap_err();
+        assert!(err.contains("box size"), "{err}");
+    }
+
+    #[test]
+    fn parse_pnf_rejects_a_fractional_reversal() {
+        // The reversal is a count of boxes, so 2.5 is not a smaller reversal --
+        // it is a typo, and saying so beats truncating it silently.
+        let err = parse_pnf("1.0:2.5").unwrap_err();
+        assert!(err.contains("reversal"), "{err}");
+    }
+
+    #[test]
+    fn write_json_round_trips() {
+        let path = temp_path("write_json.json");
+        write_json(&path, &vec![1_u32, 2, 3]).unwrap();
+        let back: Vec<u32> =
+            serde_json::from_str(&std::fs::read_to_string(&path).unwrap()).unwrap();
+        assert_eq!(back, vec![1, 2, 3]);
+        std::fs::remove_file(&path).unwrap();
+    }
+
+    #[test]
+    fn write_jsonl_writes_one_object_per_line() {
+        let path = temp_path("write_jsonl.jsonl");
+        write_jsonl(&path, &[1_u32, 2, 3]).unwrap();
+        let text = std::fs::read_to_string(&path).unwrap();
+        assert_eq!(text.lines().collect::<Vec<_>>(), ["1", "2", "3"]);
+        // Trailing newline: a JSON Lines file that ends mid-line is malformed.
+        assert!(text.ends_with('\n'));
+        std::fs::remove_file(&path).unwrap();
+    }
+
+    #[test]
+    fn write_jsonl_on_an_empty_slice_writes_an_empty_file() {
+        let path = temp_path("write_jsonl_empty.jsonl");
+        write_jsonl(&path, &[] as &[u32]).unwrap();
+        assert_eq!(std::fs::read_to_string(&path).unwrap(), "");
+        std::fs::remove_file(&path).unwrap();
+    }
+
+    #[test]
+    fn incremental_jsonl_matches_the_batch_form() {
+        // The streaming equity path writes line by line through these two; the
+        // batch path writes the whole slice at once. Both files must be the
+        // same, because `--stream` is documented as producing an identical run.
+        let incremental = temp_path("jsonl_incremental.jsonl");
+        let batch = temp_path("jsonl_batch.jsonl");
+        let items = [10_u32, 20, 30];
+
+        let mut writer = open_jsonl(&incremental).unwrap();
+        for item in &items {
+            write_jsonl_line(&mut writer, item).unwrap();
+        }
+        writer.flush().unwrap();
+        write_jsonl(&batch, &items).unwrap();
+
+        assert_eq!(
+            std::fs::read_to_string(&incremental).unwrap(),
+            std::fs::read_to_string(&batch).unwrap()
+        );
+        std::fs::remove_file(&incremental).unwrap();
+        std::fs::remove_file(&batch).unwrap();
+    }
+
+    #[test]
+    fn write_json_reports_the_path_it_could_not_write() {
+        // A directory that does not exist is the common typo; the message has to
+        // name the path or the user is left guessing which argument was wrong.
+        let path = temp_path("no_such_dir").join("report.json");
+        let err = write_json(&path, &1_u32).unwrap_err();
+        assert!(err.contains("no_such_dir"), "{err}");
+    }
+
+    #[cfg(feature = "binance")]
+    #[test]
+    fn write_candles_picks_the_format_from_the_extension() {
+        use wickra_backtest_core::Candle;
+        let candles = [Candle {
+            time: 1,
+            open: 1.0,
+            high: 2.0,
+            low: 0.5,
+            close: 1.5,
+            volume: 10.0,
+        }];
+
+        let csv = temp_path("candles.csv");
+        write_candles(&csv, &candles).unwrap();
+        let text = std::fs::read_to_string(&csv).unwrap();
+        assert!(
+            text.starts_with("time,open,high,low,close,volume\n"),
+            "{text}"
+        );
+        assert!(text.contains("1,1,2,0.5,1.5,10"), "{text}");
+
+        let jsonl = temp_path("candles.jsonl");
+        write_candles(&jsonl, &candles).unwrap();
+        assert_eq!(std::fs::read_to_string(&jsonl).unwrap().lines().count(), 1);
+
+        let json = temp_path("candles.json");
+        write_candles(&json, &candles).unwrap();
+        let parsed: Vec<Candle> =
+            serde_json::from_str(&std::fs::read_to_string(&json).unwrap()).unwrap();
+        assert_eq!(parsed.len(), 1);
+
+        for path in [csv, jsonl, json] {
+            std::fs::remove_file(&path).unwrap();
+        }
+    }
+}
