@@ -428,7 +428,7 @@ the full terms.
 ---
 
 <p align="center">
-  <a href="https://github.com/wickra-lib/wickra-backtest/stargazers">
+  <a href="https://github.com/wickra-lib/wickra-backtest">
     <img alt="GitHub stars" src="https://raw.githubusercontent.com/wickra-lib/.github/main/profile/badges/wickra-backtest/stars.svg">
   </a>
   <a href="https://github.com/wickra-lib/wickra-backtest/network/members">
