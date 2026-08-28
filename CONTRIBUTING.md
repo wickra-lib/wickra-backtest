@@ -226,12 +226,13 @@ the Wickra manifest). Multi-output indicators expose named fields referenced as
 
 ## Developer Certificate of Origin (DCO)
 
-All contributions are made under the [Developer Certificate of Origin (DCO)
-1.1](DCO). Signing off certifies that you wrote the patch, or otherwise have the
-right to submit it under the project's `MIT OR Apache-2.0` license.
+Contributions submitted by pull request are made under the [Developer
+Certificate of Origin (DCO) 1.1](DCO). Signing off certifies that you wrote the
+patch, or otherwise have the right to submit it under the project's
+`MIT OR Apache-2.0` license.
 
-Sign off every commit with a `Signed-off-by` trailer carrying your real name and
-email — Git adds it with `-s`:
+Sign off every commit in your pull request with a `Signed-off-by` trailer
+carrying your real name and email — Git adds it with `-s`:
 
 ```bash
 git commit -s -m "your message"
@@ -244,7 +245,12 @@ Signed-off-by: Your Name <you@example.com>
 ```
 
 The name and email must match the commit author. To sign off a commit you have
-already made, amend it with `git commit -s --amend`.
+already made, amend it with `git commit -s --amend`, or a range with an
+interactive rebase.
+
+This is checked when your pull request is reviewed, not by a bot: if a commit is
+missing the trailer you will be asked to amend it before the change is merged.
+Dependabot adds the trailer to its own commits automatically.
 
 ## License
 

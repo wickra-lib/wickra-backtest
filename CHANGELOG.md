@@ -596,6 +596,11 @@ to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ### Fixed
 
+- The DCO section in CONTRIBUTING said "sign off every commit", which read as
+  binding on everyone and was honoured by nothing but Dependabot. It now says
+  what it actually governs -- commits submitted by pull request -- and that the
+  trailer is checked at review rather than by a bot.
+
 - `fuzz/` ignores what cargo-fuzz writes into it. The root `.gitignore` anchors
   its `target` rule to the repository root, so `fuzz/target` was never covered,
   and neither were the corpus, the crash artifacts, the coverage output or the
