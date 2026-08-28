@@ -17,3 +17,9 @@
 ^src/wickra-backtest-c$
 ^src/libwickra_backtest\.
 
+# The golden corpus lives at the repository root, outside this package, so
+# tests/golden.R only resolves when run from there -- which CI does explicitly.
+# `R CMD check` runs everything under tests/ from the built tarball, where the
+# corpus does not exist, so shipping this file would fail the check that
+# r-universe runs. The other two test files build their own data and travel fine.
+^tests/golden\.R$

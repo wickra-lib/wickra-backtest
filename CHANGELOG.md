@@ -8,6 +8,12 @@ to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ### Added
 
+- The R package ships generated documentation: twelve `.Rd` pages under
+  `bindings/r/man`, plus a package-level topic, produced by roxygen from the
+  comments that were already there. `R CMD check` reports `Status: OK` where it
+  previously warned on every export -- the check r-universe runs before it will
+  serve the package.
+
 - Doctests: the facade's front page and the two entry points a caller actually
   reaches for -- `run` and `StreamingBacktest::new` -- now carry runnable
   examples, so the documented API is compiled and executed rather than only read.
@@ -473,6 +479,15 @@ to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
   and an edit made in place is lost on the next run.
 
 ### Fixed
+
+- `R CMD check` failed outright on `bindings/r/tests/golden.R`: it reads the
+  shared corpus at the repository root, which does not exist inside a built
+  tarball. CI runs it from the root and passed; r-universe runs `R CMD check` and
+  would not have. It is excluded from the tarball, where it never belonged --
+  the other two test files build their own data and travel fine.
+- `bindings/r/DESCRIPTION` claimed there was no automatic download, contradicting
+  `configure`, which has fetched and staged the released C ABI since the R
+  packaging work landed.
 
 - The published crates carry `readme`, so crates.io renders one instead of a bare
   metadata page, and the three library crates set `docs.rs all-features` plus

@@ -13,9 +13,12 @@ URL: https://github.com/wickra-lib/wickra-backtest,
     https://wickra-lib.r-universe.dev
 BugReports: https://github.com/wickra-lib/wickra-backtest/issues
 Encoding: UTF-8
+Roxygen: list(markdown = TRUE)
 NeedsCompilation: yes
-SystemRequirements: the wickra-backtest C ABI shared library. Build it with
-    `cargo build -p wickra-backtest-c --release`, then set WKBT_INC to
-    bindings/c/include and WKBT_LIB to the directory holding the built library.
-    There is no automatic download yet.
-RoxygenNote: 7.3.2
+SystemRequirements: the wickra-backtest C ABI shared library. `configure`
+    downloads the prebuilt library for this package's Version from the project's
+    GitHub releases and bundles it, so an ordinary install needs nothing extra.
+    To build against a local checkout instead, set WKBT_INC to bindings/c/include
+    and WKBT_LIB to the directory holding a library you built yourself with
+    `cargo build -p wickra-backtest-c --release`.
+Config/roxygen2/version: 8.0.0

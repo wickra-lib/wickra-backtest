@@ -1,3 +1,17 @@
+#' wickrabacktest: the Wickra backtest engine in R
+#'
+#' A streaming-native, event-driven backtester. A strategy is a JSON spec rather
+#' than code, so the same spec produces the same report here as from every other
+#' Wickra language binding, and a backtest and a live loop are one code path.
+#'
+#' Two ways in: [backtest_run()] and [backtest_run_json()] answer a whole series
+#' at once, while [backtest_stream_new()] and its companions drive the same
+#' engine one bar at a time.
+#'
+#' @keywords internal
+#' @useDynLib wickrabacktest, .registration = TRUE
+"_PACKAGE"
+
 #' The native wickra-backtest library version.
 #'
 #' @return A length-one character vector.
