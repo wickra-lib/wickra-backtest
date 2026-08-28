@@ -41,6 +41,12 @@ uv pip compile --generate-hashes --python-version 3.11 \
 uv pip compile --generate-hashes --python-version 3.9 \
   -o .github/requirements/ci-dev-py39.txt .github/requirements/ci-dev-py39.in
 
+# The cross-library benchmark's peer libraries. bench.yml runs on 3.11 only,
+# so one output suffices. The plotly pin in bench.in is load-bearing: without
+# it the resolve produces a vectorbt that cannot be imported.
+uv pip compile --generate-hashes --python-version 3.11 \
+  -o .github/requirements/bench.txt .github/requirements/bench.in
+
 echo
 echo "Done. Review the diff, then run the version audit:"
 echo "    python3 scripts/check_version_sync.py"

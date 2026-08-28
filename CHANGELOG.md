@@ -8,6 +8,13 @@ to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ### Added
 
+- A CI job for the cross-library benchmark. The "versus other libraries" section
+  of BENCHMARKS.md was the one claim here that reading the code cannot check, and
+  nothing ran the harness that produces it. Peers install from a new hash-locked
+  `.github/requirements/bench.txt`, and the job fails if either peer does not
+  import -- the harness treats an unimportable library as absent and would
+  otherwise report a comparison of one.
+
 - Dependabot watches every manifest that has an external dependency: the
   hash-locked CI tooling, the Java example's `org.json`, the fuzz harness's
   `libfuzzer-sys` (its own workspace, so neither the cargo entry nor `cargo deny`
@@ -495,10 +502,12 @@ to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ### Changed
 
-- The metadata audit's forbidden substring widened from `kingchenc/wickra-backtest`
-  to `kingchenc/wickra`. It subsumes the old one and additionally catches a stale
-  pre-migration link to the sibling indicator repository, which every binding
-  README and badge points at.
+- The metadata audit's forbidden substring is the shorter pre-migration owner
+  path, which subsumes the backtester-specific one it replaced and additionally
+  catches a stale link to the sibling indicator repository -- the one every
+  binding README and badge points at. The literal strings live in
+  `repo-metadata.toml`; spelling them here would trip the very check they
+  configure, which is how this entry got rewritten.
 
 - `BacktestReport`, `EquityPoint` and `Trade` derive `PartialEq`. `Metrics`
   already did, so a caller could compare a report's metrics but not the report

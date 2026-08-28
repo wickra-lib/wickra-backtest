@@ -1,0 +1,13 @@
+# Peer backtesting libraries for the bench.yml cross-library benchmark, plus
+# maturin to build the wheel the benchmark measures. Loose source spec; the
+# pinned, hash-locked output is generated from this:
+#   bench.txt  (Python 3.11)  via scripts/update-lockfiles.sh
+# bench.yml runs on a single Python version, so one output suffices.
+maturin
+backtrader
+vectorbt
+# vectorbt 1.1.0 imports plotly's `scattermapbox`, which plotly renamed in 6.0,
+# so a fresh resolve without this pin produces a lock whose vectorbt cannot be
+# imported at all -- and the benchmark would silently skip it, since a peer that
+# fails to import is treated as "not installed".
+plotly<6
