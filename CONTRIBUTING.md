@@ -153,6 +153,34 @@ Every publish step is idempotent, so a re-run after a partial failure is safe;
 what is not safe is a wrong version, because the registries will not accept a
 replacement.
 
+### R is published by registration, not by the tag
+
+`release.yml` has no R job, and that is correct: r-universe *pulls*. It builds
+`bindings/r` from this repository's default branch once the package is listed in
+the organisation's registry, so the listing is the whole R release path.
+
+The registry lives in the `wickra-lib.r-universe.dev` repository as a single
+`packages.json`. Adding this project is one entry alongside the indicator
+library's:
+
+```json
+{
+  "package": "wickrabacktest",
+  "url": "https://github.com/wickra-lib/wickra-backtest",
+  "subdir": "bindings/r"
+}
+```
+
+Two things have to be true before that listing is worth making, and both are
+checked here rather than discovered days later in the registry's build log:
+
+- `R CMD check` must be clean, which is why `bindings/r/man` is generated and
+  committed rather than left to roxygen at build time.
+- The wrapper must link against the C ABI of the version `DESCRIPTION` names,
+  which `scripts/check_r_abi_skew.py` asserts on every pull request. r-universe
+  compiles the wrapper from the default branch against the *published* library,
+  a pairing no job in this repository sees otherwise.
+
 ### The first release
 
 The version in every manifest is `0.1.0` and has never been tagged, so the first

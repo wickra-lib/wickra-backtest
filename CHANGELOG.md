@@ -8,6 +8,13 @@ to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ### Added
 
+- `scripts/check_r_abi_skew.py`, run by CI on every pull request: it asserts that
+  the R wrapper links against the C ABI of the version `DESCRIPTION` names. R is
+  the one binding whose native half comes from a published release rather than
+  from the tree, so no other job sees that pairing -- r-universe does, days
+  later. `CONTRIBUTING.md` now also documents that R is published by registering
+  the package with the organisation's r-universe registry, not by the tag.
+
 - The README opens with an install command and a runnable example showing the
   same spec run both ways, and the language table carries an install command and
   an example link per binding rather than a quickstart pointer.

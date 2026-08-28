@@ -124,6 +124,14 @@ jobs:
       - name: Every version declaration agrees
         run: python3 scripts/check_version_sync.py
 
+      # R is the one binding whose native half comes from a published release
+      # rather than from this tree: bindings/r/configure downloads the C ABI for
+      # the version DESCRIPTION names. The R job here builds against the header
+      # in the tree, so it never sees that pairing -- r-universe does, days
+      # later. This makes a mismatch visible in the pull request that opens it.
+      - name: R wrapper against the released C ABI
+        run: python3 scripts/check_r_abi_skew.py
+
   # An early heads-up on a broken link in a pull request. Deliberately
   # non-blocking: external link rot is non-deterministic, and a third-party site
   # rate-limiting must never fail someone's PR. The authoritative run is the
