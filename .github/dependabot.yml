@@ -77,6 +77,12 @@ updates:
       default-days: 7
     commit-message:
       prefix: "deps(npm)"
+    # The six per-platform packages are ours. They are optionalDependencies of
+    # this one, versioned in lockstep by `napi version`, and never published
+    # independently -- so Dependabot has nothing to find and its lookup fails
+    # with a 404 on every run. They are not third-party dependencies to track.
+    ignore:
+      - dependency-name: "wickra-backtest-*"
     groups:
       node-binding:
         patterns: ["*"]
