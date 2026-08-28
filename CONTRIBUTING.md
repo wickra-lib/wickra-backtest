@@ -103,6 +103,11 @@ package.
 - Add tests. The engine is correctness-critical — prefer a hand-computed
   expectation (see `engine.rs` tests) over a smoke test.
 - One logical change per PR; a clear, imperative commit message.
+- The default pull-request template is deliberately short. If the change touches
+  the engine, the C ABI or more than one binding, use the long form instead --
+  add `&template=detailed.md` to the PR-creation URL. It carries the checklists
+  that matter there: streaming-versus-batch equality, look-ahead, re-blessing
+  the golden corpus, and regenerating the C header and its vendored copy.
 
 ## Releasing
 

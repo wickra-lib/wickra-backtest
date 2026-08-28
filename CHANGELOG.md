@@ -8,6 +8,12 @@ to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ### Added
 
+- A long-form pull-request template for changes that touch the engine, the C ABI
+  or several bindings, carrying the checklists those need: streaming and batch
+  agreeing, look-ahead, re-blessing the golden corpus, and regenerating the C
+  header along with its vendored copy. The default template and CONTRIBUTING now
+  say how to reach it, since GitHub offers no picker.
+
 - A throughput harness for each of the eight non-Rust bindings, under
   `bindings/<lang>/benchmarks/`. All eight run the shared example strategy over
   the same deterministic series, so the numbers are comparable: one engine, and
