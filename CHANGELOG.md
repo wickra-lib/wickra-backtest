@@ -8,6 +8,12 @@ to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ### Added
 
+- `ARCHITECTURE.md` gains a navigation table, what is deliberately out of scope,
+  the performance characteristics, the stability commitments and the known sharp
+  edges. The stability section names the strategy spec as the real public
+  contract -- it is what a caller writes in every language, and the committed
+  JSON Schema is what stops it changing unnoticed.
+
 - `GOVERNANCE.md` answers the questions it previously left open: how a change
   gets in, how someone becomes a maintainer, and what happens to the project if
   the maintainer stops -- which matters here because a tag publishes to six
