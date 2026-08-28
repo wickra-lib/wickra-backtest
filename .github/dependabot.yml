@@ -111,11 +111,18 @@ updates:
       interval: monthly
       time: "06:00"
       timezone: "Etc/UTC"
-    # Version-update PRs disabled (0), security updates unaffected. The two files
-    # are resolved per target Python by scripts/update-lockfiles.sh (uv honours
-    # each row's --python-version); Dependabot edits the .txt directly and does
-    # not, so a routine bump would drop the 3.9 backports the floor row needs.
-    # Regenerate with the script; take the security PRs.
+    # Version-update PRs disabled (0). The two files are resolved per target
+    # Python by scripts/update-lockfiles.sh (uv honours each row's
+    # --python-version); Dependabot edits the .txt directly and does not, so a
+    # routine bump drops the 3.9 backports the floor row needs. Regenerate with
+    # the script instead.
+    #
+    # The limit does not apply to SECURITY updates, and those need reading rather
+    # than merging for the same reason. The pytest advisory produced one that
+    # raised the 3.9 lock to a release requiring Python 3.10 -- unusable on the
+    # row it edited -- and DOWNGRADED the 3.10+ lock, which was already past the
+    # advisory. Five CI jobs failed. Check which file a security PR touches and
+    # what the target interpreter can actually install before taking it.
     open-pull-requests-limit: 0
     cooldown:
       default-days: 7
