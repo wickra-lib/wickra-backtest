@@ -419,6 +419,13 @@ to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ### Changed
 
+- The cross-library benchmark in `BENCHMARKS.md` now reports vectorbt, which was
+  an em dash because it had not been installed for the run. Measuring it changed
+  the conclusion: vectorbt is faster than this engine on batch throughput, by
+  roughly 1.2x at 10,000 bars and 5.9x at 100,000. All three libraries were
+  re-measured together at two sizes so the rows are comparable, and the section
+  now says what the ranking means rather than implying one.
+
 - CI installs its Python dev tooling from hash-locked requirements under
   `.github/requirements/` with `--require-hashes`, so the toolchain is pinned
   rather than being whatever the index served that morning. Regenerate them with

@@ -61,18 +61,34 @@ cd bindings/python
 python -m benchmarks.compare_libraries --size 10000 --repeat 3
 ```
 
-On one development machine over 10,000 bars (best of 3):
+On one development machine, best of five:
 
-| Library | bars/second | Notes |
-|---------|-------------|-------|
-| **wickra-backtest** | ~564,000 | O(1)-per-bar streaming engine (Rust) |
-| backtrader | ~4,400 | pure-Python event loop (~128× slower here) |
-| vectorbt | — | vectorised NumPy; not installed in this run (skipped automatically) |
+| Library | 10,000 bars | 100,000 bars | Engine |
+|---------|------------:|-------------:|--------|
+| wickra-backtest | ~1,810,000 b/s | ~1,440,000 b/s | event-driven, O(1) per bar (Rust) |
+| vectorbt | ~2,100,000 b/s | ~8,460,000 b/s | vectorised NumPy |
+| backtrader | ~11,200 b/s | ~10,400 b/s | pure-Python event loop |
+
+**vectorbt is faster here, and increasingly so with size.** That is what
+vectorisation buys and it is worth saying plainly rather than leaving the row
+blank: it computes the whole array at once, in NumPy, with no per-bar event
+simulation. What it does not do is run a bar at a time, which means it has no
+live path — the same code cannot be pointed at a socket, and there is nothing to
+be byte-identical with. This engine trades batch throughput for that property.
+
+The comparison that does map cleanly is backtrader, which is also event-driven
+and also simulates each bar: ~130x here at 10,000 bars and ~138x at 100,000.
 
 This measures **engine-loop throughput on identical data, not identical
 results**: each library models fills, sizing and costs differently, so trade
-counts and P&L will not match. backtrader is the closest comparison because it is
-also an event-driven engine; vectorbt is vectorised (fast, but it recomputes over
-the whole array and is not a streaming/live engine). Run the harness on your own
+counts and P&L will not match. Numbers are from the Python binding via the
+harness above, which is a different measurement from the criterion figures at the
+top of this file — those run the Rust engine directly on a different strategy.
+
+At 1,000,000 bars the harness's vectorbt path stops with `cash cannot be NaN`;
+the synthetic price path drives its portfolio to zero at that length. The other
+two complete.
+
+Run the harness on your own
 hardware rather than trusting a quoted figure — libraries that are not installed
 are skipped, so the script always produces output.
