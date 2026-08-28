@@ -50,6 +50,11 @@ jobs:
       # maturin (which supplies the platform link flags); exclude it here.
       - run: cargo build --workspace --all-features --exclude wickra-backtest-python
       - run: cargo test --workspace --all-features --exclude wickra-backtest-python
+      # examples/rust is a workspace member, so the two lines above already
+      # compile it. Running it is the part that was missing: the example asserts
+      # streaming and batch agree and exits non-zero when they do not, which
+      # compiling alone never discovers.
+      - run: cargo run -p wickra-backtest-examples
 
   lint:
     name: Format & Clippy
@@ -221,6 +226,9 @@ jobs:
       # every build.
       - run: pip install --no-index --find-links bindings/python/dist wickra-backtest
       - run: pytest bindings/python/tests -q
+      # The example is what SUPPORT.md sends people to, so it is run against the
+      # wheel this job just installed rather than left to rot.
+      - run: python examples/python/backtest.py
 
   go:
     name: Go on ${{ matrix.os }}
@@ -280,7 +288,7 @@ jobs:
       - name: Check gofmt
         shell: bash
         run: |
-          unformatted="$(gofmt -l bindings/go)"
+          unformatted="$(gofmt -l bindings/go examples/go)"
           if [ -n "$unformatted" ]; then
             echo "gofmt needed on:"; echo "$unformatted"; exit 1
           fi
@@ -295,6 +303,16 @@ jobs:
           cd bindings/go
           go vet ./...
           go test ./...
+
+      # examples/go is a separate module that `replace`s the binding with this
+      # tree's, so it is neither vetted nor built by the step above.
+      - name: Vet and run the Go example
+        shell: bash
+        run: |
+          export PATH="$WICKRA_GO_LIBDIR:$PATH"
+          cd examples/go
+          go vet ./...
+          go run .
 
   node:
     name: Node ${{ matrix.node-version }} on ${{ matrix.os }}
@@ -350,6 +368,10 @@ jobs:
         run: cd bindings/node && npx napi build --platform --release
       - name: Run Node tests
         run: cd bindings/node && node --test
+      # The example requires ../../bindings/node directly, so it exercises the
+      # module the tests just built through its published entry point.
+      - name: Run the Node example
+        run: node examples/node/backtest.js
 
   wasm:
     name: WASM build
@@ -379,6 +401,10 @@ jobs:
           test -f bindings/wasm/pkg/wickra_backtest_wasm.d.ts
       - name: Golden parity tests (node)
         run: node --test bindings/wasm/tests/*.test.cjs
+      # The browser demo cannot run headless here, but the CommonJS example
+      # loads the same pkg/ build this job produced.
+      - name: Run the WASM example
+        run: node examples/wasm/backtest.cjs
 
   c-abi:
     name: C ABI on ${{ matrix.os }}
@@ -452,6 +478,10 @@ jobs:
         run: cargo build -p wickra-backtest-c
       - name: Test the C# binding
         run: dotnet test bindings/csharp/Wickra.Backtest.Tests/Wickra.Backtest.Tests.csproj -c Release
+      # The example project references the binding project and copies the same
+      # target/debug native library beside its own executable.
+      - name: Run the C# example
+        run: dotnet run --project examples/csharp -c Release
 
   java:
     name: Java on ${{ matrix.os }}
@@ -483,6 +513,13 @@ jobs:
         run: java -version
       - name: Test the Java binding
         run: mvn -B -f bindings/java test
+      # examples/java resolves org.wickra:wickra-backtest from the local Maven
+      # repository, so the binding has to be installed before the example can
+      # compile against it. The tests ran in the step above; skip them here.
+      - name: Install the Java binding locally
+        run: mvn -B -f bindings/java install -DskipTests
+      - name: Run the Java example
+        run: mvn -B -f examples/java compile exec:exec
 
   r:
     name: R on ${{ matrix.os }}
@@ -537,6 +574,9 @@ jobs:
           Rscript bindings/r/tests/run_tests.R
           Rscript bindings/r/tests/streaming.R
           Rscript bindings/r/tests/golden.R
+          # The example reads examples/ relative to the working directory, which
+          # is the repository root here.
+          Rscript examples/r/backtest.R
 
   coverage:
     name: Coverage

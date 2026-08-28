@@ -8,6 +8,12 @@ to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ### Added
 
+- CI runs all ten language examples. Each one runs in the job that has just built
+  that language's binding -- Python after the wheel is installed, Node after the
+  native module is built, Go and C# and Java and R after the C ABI is -- so the
+  example is exercised against the code the same job produced. `gofmt` now covers
+  `examples/go` as well as the binding.
+
 - `bindings/c/include/wickra_backtest.hpp`: an optional header-only C++ layer
   over the C ABI. C++ already reached every export through the `extern "C"`
   header; what it lacked was the ownership. The ABI hands out a stream handle and

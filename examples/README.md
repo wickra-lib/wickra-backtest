@@ -42,7 +42,11 @@ a backtest is not a separate model of the strategy.
 | C# | `dotnet run --project examples/csharp` | `cargo build -p wickra-backtest-c` |
 | Java | `mvn -f examples/java compile exec:exec` | `cargo build -p wickra-backtest-c`, then `mvn -f bindings/java install` |
 
-Every one of them prints the same numbers, because they share one engine.
+Every one of them prints the same numbers, because they share one engine --
+and every one of them exits non-zero if its two reports disagree. CI runs all
+ten, each in the job that has just built that language's binding, so an
+example that stops working fails the build rather than waiting for a reader
+to try it.
 
 ## C / C++
 
