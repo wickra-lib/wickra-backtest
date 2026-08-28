@@ -5,13 +5,13 @@
 [![Built on Wickra](https://img.shields.io/badge/built%20on-wickra-3b82f6)](https://github.com/wickra-lib/wickra)
 [![CI](https://raw.githubusercontent.com/wickra-lib/.github/main/profile/badges/wickra-backtest/ci.svg)](https://github.com/wickra-lib/wickra-backtest/actions/workflows/ci.yml)
 [![codecov](https://raw.githubusercontent.com/wickra-lib/.github/main/profile/badges/wickra-backtest/codecov.svg)](https://codecov.io/gh/wickra-lib/wickra-backtest)
-[![License: MIT OR Apache-2.0](https://raw.githubusercontent.com/wickra-lib/.github/main/profile/badges/wickra-backtest/license.svg)](../../README.md#license)
+[![License: MIT OR Apache-2.0](https://raw.githubusercontent.com/wickra-lib/.github/main/profile/badges/wickra-backtest/license.svg)](https://github.com/wickra-lib/wickra-backtest#license)
 
 # Wickra Backtest — C / C++
 
 ---
 
-The stable **C ABI** for the [wickra-backtest](../../README.md) engine, and the
+The stable **C ABI** for the [wickra-backtest](https://github.com/wickra-lib/wickra-backtest) engine, and the
 hub every non-native binding (C#, Java, Go, R) calls through. The same source
 compiles as C and C++ (the header is `extern "C"`), and the report is
 byte-identical to every other binding.
@@ -100,12 +100,12 @@ are not symmetric:
   a no-op on `NULL`.
 
 Exactly one of the two, exactly once. In C++ the wrapper below expresses this
-difference for you; [`examples/c/streaming.c`](../../examples/c/streaming.c) shows
+difference for you; [`examples/c/streaming.c`](https://github.com/wickra-lib/wickra-backtest/blob/main/examples/c/streaming.c) shows
 it by hand.
 
 ## Example
 
-See [`examples/c/example.c`](../../examples/c/example.c). Build and run it (on
+See [`examples/c/example.c`](https://github.com/wickra-lib/wickra-backtest/blob/main/examples/c/example.c). Build and run it (on
 Windows, MinGW links the MSVC DLL by exact name):
 
 ```bash
@@ -125,7 +125,7 @@ resources that must each be released exactly once: the stream handle, and the
 `char *` written to an out-parameter by every JSON-returning call — and by every
 call that failed. A streaming run touches both on every bar.
 
-[`include/wickra_backtest.hpp`](include/wickra_backtest.hpp) is an optional
+[`include/wickra_backtest.hpp`](https://github.com/wickra-lib/wickra-backtest/blob/main/bindings/c/include/wickra_backtest.hpp) is an optional
 header-only layer that holds each in a move-only owner:
 
 ```cpp
@@ -153,7 +153,7 @@ costs nothing beyond the C calls.
 
 It is hand-written — cbindgen generates the `.h`, not the `.hpp` — and both ship
 in the `wickra-backtest-c-<target>.tar.gz` release asset.
-[`examples/c/cpp_smoke.cpp`](../../examples/c/cpp_smoke.cpp) runs a full
+[`examples/c/cpp_smoke.cpp`](https://github.com/wickra-lib/wickra-backtest/blob/main/examples/c/cpp_smoke.cpp) runs a full
 streaming backtest through it and checks the report against the batch entry
 point; the CMake project in `examples/c` builds it, and the C sources as C++, on
 every CI run.
@@ -161,8 +161,8 @@ every CI run.
 ## Documentation
 
 - **Repository:** <https://github.com/wickra-lib/wickra-backtest>
-- **Strategy spec reference:** [STRATEGY_SPEC.md](../../docs/STRATEGY_SPEC.md)
-- **Cookbook:** [COOKBOOK.md](../../docs/COOKBOOK.md)
+- **Strategy spec reference:** [STRATEGY_SPEC.md](https://github.com/wickra-lib/wickra-backtest/blob/main/docs/STRATEGY_SPEC.md)
+- **Cookbook:** [COOKBOOK.md](https://github.com/wickra-lib/wickra-backtest/blob/main/docs/COOKBOOK.md)
 - **Built on Wickra:** <https://github.com/wickra-lib/wickra> · <https://docs.wickra.org>
 
 The same `StrategySpec` runs identically across Rust, Python, Node.js, WASM, C,
@@ -184,5 +184,5 @@ performance. Any use in a live trading context is at your own risk. Provided
 
 ## License
 
-Licensed under either of [MIT](../../LICENSE-MIT) or
-[Apache-2.0](../../LICENSE-APACHE) at your option.
+Licensed under either of [MIT](https://github.com/wickra-lib/wickra-backtest/blob/main/LICENSE-MIT) or
+[Apache-2.0](https://github.com/wickra-lib/wickra-backtest/blob/main/LICENSE-APACHE) at your option.

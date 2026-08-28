@@ -520,6 +520,12 @@ to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ### Fixed
 
+- Every link in the binding READMEs is absolute. These are the long descriptions
+  PyPI, NuGet, pkg.go.dev and r-universe render, and a link like
+  `../../docs/COOKBOOK.md` resolves on GitHub and is dead on all four --
+  invisibly, since the file it names does exist here.
+  `scripts/check_readme_links.py` now fails on a relative one.
+
 - `bindings/c/README.md` documented three of the twelve C ABI exports. The whole
   streaming surface -- eight functions, and the reason the C++ wrapper exists --
   appeared only in the generated header, including the asymmetry between `finish`

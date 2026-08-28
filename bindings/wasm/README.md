@@ -5,13 +5,13 @@
 [![Built on Wickra](https://img.shields.io/badge/built%20on-wickra-3b82f6)](https://github.com/wickra-lib/wickra)
 [![CI](https://raw.githubusercontent.com/wickra-lib/.github/main/profile/badges/wickra-backtest/ci.svg)](https://github.com/wickra-lib/wickra-backtest/actions/workflows/ci.yml)
 [![codecov](https://raw.githubusercontent.com/wickra-lib/.github/main/profile/badges/wickra-backtest/codecov.svg)](https://codecov.io/gh/wickra-lib/wickra-backtest)
-[![License: MIT OR Apache-2.0](https://raw.githubusercontent.com/wickra-lib/.github/main/profile/badges/wickra-backtest/license.svg)](../../README.md#license)
+[![License: MIT OR Apache-2.0](https://raw.githubusercontent.com/wickra-lib/.github/main/profile/badges/wickra-backtest/license.svg)](https://github.com/wickra-lib/wickra-backtest#license)
 
 # Wickra Backtest — WASM
 
 ---
 
-WASM binding for the [wickra-backtest](../../README.md) engine, built with
+WASM binding for the [wickra-backtest](https://github.com/wickra-lib/wickra-backtest) engine, built with
 wasm-bindgen. Run a backtest **in the browser** (or any WASM host) with the same
 kernel and values as every other binding — the report is byte-identical.
 
@@ -60,7 +60,7 @@ invalid spec throws a `JsError`.
 For strategies that use microstructure feeds, `run_json(requestJson)` takes one
 request bundle (candles + spec + optional order-book / trade / derivatives /
 cross-section / reference feeds) and returns the same report JSON. See the
-[microstructure guide](../../docs/MICROSTRUCTURE.md) for the feed shapes.
+[microstructure guide](https://github.com/wickra-lib/wickra-backtest/blob/main/docs/MICROSTRUCTURE.md) for the feed shapes.
 
 ## Test
 
@@ -71,8 +71,8 @@ wasm-pack build --target nodejs && node --test tests/golden.test.cjs
 ## Documentation
 
 - **Repository:** <https://github.com/wickra-lib/wickra-backtest>
-- **Strategy spec reference:** [STRATEGY_SPEC.md](../../docs/STRATEGY_SPEC.md)
-- **Cookbook:** [COOKBOOK.md](../../docs/COOKBOOK.md)
+- **Strategy spec reference:** [STRATEGY_SPEC.md](https://github.com/wickra-lib/wickra-backtest/blob/main/docs/STRATEGY_SPEC.md)
+- **Cookbook:** [COOKBOOK.md](https://github.com/wickra-lib/wickra-backtest/blob/main/docs/COOKBOOK.md)
 - **Built on Wickra:** <https://github.com/wickra-lib/wickra> · <https://docs.wickra.org>
 
 The same `StrategySpec` runs identically across Rust, Python, Node.js, WASM, C,
@@ -94,5 +94,5 @@ performance. Any use in a live trading context is at your own risk. Provided
 
 ## License
 
-Licensed under either of [MIT](../../LICENSE-MIT) or
-[Apache-2.0](../../LICENSE-APACHE) at your option.
+Licensed under either of [MIT](https://github.com/wickra-lib/wickra-backtest/blob/main/LICENSE-MIT) or
+[Apache-2.0](https://github.com/wickra-lib/wickra-backtest/blob/main/LICENSE-APACHE) at your option.
