@@ -8,6 +8,11 @@ to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ### Added
 
+- Doctests: the facade's front page and the two entry points a caller actually
+  reaches for -- `run` and `StreamingBacktest::new` -- now carry runnable
+  examples, so the documented API is compiled and executed rather than only read.
+  Each shows the same spec run both ways and asserts the two agree.
+
 - The release flow in `CONTRIBUTING.md` now names the three places that say this
   project is unreleased and do not update themselves: the README's Status
   section, its hand-written status badge, and the repository description. The
@@ -423,6 +428,11 @@ to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
   next close. Short entries/exits use `short_entry` / `short_exit`.
 
 ### Changed
+
+- `BacktestReport`, `EquityPoint` and `Trade` derive `PartialEq`. `Metrics`
+  already did, so a caller could compare a report's metrics but not the report
+  holding them -- an odd gap in a library whose central claim is that two runs
+  produce the same report.
 
 - The cross-library benchmark in `BENCHMARKS.md` now reports vectorbt, which was
   an em dash because it had not been installed for the run. Measuring it changed

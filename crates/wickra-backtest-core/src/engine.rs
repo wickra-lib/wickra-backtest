@@ -379,6 +379,36 @@ pub(crate) fn require_feeds(
 }
 
 /// Run a backtest of `spec` over `candles` with the default capital.
+///
+/// ```
+/// use wickra_backtest_core::{run, Candle, StrategySpec};
+///
+/// let spec = StrategySpec::parse(
+///     r#"{"symbol":"x","timeframe":"1h","indicators":{},
+///         "entry":{"gt":[{"price":"close"},100]},
+///         "exit":{"lt":[{"price":"close"},100]},
+///         "sizing":{"type":"fixed_qty","qty":1}}"#,
+/// )?;
+/// let bar = |time, open: f64, close: f64| Candle {
+///     time,
+///     open,
+///     high: open.max(close),
+///     low: open.min(close),
+///     close,
+///     volume: 0.0,
+/// };
+/// let report = run(&spec, &[bar(0, 100.0, 101.0), bar(1, 102.0, 103.0), bar(2, 104.0, 97.0)])?;
+///
+/// // The entry signal fires on bar 0 and fills at bar 1's open, look-ahead-free.
+/// assert_eq!(report.trades.len(), report.metrics.num_trades as usize);
+/// assert_eq!(report.symbol, "x");
+/// # Ok::<(), wickra_backtest_core::BacktestError>(())
+/// ```
+///
+/// # Errors
+///
+/// Returns an error if the spec is invalid, the candle series is empty, or the
+/// spec prices against a feed this entry point cannot supply.
 pub fn run(spec: &StrategySpec, candles: &[Candle]) -> Result<BacktestReport> {
     run_with_capital(spec, candles, DEFAULT_CAPITAL)
 }
@@ -654,6 +684,43 @@ impl fmt::Debug for StreamingBacktest<'_> {
 
 impl<'a> StreamingBacktest<'a> {
     /// Build a streaming backtest from a validated spec and starting capital.
+    ///
+    /// ```
+    /// use wickra_backtest_core::{run_with_capital, Candle, StreamingBacktest, StrategySpec};
+    ///
+    /// let spec = StrategySpec::parse(
+    ///     r#"{"symbol":"x","timeframe":"1h","indicators":{},
+    ///         "entry":{"gt":[{"price":"close"},100]},
+    ///         "exit":{"lt":[{"price":"close"},100]},
+    ///         "sizing":{"type":"fixed_qty","qty":1}}"#,
+    /// )?;
+    /// let bar = |time, open: f64, close: f64| Candle {
+    ///     time,
+    ///     open,
+    ///     high: open.max(close),
+    ///     low: open.min(close),
+    ///     close,
+    ///     volume: 0.0,
+    /// };
+    /// let candles = [bar(0, 100.0, 101.0), bar(1, 102.0, 103.0), bar(2, 104.0, 97.0)];
+    ///
+    /// let mut live = StreamingBacktest::new(&spec, 1_000.0)?;
+    /// for candle in &candles {
+    ///     live.step(candle)?;
+    ///     // Everything a live loop wants is readable between bars.
+    ///     let _ = (live.num_trades(), live.latest_equity());
+    /// }
+    /// let streamed = live.finish();
+    ///
+    /// // Feeding the same bars from a slice is the historical runner, and with
+    /// // the same capital it produces the same report -- the whole claim of this
+    /// // crate. (`run` would use the default capital and disagree, which is a
+    /// // difference in inputs, not in engines.)
+    /// let batch = run_with_capital(&spec, &candles, 1_000.0)?;
+    /// assert_eq!(streamed.equity, batch.equity);
+    /// assert_eq!(streamed.metrics.pnl, batch.metrics.pnl);
+    /// # Ok::<(), wickra_backtest_core::BacktestError>(())
+    /// ```
     pub fn new(spec: &'a StrategySpec, capital: f64) -> Result<Self> {
         Self::from_spec(Cow::Borrowed(spec), capital)
     }

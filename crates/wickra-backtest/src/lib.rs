@@ -10,6 +10,47 @@
 //! The same engine, fed live instead of historical bars, becomes the live bot —
 //! so **backtest == live, byte-identical**, and (because the strategy is a JSON
 //! spec, not code) identical across every Wickra language binding.
+//!
+//! ```
+//! use wickra_backtest::{run_with_capital, Candle, StreamingBacktest, StrategySpec};
+//!
+//! // A strategy is data. This one buys above 100 and sells below it.
+//! let spec = StrategySpec::parse(
+//!     r#"{"symbol":"BTCUSDT","timeframe":"1h","indicators":{},
+//!         "entry":{"gt":[{"price":"close"},100]},
+//!         "exit":{"lt":[{"price":"close"},100]},
+//!         "sizing":{"type":"fixed_qty","qty":1}}"#,
+//! )?;
+//!
+//! let candles: Vec<Candle> = [(100.0, 101.0), (102.0, 103.0), (104.0, 99.0), (98.0, 97.0)]
+//!     .iter()
+//!     .enumerate()
+//!     .map(|(i, &(open, close))| Candle {
+//!         time: i as i64,
+//!         open,
+//!         high: open.max(close),
+//!         low: open.min(close),
+//!         close,
+//!         volume: 0.0,
+//!     })
+//!     .collect();
+//!
+//! // The whole series at once.
+//! let batch = run_with_capital(&spec, &candles, 1_000.0)?;
+//!
+//! // The same spec, one bar at a time. Replace the loop with reads from a
+//! // socket and this is a live strategy; nothing else about it changes.
+//! let mut live = StreamingBacktest::new(&spec, 1_000.0)?;
+//! for candle in &candles {
+//!     live.step(candle)?;
+//! }
+//! let streamed = live.finish();
+//!
+//! // That equality is the point of the crate, not a coincidence.
+//! assert_eq!(streamed.metrics.num_trades, batch.metrics.num_trades);
+//! assert_eq!(streamed.metrics.pnl, batch.metrics.pnl);
+//! # Ok::<(), wickra_backtest::BacktestError>(())
+//! ```
 
 // docs.rs builds on nightly with --cfg docsrs, which makes rustdoc annotate
 // feature-gated items with the feature that provides them. No job in this

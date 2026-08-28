@@ -9,7 +9,7 @@ use crate::portfolio::Trade;
 pub const REPORT_SCHEMA_VERSION: u32 = 1;
 
 /// One point on the equity curve (marked at each bar close).
-#[derive(Debug, Clone, Copy, Serialize)]
+#[derive(Debug, Clone, Copy, PartialEq, Serialize)]
 pub struct EquityPoint {
     /// Bar time.
     pub time: i64,
@@ -18,7 +18,7 @@ pub struct EquityPoint {
 }
 
 /// The result of a backtest run.
-#[derive(Debug, Clone, Serialize)]
+#[derive(Debug, Clone, PartialEq, Serialize)]
 pub struct BacktestReport {
     /// Report schema version.
     pub schema_version: u32,

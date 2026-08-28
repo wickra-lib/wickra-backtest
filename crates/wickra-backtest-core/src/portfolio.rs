@@ -9,7 +9,7 @@
 use serde::Serialize;
 
 /// A completed round-trip trade.
-#[derive(Debug, Clone, Serialize)]
+#[derive(Debug, Clone, PartialEq, Serialize)]
 pub struct Trade {
     /// Entry bar time.
     pub entry_time: i64,
