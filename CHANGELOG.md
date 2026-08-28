@@ -8,6 +8,11 @@ to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ### Added
 
+- `SUPPORT.md` leads with the documentation and says what support actually is:
+  one maintainer, best effort, no service-level agreement. The bug section now
+  names the reproducer this engine needs -- the spec, the bars, the binding --
+  rather than asking generically for details.
+
 - `ARCHITECTURE.md` gains a navigation table, what is deliberately out of scope,
   the performance characteristics, the stability commitments and the known sharp
   edges. The stability section names the strategy spec as the real public
