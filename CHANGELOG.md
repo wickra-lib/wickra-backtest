@@ -8,6 +8,12 @@ to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ### Added
 
+- Retry wrappers around the setup actions in `release.yml`, matching the ones
+  `ci.yml` already had. The Windows CDN flake that occasionally hangs
+  `actions/setup-node` reaches five runners in the Node build matrix, and a
+  release run is the one least worth re-driving: by the time it fails, earlier
+  jobs may already have published.
+
 - CI packs what a release publishes. The four crates are packaged and verified
   the way `cargo publish` does, the npm tarball is checked for its entry points
   and native binary, and the NuGet package is packed. None of that ran before the
