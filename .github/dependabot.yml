@@ -50,6 +50,17 @@ updates:
       default-days: 7
     commit-message:
       prefix: "deps(fuzz)"
+    # fuzz/Cargo.toml declares only libfuzzer-sys and two path dependencies, but
+    # Dependabot follows those back into the root workspace -- so without these
+    # this entry proposes changes to the root Cargo.toml that the entry above
+    # forbids, and it did: a schemars 1.x bump that breaks the committed
+    # strategy-spec schema. The holds have to be stated wherever the manifest can
+    # be reached from, not only where it is declared.
+    ignore:
+      - dependency-name: "ureq"
+        update-types: ["version-update:semver-major"]
+      - dependency-name: "schemars"
+        update-types: ["version-update:semver-major"]
     groups:
       fuzz:
         patterns: ["*"]
