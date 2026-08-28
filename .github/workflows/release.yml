@@ -259,14 +259,15 @@ jobs:
         with:
           targets: ${{ matrix.target }}
       - uses: Swatinem/rust-cache@6323deb102c322ba6fcbdcafc7e3dddab59af2b6 # v2.9.2
-      # npm install, not npm ci: the six per-platform optionalDependencies have
-      # never been published, so they cannot be in the lockfile, and npm ci
-      # refuses a lock that does not list them -- `EUSAGE ... Missing:
-      # wickra-backtest-darwin-arm64@ from lock file`. Older npm tolerated it;
-      # npm 12 does not, so this is not a matter of taste. It becomes possible
-      # once the first release publishes those six packages.
+      # npm ci, reproducible: it installs exactly the lockfile and refuses a
+      # lock that disagrees with the manifest. This was `npm install` until
+      # 0.1.0, because the six per-platform optionalDependencies did not exist
+      # on the registry and so could not be in the lock -- npm 12 refuses that
+      # with `EUSAGE ... Missing: wickra-backtest-darwin-arm64@ from lock file`.
+      # The release published them, the lock now names all six, and the reason
+      # for the looser command is gone.
       - name: Install Node deps
-        run: cd bindings/node && npm install --no-audit --no-fund
+        run: cd bindings/node && npm ci --no-audit --no-fund
       - name: Build native module
         working-directory: bindings/node
         run: npx napi build --platform --release --target ${{ matrix.target }}
@@ -309,14 +310,15 @@ jobs:
         with:
           node-version: "22"
           registry-url: "https://registry.npmjs.org"
-      # npm install, not npm ci: the six per-platform optionalDependencies have
-      # never been published, so they cannot be in the lockfile, and npm ci
-      # refuses a lock that does not list them -- `EUSAGE ... Missing:
-      # wickra-backtest-darwin-arm64@ from lock file`. Older npm tolerated it;
-      # npm 12 does not, so this is not a matter of taste. It becomes possible
-      # once the first release publishes those six packages.
+      # npm ci, reproducible: it installs exactly the lockfile and refuses a
+      # lock that disagrees with the manifest. This was `npm install` until
+      # 0.1.0, because the six per-platform optionalDependencies did not exist
+      # on the registry and so could not be in the lock -- npm 12 refuses that
+      # with `EUSAGE ... Missing: wickra-backtest-darwin-arm64@ from lock file`.
+      # The release published them, the lock now names all six, and the reason
+      # for the looser command is gone.
       - name: Install Node deps
-        run: cd bindings/node && npm install --no-audit --no-fund
+        run: cd bindings/node && npm ci --no-audit --no-fund
       - name: Download all platform binaries
         uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8.0.1
         with:
