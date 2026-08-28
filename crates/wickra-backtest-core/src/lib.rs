@@ -16,6 +16,11 @@
 //! "backtest == live" holds because there is one implementation, not because two
 //! of them agree.
 
+// docs.rs builds on nightly with --cfg docsrs, which makes rustdoc annotate
+// feature-gated items with the feature that provides them. No job in this
+// repository runs nightly, so this line is the one thing here CI cannot check
+// -- the sibling repository lost a release to exactly that blind spot.
+#![cfg_attr(docsrs, feature(doc_cfg))]
 #![forbid(unsafe_code)]
 
 pub mod data;

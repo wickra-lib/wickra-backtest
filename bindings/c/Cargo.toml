@@ -11,7 +11,12 @@ homepage.workspace = true
 publish = false
 
 [lib]
+# Named for the artefact consumers link (`wickra_backtest.dll` / `.so`), which
+# collides with the facade crate's library name in rustdoc: both would write to
+# the same output path, so `cargo doc --workspace` refuses to run. The C ABI's
+# documentation is its generated header, not rustdoc output, so it opts out.
 name = "wickra_backtest"
+doc = false
 crate-type = ["cdylib", "staticlib", "rlib"]
 
 [dependencies]

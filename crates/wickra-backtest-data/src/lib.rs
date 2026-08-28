@@ -1,12 +1,17 @@
 //! # wickra-backtest-data
 //!
 //! Loaders that turn market-history files into the [`Candle`] stream the
-//! [`wickra-backtest-core`] engine consumes. CSV (`time,open,high,low,close[,volume]`),
+//! [`wickra_backtest_core`] engine consumes. CSV (`time,open,high,low,close[,volume]`),
 //! JSON Lines (one [`Candle`] object per line) and a JSON array are supported,
 //! dispatched by file extension; Apache Parquet is supported behind the
 //! `parquet` feature. Candles can also be resampled to a coarser timeframe by a
 //! fixed bar count or a timestamp interval.
 
+// docs.rs builds on nightly with --cfg docsrs, which makes rustdoc annotate
+// feature-gated items with the feature that provides them. No job in this
+// repository runs nightly, so this line is the one thing here CI cannot check
+// -- the sibling repository lost a release to exactly that blind spot.
+#![cfg_attr(docsrs, feature(doc_cfg))]
 #![forbid(unsafe_code)]
 
 use std::path::Path;

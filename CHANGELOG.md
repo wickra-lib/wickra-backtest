@@ -464,6 +464,19 @@ to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ### Fixed
 
+- The published crates carry `readme`, so crates.io renders one instead of a bare
+  metadata page, and the three library crates set `docs.rs all-features` plus
+  `doc_cfg`, so the Parquet reader and the Binance importer are documented rather
+  than silently absent.
+- `wickra-backtest` forwards `parquet` and `binance` to the data crate. Without
+  them the facade re-exported `data` with both loaders compiled out and no way to
+  enable them, so anyone using the facade had to depend on `wickra-backtest-data`
+  directly.
+- `cargo doc --workspace` could not run: the C binding's library is named for the
+  artefact it produces and collided with the facade's in rustdoc's output path.
+  It opts out of rustdoc, since its documentation is the generated header. Three
+  broken intra-doc links surfaced once the command worked, and are fixed.
+
 - The README advertised the indicator library's live demo and sent readers to its
   sites, while this project's own site and in-browser demo -- live for weeks --
   appeared once, as a badge. It also listed itself among the projects its core

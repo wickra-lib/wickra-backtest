@@ -8,12 +8,28 @@ license.workspace = true
 authors.workspace = true
 repository.workspace = true
 homepage.workspace = true
+readme.workspace = true
 keywords.workspace = true
 categories.workspace = true
 
 [dependencies]
 wickra-backtest-core.workspace = true
 wickra-backtest-data.workspace = true
+
+# Forwarded so the optional loaders are reachable through the facade at all.
+# Without these, anyone depending on `wickra-backtest` gets `wickra_backtest::data`
+# with the Parquet reader and the Binance importer compiled out and no way to turn
+# them on -- they would have to depend on wickra-backtest-data directly, which
+# defeats the point of a facade.
+[features]
+parquet = ["wickra-backtest-data/parquet"]
+binance = ["wickra-backtest-data/binance"]
+
+# docs.rs builds with every feature on, so the optional loaders are documented
+# rather than silently absent. It builds on nightly with --cfg docsrs, which no
+# job here can reproduce, so this is one of the few settings CI cannot verify.
+[package.metadata.docs.rs]
+all-features = true
 
 [lints]
 workspace = true

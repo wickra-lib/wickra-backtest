@@ -3,14 +3,19 @@
 //! Streaming-native, event-driven backtester for the
 //! [Wickra](https://github.com/wickra-lib/wickra) technical-indicator library.
 //!
-//! This facade re-exports the engine ([`wickra-backtest-core`]) and the data
-//! loaders ([`wickra-backtest-data`]) behind one crate, plus the historical
+//! This facade re-exports the engine ([`wickra_backtest_core`]) and the data
+//! loaders ([`wickra_backtest_data`]) behind one crate, plus the historical
 //! backtest runner and reports.
 //!
 //! The same engine, fed live instead of historical bars, becomes the live bot —
 //! so **backtest == live, byte-identical**, and (because the strategy is a JSON
 //! spec, not code) identical across every Wickra language binding.
 
+// docs.rs builds on nightly with --cfg docsrs, which makes rustdoc annotate
+// feature-gated items with the feature that provides them. No job in this
+// repository runs nightly, so this line is the one thing here CI cannot check
+// -- the sibling repository lost a release to exactly that blind spot.
+#![cfg_attr(docsrs, feature(doc_cfg))]
 #![forbid(unsafe_code)]
 
 pub use wickra_backtest_core as core;
