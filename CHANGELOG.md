@@ -8,6 +8,12 @@ to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ### Added
 
+- A comparison table in the README covering the backtesters this project is
+  measured against, on axes that can be checked: languages, engine model, whether
+  a strategy is data or code, whether order-book and funding feeds are
+  first-class inputs, and the latest published release. Release dates were read
+  from PyPI rather than recalled.
+
 - A Testing section in the README: the per-layer inventory, what the shared
   golden corpus actually pins across the ten languages, and what "parity" means
   precisely -- the reports are compared byte for byte rather than to a tolerance,

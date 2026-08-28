@@ -78,13 +78,32 @@ with wbt.StreamingBacktest(spec=spec) as live:
 The two reports are byte-identical. That is the whole claim, and a shared
 [golden corpus](golden/) holds every one of the ten bindings to it.
 
-Why it is different from vectorbt / backtrader:
+What it does differently:
 
 - **O(1) per tick** — years of tick data in seconds, not hours (no recompute-on-every-tick).
 - **Backtest = live, value-identical across 10 languages** — no reimplementation drift, pinned by a shared golden corpus for the OHLCV path *and* every microstructure feed.
-- **Microstructure backtesting** — replay the order book, trades, perpetual funding and open interest as strategy inputs; off-the-shelf backtesters can't.
+- **Microstructure backtesting** — replay the order book, trades, perpetual funding and open interest as strategy inputs, not just OHLCV. Most Python backtesters have no place to put them.
 - **Realistic execution** — long/short, market/limit/stop orders, leverage and position caps, five sizing models, intrabar stop-loss / take-profit / trailing stops, maker/taker fees, three slippage models, perpetual funding, liquidation and execution latency.
 - **Polyglot** — the same `StrategySpec` runs from Rust, Python, Node.js, WASM, C, C++, C#, Go, Java and R.
+
+| Backtester | Languages | Engine | Strategy is | Book / funding inputs | Latest release |
+|------------|-----------|--------|-------------|----------------------|----------------|
+| **★&nbsp;wickra-backtest** | **Rust · Python · Node.js · WASM · C · C++ · C# · Go · Java · R** | **event-driven, O(1)/bar** | **data (a JSON spec)** | **yes** | unreleased |
+| nautilus_trader | Rust · Python | event-driven | code | yes | 2026-08 |
+| vectorbt | Python | vectorised | code | — | 2026-07 |
+| backtesting.py | Python | vectorised | code | — | 2026-07 |
+| zipline-reloaded | Python | event-driven | code | — | 2025-07 |
+| backtrader | Python | event-driven | code | — | 2023-04 |
+
+Release dates are the latest published version on PyPI, checked when this table
+was written; "—" means the feed is not a first-class strategy input, not that the
+library is bad at what it does. nautilus_trader is the closest comparison and is
+ahead of this project in places — it is a full trading platform with live venue
+adapters, and it has shipped for years. The distinction here is narrower and
+worth stating plainly: a strategy is **data rather than code**, so the same spec
+runs unchanged from ten languages and a shared golden corpus pins every one of
+them to the same report, byte for byte. No other engine in this table offers that
+because none of them needs to.
 
 ## Status
 
