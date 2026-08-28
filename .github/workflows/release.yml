@@ -465,6 +465,9 @@ jobs:
           dir="wickra-backtest-c-${{ matrix.target }}"
           mkdir -p "$dir/include" "$dir/lib"
           cp bindings/c/include/wickra_backtest.h "$dir/include/"
+          # The optional C++ RAII wrapper is header-only, so the C++ reach is
+          # only real if it ships in the same tarball as the header it wraps.
+          cp bindings/c/include/wickra_backtest.hpp "$dir/include/"
           for f in libwickra_backtest.so libwickra_backtest.a libwickra_backtest.dylib wickra_backtest.dll wickra_backtest.dll.lib wickra_backtest.lib; do
             src="target/${{ matrix.target }}/release/$f"
             [ -f "$src" ] && cp "$src" "$dir/lib/"

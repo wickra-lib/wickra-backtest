@@ -46,7 +46,7 @@ Every one of them prints the same numbers, because they share one engine.
 
 ## C / C++
 
-`c/` holds two programs that link the generated header and the compiled C ABI, so
+`c/` holds programs that link the generated header and the compiled C ABI, so
 they show what any C-capable language sees:
 
 - `example.c` — the batch entry point: OHLCV arrays in, one report JSON out.
@@ -54,8 +54,16 @@ they show what any C-capable language sees:
   trade count and the latest equity point between bars. It also runs the same
   bars through the batch entry point and exits non-zero if the two reports
   differ, so "backtest and live are one code path" is checked from outside Rust.
+- `example_cpp.cpp`, `streaming_cpp.cpp` — the two sources above, compiled as
+  C++. They are one `#include` each: the point is the compiler, not the code.
+- `cpp_smoke.cpp` — the streaming run again, this time through the optional
+  header-only RAII wrapper
+  [`bindings/c/include/wickra_backtest.hpp`](../bindings/c/include/wickra_backtest.hpp).
+  It checks that a moved-from or released owner is left empty, because the ABI
+  has a consuming call — `finish` takes the handle — and an owner that forgot to
+  give it up would double-free.
 
-Both build and run as CTest cases:
+All five build and run as CTest cases:
 
 ```bash
 cargo build -p wickra-backtest-c --release
@@ -64,5 +72,6 @@ cmake --build examples/c/build --config Release
 ctest --test-dir examples/c/build -C Release --output-on-failure
 ```
 
-The same sources compile as C++ (`g++ -x c++ ...`); the header is `extern "C"`.
+That run covers both languages: the CMake project enables C and C++, so the
+C++ reach is compiled on every CI run rather than asserted in a README.
 

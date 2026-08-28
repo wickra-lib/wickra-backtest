@@ -8,6 +8,17 @@ to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ### Added
 
+- `bindings/c/include/wickra_backtest.hpp`: an optional header-only C++ layer
+  over the C ABI. C++ already reached every export through the `extern "C"`
+  header; what it lacked was the ownership. The ABI hands out a stream handle and
+  a heap string per JSON-returning call, and `finish` consumes the handle rather
+  than borrowing it -- so `Stream` carries a `release()` and `String` an `out()`
+  that frees the previous bar's value. Ships in the C ABI release tarball beside
+  the header it wraps.
+- `examples/c/cpp_smoke.cpp`, plus C++ builds of the two C examples. The CMake
+  project now enables CXX and runs five ctest cases instead of two, so the C++
+  reach is compiled on every CI run.
+
 - The R package ships generated documentation: twelve `.Rd` pages under
   `bindings/r/man`, plus a package-level topic, produced by roxygen from the
   comments that were already there. `R CMD check` reports `Status: OK` where it

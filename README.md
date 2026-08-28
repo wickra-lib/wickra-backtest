@@ -182,7 +182,7 @@ quickstart:
 | Python (PyO3) | `pip install wickra-backtest` | [`examples/python/backtest.py`](examples/python/backtest.py) |
 | Node.js (napi-rs) | `npm install wickra-backtest` | [`examples/node/backtest.js`](examples/node/backtest.js) |
 | Browser / WASM | `npm install wickra-backtest-wasm` | [`examples/wasm/backtest.cjs`](examples/wasm/backtest.cjs) |
-| C / C++ (C ABI) | header + library, see [`bindings/c`](bindings/c/README.md) | [`examples/c/streaming.c`](examples/c/streaming.c) |
+| C / C++ (C ABI) | header + library, see [`bindings/c`](bindings/c/README.md) | [`examples/c/streaming.c`](examples/c/streaming.c) · [`cpp_smoke.cpp`](examples/c/cpp_smoke.cpp) |
 | C# (C ABI) | `dotnet add package Wickra.Backtest`, see [`bindings/csharp`](bindings/csharp/README.md) | [`examples/csharp`](examples/csharp/Program.cs) |
 | Go (cgo, C ABI) | `go get github.com/wickra-lib/wickra-backtest-go`, see [`bindings/go`](bindings/go/README.md) | [`examples/go`](examples/go/backtest.go) |
 | Java (FFM, C ABI) | Maven Central `org.wickra:wickra-backtest`, see [`bindings/java`](bindings/java/README.md) | [`examples/java`](examples/java/src/main/java/org/wickra/backtest/examples/Backtest.java) |
@@ -322,7 +322,7 @@ every binding; the C-ABI bindings that compile on install — Go (cgo) and R
 | Node.js  | npm · `wickra-backtest` (N-API 8)         | 22 (tested on 22 · 24 LTS) |
 | WASM     | npm · `wickra-backtest-wasm`              | any modern JS engine       |
 | C        | `wickra_backtest.h` + library (releases)  | C99 compiler               |
-| C++      | over the C ABI                            | C++14 compiler             |
+| C++      | the C ABI + optional `wickra_backtest.hpp` | C++14 compiler            |
 | C#       | NuGet · `Wickra.Backtest`                 | .NET 8 (`net8.0`)          |
 | Go       | module · `wickra-lib/wickra-backtest-go`  | Go 1.23 (cgo)              |
 | Java     | Maven Central · `org.wickra:wickra-backtest` | Java 22 (FFM / Panama)  |

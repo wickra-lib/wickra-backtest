@@ -1,5 +1,8 @@
 cmake_minimum_required(VERSION 3.15)
-project(wickra_backtest_c_examples C)
+# C and C++ both, because both are advertised: the C ABI header is `extern "C"`
+# and there is a header-only C++ wrapper beside it, so the C++ reach is compiled
+# here rather than merely claimed in a README.
+project(wickra_backtest_c_examples C CXX)
 
 # Directory holding the compiled wickra-backtest C library (cargo output), e.g.
 # <workspace>/target/release. Override with -DWICKRA_LIB_DIR=/path/to/target/release.
@@ -7,6 +10,11 @@ if(NOT DEFINED WICKRA_LIB_DIR)
     set(WICKRA_LIB_DIR "${CMAKE_CURRENT_SOURCE_DIR}/../../target/release")
 endif()
 set(WICKRA_INCLUDE_DIR "${CMAKE_CURRENT_SOURCE_DIR}/../../bindings/c/include")
+
+# The wrapper uses std::exchange, so C++14 is the floor; ask for it rather than
+# inheriting whatever the toolchain happens to default to.
+set(CMAKE_CXX_STANDARD 14)
+set(CMAKE_CXX_STANDARD_REQUIRED ON)
 
 # Pick the right link target per platform/toolchain.
 #  - MSVC links the generated import library (wickra_backtest.dll.lib).
@@ -27,46 +35,34 @@ endif()
 
 enable_testing()
 
-# The cross-language smoke test: a foreign C consumer links the generated header
-# and the compiled library, then runs. On Windows the DLL is copied next to the
-# executable so the loader finds it; on Unix LD_LIBRARY_PATH / DYLD_LIBRARY_PATH
-# point at the cargo output directory.
-add_executable(example example.c)
-target_include_directories(example PRIVATE "${WICKRA_INCLUDE_DIR}")
-target_link_libraries(example PRIVATE "${WICKRA_LINK_LIB}")
-if(UNIX AND NOT APPLE)
-    target_link_libraries(example PRIVATE m)
-endif()
-if(WIN32)
-    add_custom_command(TARGET example POST_BUILD
-        COMMAND ${CMAKE_COMMAND} -E copy_if_different
-                "${WICKRA_RUNTIME}" "$<TARGET_FILE_DIR:example>")
-endif()
+# Build one example, link it to the compiled library, and register it as a
+# ctest. On Windows the DLL is copied next to the executable so the loader finds
+# it; on Unix the test's environment points at the cargo output directory.
+function(add_wickra_example name source)
+    add_executable(${name} ${source})
+    target_include_directories(${name} PRIVATE "${WICKRA_INCLUDE_DIR}")
+    target_link_libraries(${name} PRIVATE "${WICKRA_LINK_LIB}")
+    if(UNIX AND NOT APPLE)
+        target_link_libraries(${name} PRIVATE m)
+    endif()
+    if(WIN32)
+        add_custom_command(TARGET ${name} POST_BUILD
+            COMMAND ${CMAKE_COMMAND} -E copy_if_different
+                    "${WICKRA_RUNTIME}" "$<TARGET_FILE_DIR:${name}>")
+    endif()
+    add_test(NAME ${name} COMMAND ${name})
+    if(NOT WIN32)
+        set_tests_properties(${name} PROPERTIES
+            ENVIRONMENT "LD_LIBRARY_PATH=${WICKRA_LIB_DIR};DYLD_LIBRARY_PATH=${WICKRA_LIB_DIR}")
+    endif()
+endfunction()
 
-add_test(NAME example COMMAND example)
-if(NOT WIN32)
-    set_tests_properties(example PROPERTIES
-        ENVIRONMENT "LD_LIBRARY_PATH=${WICKRA_LIB_DIR};DYLD_LIBRARY_PATH=${WICKRA_LIB_DIR}")
-endif()
-
-# The streaming reach, driven from the same foreign C consumer. It runs the same
-# bars through the handle and through the batch entry point and exits non-zero if
-# the two reports differ, so "backtest and live are one code path" is checked from
-# outside Rust rather than only asserted inside it.
-add_executable(streaming streaming.c)
-target_include_directories(streaming PRIVATE "${WICKRA_INCLUDE_DIR}")
-target_link_libraries(streaming PRIVATE "${WICKRA_LINK_LIB}")
-if(UNIX AND NOT APPLE)
-    target_link_libraries(streaming PRIVATE m)
-endif()
-if(WIN32)
-    add_custom_command(TARGET streaming POST_BUILD
-        COMMAND ${CMAKE_COMMAND} -E copy_if_different
-                "${WICKRA_RUNTIME}" "$<TARGET_FILE_DIR:streaming>")
-endif()
-
-add_test(NAME streaming COMMAND streaming)
-if(NOT WIN32)
-    set_tests_properties(streaming PROPERTIES
-        ENVIRONMENT "LD_LIBRARY_PATH=${WICKRA_LIB_DIR};DYLD_LIBRARY_PATH=${WICKRA_LIB_DIR}")
-endif()
+# The real cross-language test: a foreign consumer links the generated header and
+# the compiled library, then runs. The streaming targets go further and compare
+# the streamed report against the batch one, so "backtest and live are one code
+# path" is checked from outside Rust rather than only asserted inside it.
+add_wickra_example(example example.c)                  # batch run over a series
+add_wickra_example(streaming streaming.c)              # streamed == batch, from C
+add_wickra_example(example_cpp example_cpp.cpp)        # the same C source, as C++
+add_wickra_example(streaming_cpp streaming_cpp.cpp)    # ditto, raw handles and frees
+add_wickra_example(cpp_smoke cpp_smoke.cpp)            # C++ RAII wrapper (wickra_backtest.hpp)

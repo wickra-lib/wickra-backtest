@@ -58,7 +58,48 @@ gcc examples/c/example.c -I bindings/c/include \
 PATH="$PATH:target/debug" ./example                     # dll on the loader path
 ```
 
-The same source compiles as C++ with `g++ -x c++ …`.
+The same source compiles as C++ with `g++ -x c++ …` — the header is
+`extern "C"`, so C++ reaches every export directly.
+
+## C++
+
+What C++ does not get from the C header is the ownership. The ABI hands out two
+resources that must each be released exactly once: the stream handle, and the
+`char *` written to an out-parameter by every JSON-returning call — and by every
+call that failed. A streaming run touches both on every bar.
+
+[`include/wickra_backtest.hpp`](include/wickra_backtest.hpp) is an optional
+header-only layer that holds each in a move-only owner:
+
+```cpp
+#include "wickra_backtest.hpp"
+
+namespace bt = wickra::backtest;
+
+bt::Stream stream;
+bt::String err;
+if (wickra_backtest_stream_new(spec, 1000.0, stream.out(), err.out()) != WICKRA_BT_OK) {
+    std::fprintf(stderr, "%s\n", err.c_str());   // err frees itself
+    return 1;                                    // so does stream
+}
+wickra_backtest_stream_step(stream.get(), o, h, l, c, v, t, err.out());
+
+bt::String report;
+// finish CONSUMES the handle, so hand ownership over rather than lending it:
+wickra_backtest_stream_finish_json(stream.release(), report.out());
+```
+
+`release()` is why `Stream` is a distinct type from `String`: it is how a
+consuming call is expressed without the destructor then freeing a handle the ABI
+has already taken. The layer throws nothing, allocates nothing of its own, and
+costs nothing beyond the C calls.
+
+It is hand-written — cbindgen generates the `.h`, not the `.hpp` — and both ship
+in the `wickra-backtest-c-<target>.tar.gz` release asset.
+[`examples/c/cpp_smoke.cpp`](../../examples/c/cpp_smoke.cpp) runs a full
+streaming backtest through it and checks the report against the batch entry
+point; the CMake project in `examples/c` builds it, and the C sources as C++, on
+every CI run.
 
 ## Documentation
 
