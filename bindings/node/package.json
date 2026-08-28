@@ -28,7 +28,6 @@
   "files": [
     "index.js",
     "index.d.ts",
-    "npm",
     "*.node",
     "LICENSE-MIT",
     "LICENSE-APACHE"

@@ -333,6 +333,21 @@ jobs:
         # move where the release looks for the downloaded binaries.
         run: npm run artifacts
 
+      # `napi artifacts` writes every binary twice: into npm/<rid>/, where the
+      # per-platform packages need it, and into the package root, where the main
+      # package's `files` glob would sweep all six into a package that exists to
+      # avoid exactly that. The six optionalDependencies are the delivery
+      # mechanism; index.js tries the local file first and falls through to them,
+      # so removing the root copies restores the intended path and takes several
+      # megabytes off every install.
+      - name: Keep the platform binaries out of the main package
+        shell: bash
+        working-directory: bindings/node
+        run: |
+          rm -f ./*.node
+          echo "root binaries after cleanup: $(ls ./*.node 2>/dev/null | wc -l)"
+          echo "per-platform binaries kept:  $(ls npm/*/*.node 2>/dev/null | wc -l)"
+
       # A `license` field is a claim about the terms; it is not the terms. Every
       # one of these seven packages declared "MIT OR Apache-2.0" and shipped
       # neither text. Staged at publish time rather than committed, so the two
