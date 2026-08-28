@@ -762,7 +762,14 @@ jobs:
           set -e
           out=wickra-backtest-go-module
           mkdir -p "$out/include" "$out/lib"
-          cp bindings/go/*.go "$out/"
+          # Everything except the golden tests. Those read the shared corpus at
+          # ../../golden, which exists in this repository and not inside the
+          # published module, so shipping them means `go test ./...` fails for
+          # every consumer on a path that was never theirs. The same reason
+          # tests/golden.R is kept out of the R tarball. The two that remain --
+          # backtest_test.go and streaming_test.go, twelve tests -- build their
+          # own data and travel fine.
+          find bindings/go -maxdepth 1 -name '*.go'             ! -name 'golden_test.go' ! -name 'golden_streaming_test.go'             -exec cp {} "$out/" \;
           cp bindings/go/include/wickra_backtest.h "$out/include/"
           cp bindings/go/README.md "$out/"
           cp LICENSE-MIT LICENSE-APACHE "$out/"
