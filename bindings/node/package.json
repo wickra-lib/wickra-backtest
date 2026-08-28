@@ -29,7 +29,9 @@
     "index.js",
     "index.d.ts",
     "npm",
-    "*.node"
+    "*.node",
+    "LICENSE-MIT",
+    "LICENSE-APACHE"
   ],
   "napi": {
     "binaryName": "wickra-backtest",

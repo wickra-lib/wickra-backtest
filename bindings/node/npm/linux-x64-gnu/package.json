@@ -4,7 +4,9 @@
   "description": "Native binding for wickra-backtest (linux-x64-gnu). Installed automatically as an optional dependency of wickra-backtest on matching platforms.",
   "main": "wickra-backtest.linux-x64-gnu.node",
   "files": [
-    "wickra-backtest.linux-x64-gnu.node"
+    "wickra-backtest.linux-x64-gnu.node",
+    "LICENSE-MIT",
+    "LICENSE-APACHE"
   ],
   "license": "MIT OR Apache-2.0",
   "engines": {

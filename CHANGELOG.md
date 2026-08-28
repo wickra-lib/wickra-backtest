@@ -515,6 +515,12 @@ to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ### Fixed
 
+- All seven npm packages -- `wickra-backtest`, its six platform packages, and
+  `wickra-backtest-wasm` -- declared `MIT OR Apache-2.0` and shipped neither
+  licence text. The texts are staged into each package at publish time, and the
+  release now checks what npm would actually pack before it publishes: a name
+  missing from `files` is dropped silently, which is how this went unnoticed.
+
 - The Python wheel shipped a `__pycache__` directory when built from a tree that
   had run the test suite: a `.pyc` pinned to whichever interpreter did the build,
   inside a wheel that claims 3.9 upwards. maturin now excludes it.

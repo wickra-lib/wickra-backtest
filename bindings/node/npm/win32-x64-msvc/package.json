@@ -4,7 +4,9 @@
   "description": "Native binding for wickra-backtest (win32-x64-msvc). Installed automatically as an optional dependency of wickra-backtest on matching platforms.",
   "main": "wickra-backtest.win32-x64-msvc.node",
   "files": [
-    "wickra-backtest.win32-x64-msvc.node"
+    "wickra-backtest.win32-x64-msvc.node",
+    "LICENSE-MIT",
+    "LICENSE-APACHE"
   ],
   "license": "MIT OR Apache-2.0",
   "engines": {

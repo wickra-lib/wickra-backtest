@@ -4,7 +4,9 @@
   "description": "Native binding for wickra-backtest (darwin-arm64). Installed automatically as an optional dependency of wickra-backtest on matching platforms.",
   "main": "wickra-backtest.darwin-arm64.node",
   "files": [
-    "wickra-backtest.darwin-arm64.node"
+    "wickra-backtest.darwin-arm64.node",
+    "LICENSE-MIT",
+    "LICENSE-APACHE"
   ],
   "license": "MIT OR Apache-2.0",
   "engines": {

@@ -286,6 +286,37 @@ jobs:
         working-directory: bindings/node
         run: npx napi artifacts --output-dir artifacts
 
+      # A `license` field is a claim about the terms; it is not the terms. Every
+      # one of these seven packages declared "MIT OR Apache-2.0" and shipped
+      # neither text. Staged at publish time rather than committed, so the two
+      # files at the repository root stay the only copies -- the same way the
+      # README is synced in below.
+      - name: Stage the licence texts into every npm package
+        shell: bash
+        working-directory: bindings/node
+        run: |
+          set -e
+          for dir in . npm/*/; do
+            cp ../../LICENSE-MIT ../../LICENSE-APACHE "$dir/"
+          done
+          # `files` decides what npm packs, and a name missing from it is dropped
+          # without a word -- which is how this went unnoticed. Check what would
+          # actually be published, before publishing it.
+          for dir in . npm/*/; do
+            ( cd "$dir" && npm pack --dry-run --json ) | node -e '
+              const chunks = [];
+              process.stdin.on("data", c => chunks.push(c)).on("end", () => {
+                const pkg = JSON.parse(chunks.join(""))[0];
+                const names = pkg.files.map(f => f.path);
+                const missing = ["LICENSE-MIT", "LICENSE-APACHE"].filter(n => !names.includes(n));
+                if (missing.length) {
+                  console.error(`::error::${pkg.name} would publish without ${missing.join(" and ")}`);
+                  process.exit(1);
+                }
+                console.log(`${pkg.name}: licence texts present`);
+              });'
+          done
+
       - name: Publish platform packages (idempotent)
         working-directory: bindings/node
         env:
@@ -411,8 +442,31 @@ jobs:
             pkg.homepage = 'https://github.com/wickra-lib/wickra-backtest';
             pkg.bugs = { url: 'https://github.com/wickra-lib/wickra-backtest/issues' };
             pkg.license = 'MIT OR Apache-2.0';
+            pkg.files = [...new Set([...(pkg.files || []), 'LICENSE-MIT', 'LICENSE-APACHE'])];
             fs.writeFileSync('package.json', JSON.stringify(pkg, null, 2));
           "
+      # wasm-pack generates pkg/ from scratch, so the licence texts are copied in
+      # beside the README and added to `files` above; without both the package
+      # publishes with a licence field and no licence.
+      - name: Stage the licence texts into the WASM package
+        shell: bash
+        run: |
+          set -e
+          cp LICENSE-MIT LICENSE-APACHE bindings/wasm/pkg/
+          for dir in bindings/wasm/pkg; do
+            ( cd "$dir" && npm pack --dry-run --json ) | node -e '
+              const chunks = [];
+              process.stdin.on("data", c => chunks.push(c)).on("end", () => {
+                const pkg = JSON.parse(chunks.join(""))[0];
+                const names = pkg.files.map(f => f.path);
+                const missing = ["LICENSE-MIT", "LICENSE-APACHE"].filter(n => !names.includes(n));
+                if (missing.length) {
+                  console.error(`::error::${pkg.name} would publish without ${missing.join(" and ")}`);
+                  process.exit(1);
+                }
+                console.log(`${pkg.name}: licence texts present`);
+              });'
+          done
       - name: Pack wickra-backtest-wasm for release attachment
         working-directory: bindings/wasm/pkg
         run: npm pack
