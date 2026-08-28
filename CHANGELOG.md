@@ -520,6 +520,12 @@ to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ### Fixed
 
+- `bindings/c/README.md` documented three of the twelve C ABI exports. The whole
+  streaming surface -- eight functions, and the reason the C++ wrapper exists --
+  appeared only in the generated header, including the asymmetry between `finish`
+  (which consumes the handle) and `free` (which does not). The README now covers
+  every export, and `scripts/check_binding_surface.py` fails if it stops doing so.
+
 - All seven npm packages -- `wickra-backtest`, its six platform packages, and
   `wickra-backtest-wasm` -- declared `MIT OR Apache-2.0` and shipped neither
   licence text. The texts are staged into each package at publish time, and the

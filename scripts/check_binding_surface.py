@@ -217,6 +217,43 @@ def read(paths: list[str]) -> str:
     return "\n".join(out)
 
 
+C_README = os.path.join(ROOT, "bindings", "c", "README.md")
+# A declaration in the README's API blocks: a return type at the start of a line,
+# then the name. Prose mentions the same names in backticks, and matching those
+# would let the block go stale while the check kept passing.
+C_README_DECL = re.compile(
+    r"(?m)^(?:int|void|const char \*)\s*wickra_backtest_([a-z0-9_]+)\("
+)
+
+
+def check_c_readme_documents_the_abi() -> list[str]:
+    """The C README is the C binding's whole reference; the header is generated.
+
+    Unlike a language wrapper, it is not free to leave anything out: free_string
+    and version are exempt from the surface check above because no binding
+    re-exposes them as API, but a C caller has to be told about both. So this
+    compares against every export, not the reduced contract.
+    """
+    if not os.path.isfile(C_README):
+        return ["c-readme: bindings/c/README.md not found"]
+    with open(HEADER, encoding="utf-8") as handle:
+        exports = set(EXPORT.findall(handle.read()))
+    with open(C_README, encoding="utf-8") as handle:
+        documented = set(C_README_DECL.findall(handle.read()))
+    problems = []
+    missing = sorted(exports - documented)
+    if missing:
+        problems.append("c-readme: undocumented exports "
+                        + ", ".join(f"wickra_backtest_{name}" for name in missing))
+    extra = sorted(documented - exports)
+    if extra:
+        problems.append("c-readme: documents functions the ABI does not export: "
+                        + ", ".join(f"wickra_backtest_{name}" for name in extra))
+    if not problems:
+        print(f"  {'c-readme':<8} {len(documented)}/{len(exports)} exports documented")
+    return problems
+
+
 def main() -> int:
     if not os.path.isfile(HEADER):
         print(f"header not found: bindings/c/include/wickra_backtest.h", file=sys.stderr)
@@ -250,7 +287,7 @@ def main() -> int:
         if arrived:
             failures.append(f"{lang}: now declares {', '.join(arrived)}"
                             " -- remove it from PENDING in this script")
-        print(f"  {lang:<7} {len(present)}/{len(contract)} of the ABI surface"
+        print(f"  {lang:<8} {len(present)}/{len(contract)} of the ABI surface"
               f"{'' if not missing else '  <-- DRIFTED'}"
               f"{'' if not pending[lang] else f'  ({len(pending[lang])} pending)'}")
 
@@ -268,6 +305,8 @@ def main() -> int:
     if ahead:
         notes.append("wasm exposes methods no export backs, so no other language "
                      f"can reach them: {', '.join(sorted(set(ahead)))}")
+
+    failures.extend(check_c_readme_documents_the_abi())
 
     still = sorted({e for miss in pending.values() for e in miss})
     if still:

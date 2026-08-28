@@ -29,6 +29,11 @@ cbindgen).
 
 ## API
 
+Twelve exports, and one opaque handle. Four answer a whole series; the other
+eight drive one bar at a time.
+
+### Batch
+
 ```c
 #include "wickra_backtest.h"
 
@@ -37,14 +42,66 @@ int  wickra_backtest_run(const double *open, const double *high,
                          const double *volume, const int64_t *time,
                          uintptr_t n, const char *spec_json,
                          double capital, char **out_json);
+int  wickra_backtest_run_json(const char *request_json, char **out_json);
 void wickra_backtest_free_string(char *s);
 const char *wickra_backtest_version(void);
 ```
 
-`wickra_backtest_run` writes the report JSON to `*out_json` (free it with
-`wickra_backtest_free_string`) and returns `WICKRA_BT_OK` (0), `WICKRA_BT_ERROR`
-(1, message in `*out_json`) or `WICKRA_BT_PANIC` (2). No panic crosses the
-boundary.
+`wickra_backtest_run` writes the report JSON to `*out_json` and returns
+`WICKRA_BT_OK` (0), `WICKRA_BT_ERROR` (1, message in `*out_json`) or
+`WICKRA_BT_PANIC` (2). No panic crosses the boundary. `run_json` takes the bars,
+the spec and the capital as one JSON document instead of six arrays -- use it
+when the strategy reads a side feed, which the array form cannot supply.
+
+Every `char *` an out-parameter receives is yours to release with
+`wickra_backtest_free_string`, on the error paths as much as the success ones.
+The string from `wickra_backtest_version` is the exception: it is static, and
+freeing it is a bug.
+
+### Streaming
+
+The same engine, one candle at a time. This is what makes "backtest and live are
+one code path" checkable rather than a slogan: replace the loop with reads from a
+socket and nothing else changes.
+
+```c
+int  wickra_backtest_stream_new(const char *spec_json, double capital,
+                                WickraBacktestStream **out_handle, char **out_err);
+int  wickra_backtest_stream_step(WickraBacktestStream *handle,
+                                 double open, double high, double low,
+                                 double close, double volume, int64_t time,
+                                 char **out_err);
+int  wickra_backtest_stream_step_json(WickraBacktestStream *handle,
+                                      const char *step_json, char **out_err);
+int  wickra_backtest_stream_num_trades(const WickraBacktestStream *handle,
+                                       uintptr_t *out_count);
+int  wickra_backtest_stream_latest_equity_json(const WickraBacktestStream *handle,
+                                               char **out_json);
+int  wickra_backtest_stream_equity_json(const WickraBacktestStream *handle,
+                                        char **out_json);
+int  wickra_backtest_stream_finish_json(WickraBacktestStream *handle,
+                                        char **out_json);
+void wickra_backtest_stream_free(WickraBacktestStream *handle);
+```
+
+`step` carries OHLCV; `step_json` takes a `{"candle": ..., "feeds": ...}`
+document and is the only way to supply this bar's order book, trades,
+derivatives or cross-section. Between bars, `num_trades`,
+`latest_equity_json` and `equity_json` are readable -- everything a live loop
+wants -- and they borrow the handle rather than consuming it.
+
+The lifetime rule is the one thing to get right, because the two ways a run ends
+are not symmetric:
+
+- `wickra_backtest_stream_finish_json` closes any open position, produces the
+  report, and **consumes** the handle. It is freed whatever the outcome, so it
+  must not be passed to `_free` afterwards.
+- `wickra_backtest_stream_free` releases a run without producing a report, and is
+  a no-op on `NULL`.
+
+Exactly one of the two, exactly once. In C++ the wrapper below expresses this
+difference for you; [`examples/c/streaming.c`](../../examples/c/streaming.c) shows
+it by hand.
 
 ## Example
 
