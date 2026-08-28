@@ -55,6 +55,8 @@
   "scripts": {
     "build": "napi build --platform --release",
     "build:debug": "napi build --platform",
+    "artifacts": "napi artifacts --output-dir artifacts",
+    "version": "napi version",
     "test": "node --test"
   },
   "devDependencies": {

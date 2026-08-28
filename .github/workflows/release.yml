@@ -284,7 +284,11 @@ jobs:
       # matching directory. napi-rs CLI 3 renamed `--dir` to `--output-dir`.
       - name: Move binaries into platform package layout
         working-directory: bindings/node
-        run: npx napi artifacts --output-dir artifacts
+        # Through the package script, so CI and a maintainer running it by hand
+        # execute the same command. The --output-dir it carries matches napi's
+        # current default; it is written out so a default change cannot silently
+        # move where the release looks for the downloaded binaries.
+        run: npm run artifacts
 
       # A `license` field is a claim about the terms; it is not the terms. Every
       # one of these seven packages declared "MIT OR Apache-2.0" and shipped

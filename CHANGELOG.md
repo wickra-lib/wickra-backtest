@@ -8,6 +8,11 @@ to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ### Added
 
+- `artifacts` and `version` scripts for the Node binding. `napi version` rewrites
+  the six platform packages' versions, which a release currently edits by hand;
+  the release workflow now moves the downloaded binaries through `npm run
+  artifacts` so CI and a maintainer run the same command.
+
 - The NuGet package carries the project icon and an XML documentation file, so it
   shows a tile on nuget.org and every summary on its public API reaches callers
   as IntelliSense instead of stopping at the repository boundary.
