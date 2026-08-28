@@ -88,10 +88,14 @@ jobs:
 
       - name: Install the peer libraries
         run: |
-          python -m pip install --upgrade pip
           # Hash-pinned (OpenSSF Scorecard PinnedDependencies). One Python
           # version here, so one lock file. Refresh with
           # scripts/update-lockfiles.sh.
+          #
+          # No `pip install --upgrade pip` first: that is itself an unpinned
+          # install from the network, which is the thing this step is arranged to
+          # avoid, and setup-python already provides a pip new enough for
+          # --require-hashes.
           python -m pip install --require-hashes -r .github/requirements/bench.txt
 
       - name: Every peer imports
