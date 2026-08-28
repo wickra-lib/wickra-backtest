@@ -8,6 +8,11 @@ to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ### Added
 
+- `GOVERNANCE.md` answers the questions it previously left open: how a change
+  gets in, how someone becomes a maintainer, and what happens to the project if
+  the maintainer stops -- which matters here because a tag publishes to six
+  registries in one run that cannot be undone halfway.
+
 - `SECURITY.md` gains the sections a security review looks for: what a reporter
   should expect, what is in scope, an evidence-backed assurance case, how secrets
   are handled, the support timeline, and the remediation policy.
