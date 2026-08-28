@@ -1,0 +1,8 @@
+# cargo-fuzz output. The root .gitignore's `/target` is anchored, so it does not
+# reach fuzz/target -- and this crate detaches itself from the workspace, so it
+# resolves its own Cargo.lock as well.
+target/
+corpus/
+artifacts/
+coverage/
+Cargo.lock

@@ -540,6 +540,11 @@ to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ### Fixed
 
+- `fuzz/` ignores what cargo-fuzz writes into it. The root `.gitignore` anchors
+  its `target` rule to the repository root, so `fuzz/target` was never covered,
+  and neither were the corpus, the crash artifacts, the coverage output or the
+  lockfile this detached crate resolves for itself.
+
 - The four published crates, the Python wheel and the sdist ship the licence
   texts. They declared `MIT OR Apache-2.0` and carried neither document, because
   the files live at the repository root and every one of these packages is built
