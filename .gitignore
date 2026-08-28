@@ -52,7 +52,11 @@ bindings/r/.rlib/
 bindings/r/src/*.o
 bindings/r/src/*.so
 bindings/r/src/*.dll
-bindings/r/..Rcheck/
+# `R CMD check` writes <pkg>.Rcheck/ beside the tarball it checks, and
+# `R CMD build` writes the tarball itself -- both land in whatever directory
+# the command was run from, which is the repository root in CI.
+*.Rcheck/
+wickrabacktest_*.tar.gz
 
 # R binding: produced by configure / configure.win at install time.
 bindings/r/src/Makevars

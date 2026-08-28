@@ -631,6 +631,45 @@ jobs:
           # is the repository root here.
           Rscript examples/r/backtest.R
 
+      # R CMD INSTALL above compiles and loads the package; it does not check it.
+      # r-universe runs the check, and the check is what notices an undocumented
+      # export, a codoc mismatch between a function and its .Rd page, or a test
+      # that only resolves from the repository root rather than from inside the
+      # built tarball. All three are invisible here otherwise, and the last one
+      # was real: a test file read the shared corpus by a path that does not
+      # exist in a tarball, so CI passed and the check would not have.
+      #
+      # Unlike the reference's version this does not pass --no-tests: the two
+      # test files that ship are cheap and build their own data, and running them
+      # from the tarball is precisely what r-universe does. Ubuntu only; the
+      # checks are platform-independent and the package has no vignettes.
+      - name: R CMD check, the way r-universe will
+        if: matrix.os == 'ubuntu-latest'
+        shell: bash
+        run: |
+          # No path normalisation: this step is Ubuntu-only, where
+          # github.workspace is already a forward-slash path.
+          export LD_LIBRARY_PATH="$WKBT_LIB:$LD_LIBRARY_PATH"
+          R CMD build bindings/r --no-build-vignettes --no-manual
+          set +e
+          R CMD check wickrabacktest_*.tar.gz --no-manual --no-vignettes
+          status=$?
+          set -e
+          log=$(find . -maxdepth 2 -name 00check.log | head -1)
+          if [ -n "$log" ]; then
+            echo "::group::00check.log"; cat "$log"; echo "::endgroup::"
+          fi
+          # Fail on a non-zero exit (which covers ERRORs and a check that could
+          # not run at all) and on any WARNING in the log, which R CMD check
+          # reports without always failing.
+          problems=$(grep -E '\.\.\. (WARNING|ERROR)' "$log" || true)
+          if [ "$status" -ne 0 ] || [ -n "$problems" ]; then
+            echo "::error::R CMD check found problems -- r-universe runs this check before it serves the package"
+            [ -n "$problems" ] && echo "$problems"
+            exit 1
+          fi
+          echo "R CMD check: clean."
+
   coverage:
     name: Coverage
     runs-on: ubuntu-latest

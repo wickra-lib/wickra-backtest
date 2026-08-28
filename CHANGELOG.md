@@ -8,6 +8,11 @@ to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ### Added
 
+- CI runs `R CMD check` on the built tarball, which is what r-universe runs
+  before it will serve the package. `R CMD INSTALL` compiles and loads the
+  package but checks nothing, so an undocumented export, a codoc mismatch or a
+  test that only resolves from the repository root was invisible here.
+
 - A long-form pull-request template for changes that touch the engine, the C ABI
   or several bindings, carrying the checklists those need: streaming and batch
   agreeing, look-ahead, re-blessing the golden corpus, and regenerating the C
