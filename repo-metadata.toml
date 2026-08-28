@@ -24,10 +24,13 @@ codecov_repo = "wickra-lib/wickra-backtest"
 ci_workflow  = "ci.yml"
 
 [audit]
-# Forbidden substrings that must not appear in source (the pre-org-migration
-# repo path). Kept in lock-step with the main repository's convention.
+# Forbidden substrings that must not appear in source: the pre-org-migration
+# repo paths. `kingchenc/wickra` subsumes `kingchenc/wickra-backtest` and also
+# catches a stale link to the sibling indicator repository, which this one points
+# at from every binding README and badge -- the likelier mistake of the two, and
+# the one the narrower needle let through.
 forbidden = [
-    "kingchenc/wickra-backtest",
+    "kingchenc/wickra",
 ]
 
 # Paths exempt from the forbidden-substring scan: auto-generated / lockfiles and

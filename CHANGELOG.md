@@ -495,6 +495,11 @@ to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ### Changed
 
+- The metadata audit's forbidden substring widened from `kingchenc/wickra-backtest`
+  to `kingchenc/wickra`. It subsumes the old one and additionally catches a stale
+  pre-migration link to the sibling indicator repository, which every binding
+  README and badge points at.
+
 - `BacktestReport`, `EquityPoint` and `Trade` derive `PartialEq`. `Metrics`
   already did, so a caller could compare a report's metrics but not the report
   holding them -- an odd gap in a library whose central claim is that two runs
