@@ -135,6 +135,8 @@ updates:
   - package-ecosystem: maven
     directories:
       - "/bindings/java"
+      # The benchmark is its own project with its own plugin versions.
+      - "/bindings/java/benchmarks"
       # The example depends on org.json, which the binding does not -- an
       # external package that nothing was watching.
       - "/examples/java"

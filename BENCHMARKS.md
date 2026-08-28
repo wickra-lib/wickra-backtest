@@ -51,6 +51,74 @@ window on every bar.
 - This is a single-symbol, single-strategy micro-benchmark. It measures the
   engine, not a realistic multi-asset optimisation workload.
 
+## Per-binding throughput — the cost of the boundary
+
+Ten reaches, one engine. A difference between two bindings is therefore never a
+difference in the backtester: it is what that language charges to cross into it,
+paid once per bar on the streaming path and once per run on the batch path.
+
+Each binding has a harness under `bindings/<lang>/benchmarks/` that runs the
+[shared example strategy](examples/ema-cross.json) -- two EMAs, a crossover,
+fractional sizing, taker costs, slippage and a trailing stop -- over the same
+deterministic synthetic series, built from the same formula in every language.
+
+On one development machine, 100,000 bars, median of three runs:
+
+| Binding | streaming | ns/bar | batch | ns/bar |
+|---------|----------:|-------:|------:|-------:|
+| C | 6,750,000 b/s | 148 | 6,548,000 b/s | 153 |
+| C# | 6,188,000 b/s | 162 | 6,315,000 b/s | 158 |
+| Go | 4,621,000 b/s | 216 | 6,448,000 b/s | 155 |
+| Java | 4,493,000 b/s | 223 | 5,565,000 b/s | 180 |
+| WASM | 4,127,000 b/s | 242 | 4,878,000 b/s | 205 |
+| Node | 3,438,000 b/s | 291 | 2,530,000 b/s | 395 |
+| Python | 1,411,000 b/s | 709 | 1,486,000 b/s | 673 |
+| R | 284,000 b/s | 3,527 | 6,213,000 b/s | 161 |
+
+**C is the floor**: it calls the exported functions directly, with no
+marshalling of its own, so its ~148 ns/bar is the engine plus a function call.
+Every other row is that number plus what the language adds.
+
+**The batch column collapses towards the floor.** Go, C#, R and C all land
+within a few nanoseconds of each other, because batch crosses the boundary once
+and spends the rest of the run inside Rust. Read down that column and you are
+mostly reading the engine.
+
+**The streaming column is the spread.** It is a call per bar, so it is where
+each language's per-call cost shows: 148 ns in C, 3,527 ns in R. That is the
+number to look at when deciding where to drive a live loop from, and R is why
+the choice matters -- its own streaming path is 24x slower than its batch one,
+entirely in the interpreter, not in the engine.
+
+Two results worth stating because they are the opposite of what one might
+assume. **Node's batch path is slower than its streaming path** (395 vs 291
+ns/bar): marshalling six JavaScript arrays across napi costs more than 100,000
+scalar calls. And **WASM beats the native Node binding on both paths** -- the
+sandbox boundary is cheaper here than napi's.
+
+Run them yourself; the numbers are machine-dependent and only comparable within
+one machine:
+
+```bash
+cargo build -p wickra-backtest-c --release
+
+node bindings/node/benchmarks/throughput.js
+node bindings/wasm/benchmarks/throughput.cjs        # after wasm-pack --target nodejs
+(cd bindings/python && python -m benchmarks.throughput)
+Rscript bindings/r/benchmarks/throughput.R
+(cd bindings/go && go run ./benchmarks)
+dotnet run --project bindings/csharp/benchmarks -c Release
+mvn -f bindings/java/benchmarks compile exec:exec
+cmake -S bindings/c/benchmarks -B bindings/c/benchmarks/build   && cmake --build bindings/c/benchmarks/build --config Release   && ./bindings/c/benchmarks/build/throughput
+```
+
+Each takes `--bars` (the C one takes it positionally). The C#, Java and C
+harnesses link the **release** C ABI deliberately: their test and example
+projects use the debug build, and benchmarking against an unoptimised engine
+measures the debug build -- which is exactly what happened on the first run of
+the C# harness, off by a factor of ten until the stale debug library was
+replaced.
+
 ## Versus other libraries
 
 A reproducible harness runs the **same SMA-crossover strategy over the same

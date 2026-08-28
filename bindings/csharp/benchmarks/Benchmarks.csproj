@@ -1,0 +1,36 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <OutputType>Exe</OutputType>
+    <TargetFramework>net8.0</TargetFramework>
+    <Nullable>enable</Nullable>
+    <RootNamespace>Wickra.Backtest.Benchmarks</RootNamespace>
+    <AssemblyName>throughput</AssemblyName>
+    <!-- A benchmark measured in a debug build measures the debug build. -->
+    <Optimize>true</Optimize>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="../Wickra.Backtest/Wickra.Backtest.csproj" />
+  </ItemGroup>
+
+  <!-- Copy the native C-ABI library next to the executable so P/Invoke finds
+       it. RELEASE, unlike the test project: an unoptimised engine would make
+       every number here a measurement of the debug build.
+       Build it first with the release profile. -->
+  <ItemGroup>
+    <Content Include="../../../target/release/wickra_backtest.dll" Condition="Exists('../../../target/release/wickra_backtest.dll')">
+      <Link>wickra_backtest.dll</Link>
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+    </Content>
+    <Content Include="../../../target/release/libwickra_backtest.so" Condition="Exists('../../../target/release/libwickra_backtest.so')">
+      <Link>libwickra_backtest.so</Link>
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+    </Content>
+    <Content Include="../../../target/release/libwickra_backtest.dylib" Condition="Exists('../../../target/release/libwickra_backtest.dylib')">
+      <Link>libwickra_backtest.dylib</Link>
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+    </Content>
+  </ItemGroup>
+
+</Project>

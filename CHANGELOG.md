@@ -8,6 +8,12 @@ to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ### Added
 
+- A throughput harness for each of the eight non-Rust bindings, under
+  `bindings/<lang>/benchmarks/`. All eight run the shared example strategy over
+  the same deterministic series, so the numbers are comparable: one engine, and
+  the difference between two rows is what that language charges to reach it.
+  BENCHMARKS.md gains the measured table.
+
 - A CI job for the cross-library benchmark. The "versus other libraries" section
   of BENCHMARKS.md was the one claim here that reading the code cannot check, and
   nothing ran the harness that produces it. Peers install from a new hash-locked
