@@ -8,6 +8,10 @@ to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ### Added
 
+- The NuGet package carries the project icon and an XML documentation file, so it
+  shows a tile on nuget.org and every summary on its public API reaches callers
+  as IntelliSense instead of stopping at the repository boundary.
+
 - A drift guard for the Python type stub. `__init__.pyi` is hand-written and was
   checked by nothing: the completeness test read the module surface and never the
   stub. Five tests now compare the two -- declared names, class members, which

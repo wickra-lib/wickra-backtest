@@ -17,8 +17,12 @@
     <RepositoryType>git</RepositoryType>
     <PackageTags>backtesting;trading;technical-analysis;quant;streaming;ffi;native</PackageTags>
     <PackageReadmeFile>README.md</PackageReadmeFile>
+    <PackageIcon>icon.png</PackageIcon>
     <IncludeSymbols>true</IncludeSymbols>
     <SymbolPackageFormat>snupkg</SymbolPackageFormat>
+    <!-- Without this the package ships no IntelliSense: every summary on the
+         public API stops at the repository boundary. -->
+    <GenerateDocumentationFile>true</GenerateDocumentationFile>
     <!-- A managed package carrying per-RID native assets; not built per-RID itself. -->
     <IncludeBuildOutput>true</IncludeBuildOutput>
     <!-- NU5128: managed package carrying only per-RID native assets. -->
@@ -37,6 +41,9 @@
 
   <ItemGroup>
     <None Include="..\README.md" Pack="true" PackagePath="\" />
+    <!-- PackageIcon needs the file inside the package; PackageIconUrl is
+         deprecated and nuget.org ignores it. -->
+    <None Include="..\icon.png" Pack="true" PackagePath="\" />
   </ItemGroup>
 
   <!--
