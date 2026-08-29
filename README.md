@@ -128,9 +128,9 @@ because none of them needs to.
 **Alpha / work in progress.** The engine, the data-driven `StrategySpec`, the
 full execution and cost model, the microstructure feeds and all ten language
 bindings are implemented and tested; a shared [golden corpus](golden/) pins the
-cross-language equality byte-for-byte. Released as **v0.1.0** to crates.io,
-PyPI, npm, NuGet, Maven Central and the Go module proxy; the R package is
-registered with R-universe, which builds it from this repository.
+cross-language equality byte-for-byte. Released as **v0.1.0** to every registry:
+crates.io, PyPI, npm, NuGet, Maven Central, the Go module proxy and
+R-universe.
 
 ## Quickstart
 
@@ -441,4 +441,9 @@ the full terms.
 
 <p align="center">
   Built on <a href="https://github.com/wickra-lib/wickra">Wickra</a>. If it saved you time, the cheapest way to say thanks is to ⭐ the repo.
+</p>
+
+<p align="center">
+  <img alt="wickra-backtest star history" width="640"
+       src="https://raw.githubusercontent.com/wickra-lib/.github/main/profile/badges/wickra-backtest/star-history.svg">
 </p>
