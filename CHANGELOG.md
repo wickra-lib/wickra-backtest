@@ -6,6 +6,17 @@ to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## [Unreleased]
 
+### Added
+
+- The Java jar is attached to the GitHub Release. `java-publish` stages the
+  native libraries for all six platforms into the binding's resources, deploys
+  to Maven Central, and now also uploads the packaged jar, so the release page
+  carries the same file Maven Central received. It was the only published
+  artefact with nothing on the page to match it -- `v0.1.0` shipped wheels,
+  sdist, `.node` binaries, npm tarballs, `.crate` files, SBOMs and the `.nupkg`,
+  and nothing from Maven Central. The sources and javadoc jars stay on Maven
+  Central, where a build tool resolves them on demand.
+
 ## [0.1.0] - 2026-08-28
 
 ### Added
