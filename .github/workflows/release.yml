@@ -691,10 +691,12 @@ jobs:
           path: nupkg/*.nupkg
           if-no-files-found: error
 
-  # Publish the Java binding to Maven Central. The org.wickra namespace is
-  # verified; auth uses the Sonatype Central token (CENTRAL_USERNAME /
-  # CENTRAL_PASSWORD) and artifacts are GPG-signed (GPG_PRIVATE_KEY /
-  # GPG_PASSPHRASE). The pom version must match the release tag.
+  # Publish the Java binding to Maven Central. The jar this job packages is also
+  # uploaded as a build artifact so github-release can attach the very file Maven
+  # Central received. The org.wickra namespace is verified; auth uses the
+  # Sonatype Central token (CENTRAL_USERNAME / CENTRAL_PASSWORD) and artifacts
+  # are GPG-signed (GPG_PRIVATE_KEY / GPG_PASSPHRASE). The pom version must match
+  # the release tag.
   java-publish:
     name: Publish to Maven Central
     timeout-minutes: 45
@@ -752,6 +754,20 @@ jobs:
           CENTRAL_PASSWORD: ${{ secrets.CENTRAL_PASSWORD }}
           GPG_PASSPHRASE: ${{ secrets.GPG_PASSPHRASE }}
         run: mvn -B -f bindings/java -Prelease deploy -DskipTests
+
+      # `deploy` packages before it uploads, so the signed jar is already under
+      # target/. Only the main artefact is kept: the sources and javadoc jars
+      # belong on Maven Central, where a build tool resolves them on demand, and
+      # would only pad the release page.
+      - name: Upload the Java jar as a build artifact
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: java-jar
+          path: |
+            bindings/java/target/*.jar
+            !bindings/java/target/*-sources.jar
+            !bindings/java/target/*-javadoc.jar
+          if-no-files-found: error
 
   # Mirror the in-repo Go module to the standalone wickra-backtest-go repository
   # so `go get github.com/wickra-lib/wickra-backtest-go` builds with no extra
@@ -851,8 +867,9 @@ jobs:
     # missing and mattered: it uploads the nupkg this job stages, so without the
     # dependency the release was assembled before the package existed and, with
     # fail_on_unmatched_files false, shipped without it in silence. java-publish
-    # and go-mirror produce no asset, but the notes tell readers Maven Central
-    # and the Go module are live -- a release should not say so before they are.
+    # uploads the jar it deploys, on the same reasoning. go-mirror produces no
+    # asset, but the notes tell readers the Go module is live -- a release should
+    # not say so before it is.
     needs:
       - cargo-publish
       - python-publish
@@ -907,6 +924,8 @@ jobs:
           find artifacts -type f -name "*.crate" -exec cp {} release-assets/ \;
           find artifacts -type f -name "*.cdx.json" -exec cp {} release-assets/ \;
           find artifacts -type f -name "*.nupkg" -exec cp {} release-assets/ \;
+          # Java jar (the same file deployed to Maven Central).
+          find artifacts -type f -name "*.jar" -exec cp {} release-assets/ \;
           ls -lh release-assets/
           echo "asset-count=$(ls release-assets/ | wc -l)"
       - name: Create / update the draft GitHub Release with assets
