@@ -901,6 +901,10 @@ jobs:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           persist-credentials: false
+      - uses: actions/setup-go@b7ad1dad31e06c5925ef5d2fc7ad053ef454303e # v7.0.0
+        with:
+          go-version: "stable"
+          cache: false
       - name: Download the C ABI native libraries
         uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8.0.1
         with:
@@ -947,6 +951,27 @@ jobs:
             mkdir -p "$out/lib/$dir"; cp "$src" "$out/lib/$dir/"
           done
           echo "assembled module:"; find "$out" -type f | sort
+      # The assembled tree is what consumers will `go get`, and until now it was
+      # pushed without anyone compiling it. Nothing downstream catches a bad one
+      # either: the mirror repository has no CI of its own, so a wrongly
+      # assembled module goes public and is discovered when someone else's build
+      # breaks -- against a tag that is already out.
+      #
+      # This builds and tests it the way a consumer would: from the module root,
+      # against the vendored header and the staged linux_amd64 library, with the
+      # golden tests already excluded above. It is also the first time the
+      # exclusion itself is checked -- if a remaining test still reached for
+      # ../../golden, `go test` would fail here rather than in a stranger's
+      # terminal.
+      - name: Build and test the assembled module
+        shell: bash
+        working-directory: wickra-backtest-go-module
+        run: |
+          set -e
+          export LD_LIBRARY_PATH="$PWD/lib/linux_amd64:${LD_LIBRARY_PATH:-}"
+          go vet ./...
+          go build ./...
+          go test ./...
       - name: Push to wickra-backtest-go and tag the release
         shell: bash
         env:
