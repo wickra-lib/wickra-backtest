@@ -82,6 +82,13 @@ to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
   also drops the Windows-only `colorama` and `tzdata` from a file that only ever
   installs on Linux.
 
+- The version inside `packages[""]` in `bindings/node/package-lock.json`, which
+  stayed on 0.1.0 while every other declaration moved. A lockfile states the
+  root package's version twice and only the first is what a bump rewrites, so
+  the second drifts on its own. `scripts/check_version_sync.py` now holds both
+  records, and the citation version alongside them -- it had no rule for either,
+  which is why a bump could leave them behind and still pass.
+
 ### Removed
 
 - The `RUSTSEC-2024-0436` ignore in `deny.toml`. `paste` is no longer in

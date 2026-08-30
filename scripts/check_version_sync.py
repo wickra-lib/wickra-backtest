@@ -49,6 +49,23 @@ TOUCHPOINTS: list[tuple[str, str, str, int]] = [
     ("examples/java/pom.xml", "example version and dependency", r"<version>@V@</version>", 2),
     # Prose sentence, the supported row, and the unsupported bound.
     ("SECURITY.md", "supported version", r"@V@", 3),
+    # The citation names the release it belongs to. Nothing else reads this
+    # file, so a stale `version` here is invisible until GitHub's citation box
+    # or Zenodo shows it beside a `date-released` that did move.
+    ("CITATION.cff", "citation version", r'(?m)^version: "@V@"$', 1),
+    # A package-lock.json states the root package's version twice: once at the
+    # top and once inside `packages[""]`. Only the first is what `npm version`
+    # rewrites, so the second goes stale on its own -- it sat at 0.1.0 in the
+    # 0.1.1 bump while every other declaration had moved, and no check here saw
+    # it. Both are ours and both are checked exactly; the rest of the lockfile
+    # stays a presence check in GENERATED, because those versions are other
+    # people's.
+    (
+        "bindings/node/package-lock.json",
+        "own version, both records",
+        r'"name": "wickra-backtest",\s+"version": "@V@"',
+        2,
+    ),
 ]
 
 # Each platform package declares its own version.
