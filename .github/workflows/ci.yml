@@ -210,8 +210,23 @@ jobs:
       # them are covered above. It also reads osv-scanner.toml, so an advisory
       # assessed there is suppressed here rather than reported twice; without
       # this step that file was documentation nothing acted on.
+      #
+      # --no-resolve turns off transitive resolution of *manifests*. The default
+      # enricher resolves pom.xml against Maven Central, and two of ours depend
+      # on org.wickra:wickra-backtest at the version in the tree -- which does
+      # not exist there until the release publishes it. So every version bump
+      # made this job fail on a lookup for an artefact the bump itself is meant
+      # to create, with the scan reporting zero vulnerabilities right above the
+      # error. A check that is red for a reason other than what it checks
+      # teaches people to ignore it.
+      #
+      # The cost is real and worth naming: Maven and NuGet manifests are scanned
+      # for their direct dependencies only. Everything pinned in a lockfile --
+      # Cargo.lock, package-lock.json, go.mod -- is still scanned in full,
+      # transitively, because a lockfile needs no resolution; and cargo-deny
+      # above covers the Rust graph, which is most of the surface.
       - name: Scan every lockfile for known vulnerabilities
-        run: osv-scanner scan source -r --config=osv-scanner.toml .
+        run: osv-scanner scan source -r --no-resolve --config=osv-scanner.toml .
 
   # Every crate here is published, so the version number is a promise to a
   # consumer. A pub type or method quietly removed still compiles in this
