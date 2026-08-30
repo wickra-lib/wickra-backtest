@@ -91,8 +91,8 @@ foreach(request ${WICKRA_GOLDEN_REQUESTS})
 endforeach()
 configure_file(golden_cases.h.in golden_cases.h @ONLY)
 
-add_wickra_example(golden golden.c)                    # golden parity via run_json
-target_include_directories(golden PRIVATE "${CMAKE_CURRENT_BINARY_DIR}")
+add_wickra_example(golden_test golden_test.c)          # golden parity via run_json
+target_include_directories(golden_test PRIVATE "${CMAKE_CURRENT_BINARY_DIR}")
 # ctest runs from the build directory; point the binary at the fixtures by
 # absolute path rather than relying on where it happens to be invoked from.
-set_property(TEST golden APPEND PROPERTY ENVIRONMENT "WICKRA_GOLDEN_DIR=${WICKRA_GOLDEN_DIR}")
+set_property(TEST golden_test APPEND PROPERTY ENVIRONMENT "WICKRA_GOLDEN_DIR=${WICKRA_GOLDEN_DIR}")
