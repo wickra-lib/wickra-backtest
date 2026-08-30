@@ -44,7 +44,17 @@ uv pip compile --generate-hashes --python-version 3.9 \
 # The cross-library benchmark's peer libraries. bench.yml runs on 3.11 only,
 # so one output suffices. The plotly pin in bench.in is load-bearing: without
 # it the resolve produces a vectorbt that cannot be imported.
-uv pip compile --generate-hashes --python-version 3.11 \
+#
+# --python-platform linux is not optional. Without it uv resolves for whatever
+# machine runs this script, and on Windows the pexpect branch of ipython
+# (sys_platform != "win32") is never taken -- so pexpect is absent from the
+# lock. On the ubuntu runner pip then needs it, finds it unpinned, and
+# --require-hashes refuses the entire install. That is what kept bench.yml red
+# on three consecutive nights, unnoticed, because it only runs on a schedule.
+# bench.yml runs on ubuntu and nothing else, so the lock is built for ubuntu
+# and nothing else -- which also keeps the Windows-only colorama and tzdata
+# out of a file that only ever installs on Linux.
+uv pip compile --generate-hashes --python-version 3.11 --python-platform linux \
   -o .github/requirements/bench.txt .github/requirements/bench.in
 
 echo
