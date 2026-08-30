@@ -219,6 +219,60 @@ jobs:
   # at the other end, after a tag nobody can take back. cargo-semver-checks
   # compares the current source against the last release on crates.io and says
   # which bump the change actually requires.
+  # The four Linux wheels -- manylinux and musllinux, each on two architectures
+  # -- are built by release.yml and nowhere else, so the container path is first
+  # exercised at the tag, the one moment where a failure is expensive and
+  # irreversible. The regular python job builds against the runner's own glibc
+  # and cannot see a container problem at all.
+  #
+  # The failure this catches elsewhere in the family is a native dependency the
+  # container lacks (vendored OpenSSL, perl-core). That one cannot happen here:
+  # the binding depends only on wickra-backtest-core, and openssl-sys and
+  # native-tls appear nowhere in Cargo.lock. What remains is worth proving
+  # anyway -- that the wheel builds in both containers and that the module it
+  # produces actually imports under musl, which is a different libc, not a
+  # different flag.
+  python-wheel-container-smoke:
+    name: Linux wheel in ${{ matrix.manylinux }}
+    strategy:
+      fail-fast: false
+      matrix:
+        manylinux: [auto, musllinux_1_2]
+    runs-on: ubuntu-latest
+    timeout-minutes: 45 # backstop: builds the release profile inside a container
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7.0.0
+        with:
+          python-version: "3.11"
+      # maturin reads bindings/python/README.md for the wheel metadata; the
+      # release job stages it the same way.
+      - name: Sync root README into bindings/python
+        run: cp README.md bindings/python/README.md
+      - uses: PyO3/maturin-action@e83996d129638aa358a18fbd1dfb82f0b0fb5d3b # v1.51.0
+        with:
+          working-directory: bindings/python
+          target: x86_64
+          args: --release --strip --out dist
+          manylinux: ${{ matrix.manylinux }}
+
+      # Building is half the claim. The wheel has to import, and for musllinux
+      # that can only be shown under musl -- ubuntu-latest is glibc, so a plain
+      # pip install there would silently prove nothing about the artefact the
+      # release publishes.
+      - name: Import the wheel under glibc
+        if: matrix.manylinux == 'auto'
+        run: |
+          python -m pip install --no-index --find-links bindings/python/dist wickra-backtest
+          python -c "import wickra_backtest as wbt; print(wbt.__name__, 'imported')"
+
+      - name: Import the wheel under musl
+        if: matrix.manylinux == 'musllinux_1_2'
+        run: |
+          docker run --rm -v "$PWD/bindings/python/dist:/dist:ro" python:3.11-alpine             sh -c "pip install --no-index --find-links /dist wickra-backtest                    && python -c \"import wickra_backtest as wbt; print(wbt.__name__, 'imported')\""
+
   semver:
     name: Semver compatibility
     runs-on: ubuntu-latest
