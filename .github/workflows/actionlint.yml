@@ -1,0 +1,50 @@
+name: actionlint
+
+# Checks the workflow files themselves for correctness -- the half zizmor does
+# not cover. zizmor audits permissions, injection and supply-chain shape;
+# actionlint reads the other axis: shell errors inside `run:` (it runs
+# shellcheck over every block), unknown or misspelled keys, expressions
+# referencing contexts that do not exist there, and matrix values no job uses.
+# Both classes fail at runtime rather than at parse time, which for release.yml
+# means at the tag -- the one moment where a broken workflow is expensive.
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+permissions:
+  contents: read
+
+jobs:
+  actionlint:
+    name: Lint workflows
+    runs-on: ubuntu-latest
+    timeout-minutes: 10 # backstop against a hung job, not a budget
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+
+      # Downloaded rather than run as an action: one fewer third party in the
+      # supply chain, and a checksum is a stronger statement than a tag. The
+      # trade-off is that Dependabot reads manifests and action pins, not shell
+      # variables, so nothing raises VERSION on its own -- bumping it means
+      # recomputing SHA256 from the new archive, which is not a string
+      # substitution. The checker holds it against the latest upstream release.
+      - name: Install actionlint
+        env:
+          VERSION: 1.7.12
+          SHA256: 8aca8db96f1b94770f1b0d72b6dddcb1ebb8123cb3712530b08cc387b349a3d8
+        run: |
+          set -euo pipefail
+          archive="actionlint_${VERSION}_linux_amd64.tar.gz"
+          curl -fsSL -o "$archive" \
+            "https://github.com/rhysd/actionlint/releases/download/v${VERSION}/${archive}"
+          echo "${SHA256}  ${archive}" | sha256sum --check --strict -
+          tar -xzf "$archive" actionlint
+          install -m 0755 actionlint /usr/local/bin/actionlint
+          actionlint --version
+
+      - name: Lint every workflow
+        run: actionlint -color
