@@ -164,6 +164,15 @@ jobs:
       - name: Published packages carry their licence texts
         run: python3 scripts/check_license_copies.py
 
+      # schema/strategy_spec.schema.json is the contract for anyone writing a
+      # spec by hand or generating one. The Rust test proves the shipped specs
+      # parse; nothing proved the schema still describes the same DSL. It drifts
+      # the moment the parser grows a field -- the examples get it, the parser
+      # accepts it, the schema never hears about it, and an editor validating
+      # against the schema reports the shipped examples as invalid.
+      - name: The example specs agree with the published schema
+        run: python3 scripts/check_example_specs.py
+
   # An early heads-up on a broken link in a pull request. Deliberately
   # non-blocking: external link rot is non-deterministic, and a third-party site
   # rate-limiting must never fail someone's PR. The authoritative run is the
