@@ -100,7 +100,7 @@ jobs:
 
       # CycloneDX SBOM per published crate.
       - name: Install cargo-cyclonedx
-        uses: taiki-e/install-action@ba47c86ac325773530516bb756137ac718732518 # v2.86.5
+        uses: taiki-e/install-action@742a3317eac7bd62f91cd888b4eead5e784ba833 # v2.87.1
         with:
           tool: cargo-cyclonedx
 
@@ -503,7 +503,7 @@ jobs:
           targets: wasm32-unknown-unknown
       - uses: Swatinem/rust-cache@6323deb102c322ba6fcbdcafc7e3dddab59af2b6 # v2.9.2
       - name: Install wasm-pack
-        uses: taiki-e/install-action@ba47c86ac325773530516bb756137ac718732518 # v2.86.5
+        uses: taiki-e/install-action@742a3317eac7bd62f91cd888b4eead5e784ba833 # v2.87.1
         with:
           tool: wasm-pack
       - name: Sync root README into bindings/wasm so wasm-pack ships it in pkg/
@@ -739,7 +739,7 @@ jobs:
             echo "staged ${PLAT[$target]}:"; ls -l "$dest"
           done
       - name: Set up JDK 25 + Maven Central credentials + GPG
-        uses: actions/setup-java@b6effb05e454b25005698d916606bdc6ffcbf961 # v5.7.0
+        uses: actions/setup-java@dd06d9cba3e5552c54d9f8ea23572deb30010f7c # v6.0.0
         with:
           distribution: temurin
           java-version: "25"
@@ -929,7 +929,7 @@ jobs:
           ls -lh release-assets/
           echo "asset-count=$(ls release-assets/ | wc -l)"
       - name: Create / update the draft GitHub Release with assets
-        uses: softprops/action-gh-release@3d0d9888cb7fd7b750713d6e236d1fcb99157228 # v3.0.2
+        uses: softprops/action-gh-release@efb35369e0ad2afab669f228072c1b0d510eae64 # v3.0.3
         with:
           tag_name: ${{ steps.tag.outputs.tag }}
           name: wickra-backtest ${{ steps.tag.outputs.tag }}
