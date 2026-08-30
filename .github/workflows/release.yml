@@ -1134,6 +1134,32 @@ jobs:
           pattern: wheels-*
           path: artifacts/python
           merge-multiple: true
+      - name: Download the NuGet package
+        uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8.0.1
+        with:
+          name: nuget-package
+          path: artifacts/nuget
+      - name: Download the Java jar
+        uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8.0.1
+        with:
+          name: java-jar
+          path: artifacts/java
+      - name: Download the C ABI archives
+        uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8.0.1
+        with:
+          pattern: c-abi-*
+          path: artifacts/c-abi
+          merge-multiple: true
+      # Everything published that does not carry its own provenance. The npm
+      # packages are absent on purpose: `npm publish --provenance` attaches
+      # theirs at publish time, through the same Sigstore instance.
+      #
+      # This covered only the crates, wheels and sdist. The gap was invisible
+      # from the outside -- Scorecard reported 10/10 throughout, because it looks
+      # for a provenance file on the release rather than for what that file
+      # covers. A consumer verifying the nupkg, the jar or a C ABI archive got
+      # nothing, and had no way to tell that from a release page showing an
+      # attestation bundle.
       - name: Attest build provenance
         id: attest
         uses: actions/attest-build-provenance@4d101475d8b20a2381f78447822ac1eab6504dd8 # v4.2.2
@@ -1142,6 +1168,9 @@ jobs:
             artifacts/crates/*.crate
             artifacts/python/*.whl
             artifacts/python/*.tar.gz
+            artifacts/nuget/*.nupkg
+            artifacts/java/*.jar
+            artifacts/c-abi/*.tar.gz
       - name: Attach provenance bundle to the GitHub Release
         env:
           GH_TOKEN: ${{ github.token }}
