@@ -518,6 +518,11 @@ jobs:
         shell: bash
         working-directory: bindings/node
         run: |
+          # The ${...} below are JavaScript template literals inside node -e,
+          # not shell expansions -- single quotes are what keeps the shell out
+          # of them. The reason goes on its own line: shellcheck reads anything
+          # after the directive as further directives and reports SC1072 on it.
+          # shellcheck disable=SC2016
           npm pack --dry-run --json | node -e '
             const chunks = [];
             process.stdin.on("data", c => chunks.push(c)).on("end", () => {
@@ -727,7 +732,8 @@ jobs:
             # Windows (rtools bash): add the lib dir to PATH in msys form so the
             # ':' in the drive letter is not parsed as a PATH separator and msys
             # translates it to the Windows PATH the DLL loader searches.
-            export PATH="$(cygpath -u "$WKBT_LIB"):$PATH"
+            wkbt_lib_unix=$(cygpath -u "$WKBT_LIB")
+            export PATH="$wkbt_lib_unix:$PATH"
           else
             export LD_LIBRARY_PATH="$WKBT_LIB:$LD_LIBRARY_PATH"
             export DYLD_LIBRARY_PATH="$WKBT_LIB:$DYLD_LIBRARY_PATH"
