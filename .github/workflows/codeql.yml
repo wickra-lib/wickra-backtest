@@ -1,9 +1,19 @@
 name: CodeQL
 
-# Static analysis security testing (findings P13.x). Analyses the Rust core and
-# the Python / JavaScript binding surfaces with GitHub's CodeQL engine. Results
-# appear under Security → Code scanning. `build-mode: none` analyses source
-# directly — no compilation step — for every language here.
+# Static analysis security testing. Analyses every language surface this repo
+# ships: the Rust core, the Python / JavaScript wrappers, and the four consumers
+# of the C ABI that CodeQL supports (C/C++, C#, Java, Go).
+#
+# `build-mode: none` analyses source directly. The four compiled languages need
+# `manual` instead -- without a build CodeQL resolves no call and reports the
+# analysis as low quality -- which puts two ordering rules on this file:
+#
+#   1. A language toolchain is installed BEFORE codeql-action/init, so CodeQL
+#      traces the compiler that actually builds. The build itself comes AFTER,
+#      because being traced is the whole point.
+#   2. Preconditions that are not analysed code -- the Rust C ABI library the
+#      four bindings link against -- also go before init. That keeps the Rust
+#      build out of a database it does not belong in.
 on:
   push:
     branches: [main]
@@ -23,7 +33,7 @@ jobs:
   analyze:
     name: Analyze (${{ matrix.language }})
     runs-on: ubuntu-latest
-    timeout-minutes: 30  # backstop against a hung job, not a budget
+    timeout-minutes: 45 # backstop against a hung job, not a budget; the manual build modes compile Rust plus a second toolchain
     permissions:
       security-events: write # upload CodeQL results to code-scanning
       packages: read
@@ -39,17 +49,97 @@ jobs:
             build-mode: none
           - language: javascript-typescript
             build-mode: none
+          - language: csharp
+            build-mode: manual
+          - language: java-kotlin
+            build-mode: manual
+          - language: go
+            build-mode: manual
+          - language: c-cpp
+            build-mode: manual
     steps:
       - name: Checkout
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           persist-credentials: false
 
+      # --- before init: toolchains and non-analysed preconditions -----------
+
+      - uses: actions/setup-dotnet@a98b56852c35b8e3190ac28c8c2271da59106c68 # v6.0.0
+        if: matrix.language == 'csharp'
+        with:
+          dotnet-version: "8.0"
+
+      - uses: actions/setup-java@dd06d9cba3e5552c54d9f8ea23572deb30010f7c # v6.0.0
+        if: matrix.language == 'java-kotlin'
+        with:
+          distribution: temurin
+          java-version: "25"
+          cache: maven
+
+      - uses: actions/setup-go@b7ad1dad31e06c5925ef5d2fc7ad053ef454303e # v7.0.0
+        if: matrix.language == 'go'
+        with:
+          go-version: "stable"
+          cache: false
+
+      # The four compiled surfaces all link the C ABI hub. It is Rust, so it is
+      # not part of any of their databases -- build it here, before init.
+      - uses: ./.github/actions/setup-rust
+        if: matrix.build-mode == 'manual'
+      - uses: Swatinem/rust-cache@6323deb102c322ba6fcbdcafc7e3dddab59af2b6 # v2.9.2
+        if: matrix.build-mode == 'manual'
+        continue-on-error: true # cache is an optimisation; never block on a stuck/slow restore
+        timeout-minutes: 6
+      - name: Build the C ABI library
+        if: matrix.build-mode == 'manual'
+        run: cargo build -p wickra-backtest-c --release
+
+      # cgo resolves the library through per-platform LDFLAGS pointing at
+      # lib/<goos>_<goarch>/, so the Go build needs it staged, exactly as ci.yml
+      # stages it. Also not analysed code, so also before init.
+      - name: Stage the native library for cgo
+        if: matrix.language == 'go'
+        run: |
+          mkdir -p bindings/go/lib/linux_amd64
+          cp target/release/libwickra_backtest.so bindings/go/lib/linux_amd64/
+
+      # --- init -------------------------------------------------------------
+
       - name: Initialize CodeQL
         uses: github/codeql-action/init@cdf488f595d80d6e07e03d4674febd5ab45fa938 # v4.37.9
         with:
           languages: ${{ matrix.language }}
           build-mode: ${{ matrix.build-mode }}
+          config-file: ./.github/codeql/codeql-config.yml
+
+      # --- after init: the builds CodeQL traces -----------------------------
+
+      - name: Build the C# binding
+        if: matrix.language == 'csharp'
+        run: dotnet build bindings/csharp/Wickra.Backtest.Tests/Wickra.Backtest.Tests.csproj -c Release
+
+      - name: Build the Java binding
+        if: matrix.language == 'java-kotlin'
+        run: mvn -B -f bindings/java compile
+
+      # `go build ./...` at the repo root finds no go.mod -- the module lives
+      # under bindings/go, and examples/go is a second module that has to be
+      # built on its own.
+      - name: Build the Go binding and example
+        if: matrix.language == 'go'
+        run: |
+          (cd bindings/go && go build ./...)
+          (cd examples/go && go build ./...)
+
+      # Builds the C and C++ examples against the generated header. These are
+      # the files a reader copies, which is why they are analysed rather than
+      # excluded.
+      - name: Build the C and C++ examples
+        if: matrix.language == 'c-cpp'
+        run: |
+          cmake -S examples/c -B examples/c/build
+          cmake --build examples/c/build --config Release
 
       - name: Perform CodeQL analysis
         uses: github/codeql-action/analyze@cdf488f595d80d6e07e03d4674febd5ab45fa938 # v4.37.9
