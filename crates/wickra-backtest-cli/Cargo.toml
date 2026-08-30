@@ -29,5 +29,11 @@ parquet = ["wickra-backtest-data/parquet"]
 # Build `wkbt` with the Binance importer (`wkbt fetch`).
 binance = ["wickra-backtest-data/binance"]
 
+# docs.rs builds with every feature on, so the optional loaders are documented
+# rather than silently absent. It builds on nightly with --cfg docsrs, which no
+# job here can reproduce, so this is one of the few settings CI cannot verify.
+[package.metadata.docs.rs]
+all-features = true
+
 [lints]
 workspace = true
