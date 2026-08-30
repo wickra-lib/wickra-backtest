@@ -4,6 +4,12 @@
 # deny.toml at the OSV layer. See the "Vulnerability exploitability (VEX)"
 # section of SECURITY.md.
 #
-# There are currently no suppressed advisories. Add an [[IgnoredVulns]] entry
-# here (with an `id` and a `reason`) only after assessing that the advisory does
-# not affect this project, and keep it in lock-step with deny.toml.
+# Keep this file in lock-step with deny.toml. An advisory suppressed in only one
+# of the two is not suppressed at all: cargo-deny and OSV-Scanner read different
+# files, so the tool that never heard about it keeps reporting -- and Scorecard's
+# Vulnerabilities check reads the OSV side, which is the one that costs points.
+#
+# There are currently no suppressed advisories, on either side. Add an
+# [[IgnoredVulns]] entry here (with an `id` and a `reason`) only after assessing
+# that the advisory does not affect this project, and add the matching `ignore`
+# entry to deny.toml in the same commit.
