@@ -11,11 +11,11 @@ all-features = true
 [advisories]
 version = 2
 yanked = "deny"
-# paste 1.0.15 is unmaintained (RUSTSEC-2024-0436) but is pulled transitively by
-# parquet for the Parquet feed corpus. It is a tiny, stable proc-macro with no
-# known vulnerability and no maintained drop-in replacement; the advisory is
-# informational. Re-evaluate if parquet drops the dependency.
-ignore = ["RUSTSEC-2024-0436"]
+# No advisory is currently suppressed. An entry here must be mirrored in
+# osv-scanner.toml with the same reasoning: the two files are read by different
+# tools, so an advisory suppressed in only one is not suppressed at all, and
+# Scorecard's Vulnerabilities check reads the OSV side.
+ignore = []
 
 [licenses]
 version = 2

@@ -66,3 +66,33 @@ add_wickra_example(streaming streaming.c)              # streamed == batch, from
 add_wickra_example(example_cpp example_cpp.cpp)        # the same C source, as C++
 add_wickra_example(streaming_cpp streaming_cpp.cpp)    # ditto, raw handles and frees
 add_wickra_example(cpp_smoke cpp_smoke.cpp)            # C++ RAII wrapper (wickra_backtest.hpp)
+
+# Golden parity for the ABI itself. Every other binding asserts against
+# golden/expected_json/; the ABI they all go through asserted against nothing,
+# so its calls were proven to link and return but not to return the right
+# numbers.
+#
+# The case list is generated here rather than written into the C source. C has
+# no portable directory walk, and a hand-kept list fails by omission: a fixture
+# nobody added would not fail the test, it would simply never run -- which is
+# the exact bug this test exists to prevent, reintroduced one level up.
+set(WICKRA_GOLDEN_DIR "${CMAKE_CURRENT_SOURCE_DIR}/../../golden")
+# CONFIGURE_DEPENDS re-globs when the directory changes, so adding a fixture
+# does not require remembering to reconfigure.
+file(GLOB WICKRA_GOLDEN_REQUESTS CONFIGURE_DEPENDS "${WICKRA_GOLDEN_DIR}/requests/*.json")
+if(WICKRA_GOLDEN_REQUESTS STREQUAL "")
+    message(FATAL_ERROR "no fixtures in ${WICKRA_GOLDEN_DIR}/requests -- the golden test would pass by running nothing")
+endif()
+set(WICKRA_GOLDEN_CASE_LINES "")
+foreach(request ${WICKRA_GOLDEN_REQUESTS})
+    get_filename_component(case_name "${request}" NAME_WE)
+    string(APPEND WICKRA_GOLDEN_CASE_LINES "    \"${case_name}\",
+")
+endforeach()
+configure_file(golden_cases.h.in golden_cases.h @ONLY)
+
+add_wickra_example(golden_test golden_test.c)          # golden parity via run_json
+target_include_directories(golden_test PRIVATE "${CMAKE_CURRENT_BINARY_DIR}")
+# ctest runs from the build directory; point the binary at the fixtures by
+# absolute path rather than relying on where it happens to be invoked from.
+set_property(TEST golden_test APPEND PROPERTY ENVIRONMENT "WICKRA_GOLDEN_DIR=${WICKRA_GOLDEN_DIR}")

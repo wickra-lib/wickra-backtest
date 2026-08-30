@@ -4,6 +4,7 @@ on:
   push:
     branches: [main]
   pull_request:
+    branches: [main]
 
 permissions:
   contents: read
@@ -163,6 +164,15 @@ jobs:
       - name: Published packages carry their licence texts
         run: python3 scripts/check_license_copies.py
 
+      # schema/strategy_spec.schema.json is the contract for anyone writing a
+      # spec by hand or generating one. The Rust test proves the shipped specs
+      # parse; nothing proved the schema still describes the same DSL. It drifts
+      # the moment the parser grows a field -- the examples get it, the parser
+      # accepts it, the schema never hears about it, and an editor validating
+      # against the schema reports the shipped examples as invalid.
+      - name: The example specs agree with the published schema
+        run: python3 scripts/check_example_specs.py
+
   # An early heads-up on a broken link in a pull request. Deliberately
   # non-blocking: external link rot is non-deterministic, and a third-party site
   # rate-limiting must never fail someone's PR. The authoritative run is the
@@ -182,17 +192,107 @@ jobs:
           fail: true
 
   supply-chain:
-    name: cargo-deny
+    name: cargo-deny + osv-scanner
     runs-on: ubuntu-latest
     timeout-minutes: 30 # backstop: cap a wedged job instead of GitHub's 6h default (headroom for slow registry/package installs)
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           persist-credentials: false
-      - uses: taiki-e/install-action@ba47c86ac325773530516bb756137ac718732518 # v2.86.5
+      - uses: taiki-e/install-action@742a3317eac7bd62f91cd888b4eead5e784ba833 # v2.87.1
         with:
-          tool: cargo-deny
+          tool: cargo-deny,osv-scanner
       - run: cargo deny check
+
+      # cargo-deny only sees the Rust dependency graph. osv-scanner reads every
+      # lockfile in the tree -- npm, pip, maven, nuget, go -- which is where the
+      # other nine language surfaces get their dependencies from, and none of
+      # them are covered above. It also reads osv-scanner.toml, so an advisory
+      # assessed there is suppressed here rather than reported twice; without
+      # this step that file was documentation nothing acted on.
+      - name: Scan every lockfile for known vulnerabilities
+        run: osv-scanner scan source -r --config=osv-scanner.toml .
+
+  # Every crate here is published, so the version number is a promise to a
+  # consumer. A pub type or method quietly removed still compiles in this
+  # workspace -- nothing in it depends on the published shape -- and breaks only
+  # at the other end, after a tag nobody can take back. cargo-semver-checks
+  # compares the current source against the last release on crates.io and says
+  # which bump the change actually requires.
+  # The four Linux wheels -- manylinux and musllinux, each on two architectures
+  # -- are built by release.yml and nowhere else, so the container path is first
+  # exercised at the tag, the one moment where a failure is expensive and
+  # irreversible. The regular python job builds against the runner's own glibc
+  # and cannot see a container problem at all.
+  #
+  # The failure this catches elsewhere in the family is a native dependency the
+  # container lacks (vendored OpenSSL, perl-core). That one cannot happen here:
+  # the binding depends only on wickra-backtest-core, and openssl-sys and
+  # native-tls appear nowhere in Cargo.lock. What remains is worth proving
+  # anyway -- that the wheel builds in both containers and that the module it
+  # produces actually imports under musl, which is a different libc, not a
+  # different flag.
+  python-wheel-container-smoke:
+    name: Linux wheel in ${{ matrix.manylinux }}
+    strategy:
+      fail-fast: false
+      matrix:
+        manylinux: [auto, musllinux_1_2]
+    runs-on: ubuntu-latest
+    timeout-minutes: 45 # backstop: builds the release profile inside a container
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7.0.0
+        with:
+          python-version: "3.11"
+      # maturin reads bindings/python/README.md for the wheel metadata; the
+      # release job stages it the same way.
+      - name: Sync root README into bindings/python
+        run: cp README.md bindings/python/README.md
+      - uses: PyO3/maturin-action@e83996d129638aa358a18fbd1dfb82f0b0fb5d3b # v1.51.0
+        with:
+          working-directory: bindings/python
+          target: x86_64
+          args: --release --strip --out dist
+          manylinux: ${{ matrix.manylinux }}
+
+      # Building is half the claim. The wheel has to import, and for musllinux
+      # that can only be shown under musl -- ubuntu-latest is glibc, so a plain
+      # pip install there would silently prove nothing about the artefact the
+      # release publishes.
+      - name: Import the wheel under glibc
+        if: matrix.manylinux == 'auto'
+        run: |
+          python -m pip install --no-index --find-links bindings/python/dist wickra-backtest
+          python -c "import wickra_backtest as wbt; print(wbt.__name__, 'imported')"
+
+      - name: Import the wheel under musl
+        if: matrix.manylinux == 'musllinux_1_2'
+        run: |
+          docker run --rm -v "$PWD/bindings/python/dist:/dist:ro" python:3.11-alpine             sh -c "pip install --no-index --find-links /dist wickra-backtest                    && python -c \"import wickra_backtest as wbt; print(wbt.__name__, 'imported')\""
+
+  semver:
+    name: Semver compatibility
+    runs-on: ubuntu-latest
+    timeout-minutes: 30 # backstop: cap a wedged job instead of GitHub's 6h default (headroom for slow registry/package installs)
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: ./.github/actions/setup-rust
+      - uses: Swatinem/rust-cache@6323deb102c322ba6fcbdcafc7e3dddab59af2b6 # v2.9.2
+        continue-on-error: true # cache is an optimisation; never block on a stuck/slow restore
+        timeout-minutes: 6
+      - uses: taiki-e/install-action@742a3317eac7bd62f91cd888b4eead5e784ba833 # v2.87.1
+        with:
+          tool: cargo-semver-checks
+      # The four published crates, named explicitly. The bench crate carries
+      # publish = false and has no baseline to compare against.
+      - name: Check the public API against the last release
+        run: |
+          cargo semver-checks check-release             -p wickra-backtest-core             -p wickra-backtest-data             -p wickra-backtest             -p wickra-backtest-cli
 
   python:
     name: Python ${{ matrix.python-version }} on ${{ matrix.os }}
@@ -418,6 +518,11 @@ jobs:
         shell: bash
         working-directory: bindings/node
         run: |
+          # The ${...} below are JavaScript template literals inside node -e,
+          # not shell expansions -- single quotes are what keeps the shell out
+          # of them. The reason goes on its own line: shellcheck reads anything
+          # after the directive as further directives and reports SC1072 on it.
+          # shellcheck disable=SC2016
           npm pack --dry-run --json | node -e '
             const chunks = [];
             process.stdin.on("data", c => chunks.push(c)).on("end", () => {
@@ -448,7 +553,7 @@ jobs:
         continue-on-error: true # cache is an optimisation; never block on a stuck/slow restore
         timeout-minutes: 6
       - name: Install wasm-pack
-        uses: taiki-e/install-action@ba47c86ac325773530516bb756137ac718732518 # v2.86.5
+        uses: taiki-e/install-action@742a3317eac7bd62f91cd888b4eead5e784ba833 # v2.87.1
         with:
           tool: wasm-pack
       # Build the nodejs target so the golden suite can require ../pkg/*.js.
@@ -483,7 +588,7 @@ jobs:
         continue-on-error: true # cache is an optimisation; never block on a stuck/slow restore
         timeout-minutes: 6
       - name: Install cbindgen
-        uses: taiki-e/install-action@ba47c86ac325773530516bb756137ac718732518 # v2.86.5
+        uses: taiki-e/install-action@742a3317eac7bd62f91cd888b4eead5e784ba833 # v2.87.1
         with:
           tool: cbindgen
       - name: Build the C ABI library (cdylib + staticlib)
@@ -570,7 +675,7 @@ jobs:
       # build it in the debug profile here. The pom pins bytecode to release 25.
       - name: Build the C ABI library
         run: cargo build -p wickra-backtest-c
-      - uses: actions/setup-java@b6effb05e454b25005698d916606bdc6ffcbf961 # v5.7.0
+      - uses: actions/setup-java@dd06d9cba3e5552c54d9f8ea23572deb30010f7c # v6.0.0
         with:
           distribution: temurin
           java-version: "25"
@@ -610,7 +715,7 @@ jobs:
       # links -lwickra_backtest from WKBT_LIB; build the library first.
       - name: Build the C ABI library
         run: cargo build -p wickra-backtest-c --release
-      - uses: r-lib/actions/setup-r@d3c5be51b12e724e68f33216ca3c148b66d5f0b6 # v2.12.1
+      - uses: r-lib/actions/setup-r@465b7d8e732ca3921382b1674c59bada9cbf3399 # v2.13.0
         with:
           r-version: "release"
           use-public-rspm: true
@@ -627,7 +732,8 @@ jobs:
             # Windows (rtools bash): add the lib dir to PATH in msys form so the
             # ':' in the drive letter is not parsed as a PATH separator and msys
             # translates it to the Windows PATH the DLL loader searches.
-            export PATH="$(cygpath -u "$WKBT_LIB"):$PATH"
+            wkbt_lib_unix=$(cygpath -u "$WKBT_LIB")
+            export PATH="$wkbt_lib_unix:$PATH"
           else
             export LD_LIBRARY_PATH="$WKBT_LIB:$LD_LIBRARY_PATH"
             export DYLD_LIBRARY_PATH="$WKBT_LIB:$DYLD_LIBRARY_PATH"
@@ -698,7 +804,7 @@ jobs:
         continue-on-error: true # cache is an optimisation; never block on a stuck/slow restore
         timeout-minutes: 6
       - name: Install cargo-llvm-cov
-        uses: taiki-e/install-action@ba47c86ac325773530516bb756137ac718732518 # v2.86.5
+        uses: taiki-e/install-action@742a3317eac7bd62f91cd888b4eead5e784ba833 # v2.87.1
         with:
           tool: cargo-llvm-cov
       - name: Generate coverage (lcov)
@@ -741,7 +847,7 @@ jobs:
         with:
           workspaces: fuzz
       - name: Install cargo-fuzz
-        uses: taiki-e/install-action@ba47c86ac325773530516bb756137ac718732518 # v2.86.5
+        uses: taiki-e/install-action@742a3317eac7bd62f91cd888b4eead5e784ba833 # v2.87.1
         timeout-minutes: 10 # fail fast on a stuck download instead of hanging the job
         with:
           tool: cargo-fuzz

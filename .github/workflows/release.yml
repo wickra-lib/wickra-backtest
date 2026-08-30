@@ -27,10 +27,91 @@ env:
 
 jobs:
   # --------------------------------------------------------------------------
+  # The cut between building and publishing.
+  #
+  # Everything above this job can be repeated. Everything below it cannot: a
+  # version on crates.io, PyPI or npm is not coming back. Without a gate the
+  # four publish chains fired in parallel, each waiting only on its own build --
+  # crates.io could take the version while the wheels were still compiling, and
+  # a wheel failing afterwards left the crate published, irreversibly, with
+  # release notes claiming the rest was live too.
+  #
+  # Making github-release wait on the publish jobs only stops the release page
+  # from lying. The cut has to sit before the first irreversible step, which is
+  # what this is.
+  #
+  # It proves two things the workflow cannot infer on its own:
+  #
+  #   1. The ref really is a version tag. release.yml also carries
+  #      workflow_dispatch, so a dispatch from main would otherwise resolve the
+  #      newest existing tag and republish it.
+  #   2. The tagged commit was green. ci.yml does not fire on tags, so the
+  #      release run has no CI result of its own to read -- it asks the API what
+  #      this SHA scored on the branch. A fixed list of required workflows would
+  #      be wrong within a month, since path-filtered ones rightly do not run,
+  #      so the rule is: at least one successful ci.yml, and nothing else red.
+  gate:
+    name: Gate the irreversible publish
+    needs: [python-wheels, python-sdist, node-build, wasm-build, c-abi-build]
+    runs-on: ubuntu-latest
+    timeout-minutes: 10 # two API calls; if it is not done in ten minutes it is stuck
+    permissions:
+      actions: read # list the workflow runs for this commit
+      contents: read
+    steps:
+      - name: Refuse anything that is not a version tag
+        env:
+          EVENT_NAME: ${{ github.event_name }}
+          REF: ${{ github.ref }}
+        run: |
+          if [ "$EVENT_NAME" != "push" ] || [[ "$REF" != refs/tags/v* ]]; then
+            echo "::error::refusing to publish from '$REF' (event: $EVENT_NAME) -- only a pushed refs/tags/v* may publish"
+            exit 1
+          fi
+          echo "publishing from $REF"
+
+      - name: The tagged commit passed CI
+        env:
+          GH_TOKEN: ${{ github.token }}
+          REPO: ${{ github.repository }}
+          SHA: ${{ github.sha }}
+          THIS_RUN: ${{ github.run_id }}
+        run: |
+          set -euo pipefail
+          runs=$(gh api --paginate \
+            "repos/$REPO/actions/runs?head_sha=$SHA&per_page=100" \
+            --jq '.workflow_runs[] | [.id, .name, .path, .status, (.conclusion // "pending")] | @tsv')
+
+          if [ -z "$runs" ]; then
+            echo "::error::no workflow runs recorded for $SHA -- nothing proves this commit was ever built"
+            exit 1
+          fi
+
+          echo "runs on $SHA:"
+          printf '%s\n' "$runs" | cut -f2,4,5
+
+          # This release run is itself in progress on this SHA; so is anything
+          # else still going. Neither is evidence of failure.
+          red=$(printf '%s\n' "$runs" | awk -F'\t' -v this="$THIS_RUN" \
+            '$1 != this && ($5 == "failure" || $5 == "timed_out" || $5 == "action_required") { print "  " $2 " (" $5 ")" }')
+          if [ -n "$red" ]; then
+            echo "::error::this commit has failing checks; refusing to publish"
+            printf '%s\n' "$red"
+            exit 1
+          fi
+
+          if ! printf '%s\n' "$runs" | awk -F'\t' '$3 == ".github/workflows/ci.yml" && $5 == "success"' | grep -q .; then
+            echo "::error::no successful ci.yml run for $SHA -- tag a commit that has passed CI on main"
+            exit 1
+          fi
+          echo "ci.yml is green on $SHA and nothing else is red"
+
+  # --------------------------------------------------------------------------
   # crates.io: four crates in dependency order
   # --------------------------------------------------------------------------
   cargo-publish:
     name: Publish to crates.io
+    needs: gate
     timeout-minutes: 45
     runs-on: ubuntu-latest
     environment: release
@@ -45,9 +126,14 @@ jobs:
       # that as success so re-runs of the workflow do not fail.
       - name: Publish wickra-backtest-core (idempotent)
         run: |
-          out=$(cargo publish -p wickra-backtest-core --token "$CARGO_REGISTRY_TOKEN" 2>&1) && echo "$out" \
-            || (echo "$out" | grep -q "already uploaded\|already exists" && echo "skip: already published" \
-                || (echo "$out"; exit 1))
+          if out=$(cargo publish -p wickra-backtest-core --token "$CARGO_REGISTRY_TOKEN" 2>&1); then
+            echo "$out"
+          elif echo "$out" | grep -q "already uploaded\|already exists"; then
+            echo "skip: already published"
+          else
+            echo "$out"
+            exit 1
+          fi
         env:
           CARGO_REGISTRY_TOKEN: ${{ secrets.CARGO_REGISTRY_TOKEN }}
 
@@ -56,9 +142,14 @@ jobs:
 
       - name: Publish wickra-backtest-data (idempotent)
         run: |
-          out=$(cargo publish -p wickra-backtest-data --token "$CARGO_REGISTRY_TOKEN" 2>&1) && echo "$out" \
-            || (echo "$out" | grep -q "already uploaded\|already exists" && echo "skip: already published" \
-                || (echo "$out"; exit 1))
+          if out=$(cargo publish -p wickra-backtest-data --token "$CARGO_REGISTRY_TOKEN" 2>&1); then
+            echo "$out"
+          elif echo "$out" | grep -q "already uploaded\|already exists"; then
+            echo "skip: already published"
+          else
+            echo "$out"
+            exit 1
+          fi
         env:
           CARGO_REGISTRY_TOKEN: ${{ secrets.CARGO_REGISTRY_TOKEN }}
 
@@ -67,9 +158,14 @@ jobs:
 
       - name: Publish wickra-backtest (idempotent)
         run: |
-          out=$(cargo publish -p wickra-backtest --token "$CARGO_REGISTRY_TOKEN" 2>&1) && echo "$out" \
-            || (echo "$out" | grep -q "already uploaded\|already exists" && echo "skip: already published" \
-                || (echo "$out"; exit 1))
+          if out=$(cargo publish -p wickra-backtest --token "$CARGO_REGISTRY_TOKEN" 2>&1); then
+            echo "$out"
+          elif echo "$out" | grep -q "already uploaded\|already exists"; then
+            echo "skip: already published"
+          else
+            echo "$out"
+            exit 1
+          fi
         env:
           CARGO_REGISTRY_TOKEN: ${{ secrets.CARGO_REGISTRY_TOKEN }}
 
@@ -78,9 +174,14 @@ jobs:
 
       - name: Publish wickra-backtest-cli (idempotent)
         run: |
-          out=$(cargo publish -p wickra-backtest-cli --token "$CARGO_REGISTRY_TOKEN" 2>&1) && echo "$out" \
-            || (echo "$out" | grep -q "already uploaded\|already exists" && echo "skip: already published" \
-                || (echo "$out"; exit 1))
+          if out=$(cargo publish -p wickra-backtest-cli --token "$CARGO_REGISTRY_TOKEN" 2>&1); then
+            echo "$out"
+          elif echo "$out" | grep -q "already uploaded\|already exists"; then
+            echo "skip: already published"
+          else
+            echo "$out"
+            exit 1
+          fi
         env:
           CARGO_REGISTRY_TOKEN: ${{ secrets.CARGO_REGISTRY_TOKEN }}
 
@@ -100,7 +201,7 @@ jobs:
 
       # CycloneDX SBOM per published crate.
       - name: Install cargo-cyclonedx
-        uses: taiki-e/install-action@ba47c86ac325773530516bb756137ac718732518 # v2.86.5
+        uses: taiki-e/install-action@742a3317eac7bd62f91cd888b4eead5e784ba833 # v2.87.1
         with:
           tool: cargo-cyclonedx
 
@@ -200,7 +301,7 @@ jobs:
   python-publish:
     name: Publish to PyPI
     timeout-minutes: 45
-    needs: [python-wheels, python-sdist]
+    needs: [gate, python-wheels, python-sdist]
     runs-on: ubuntu-latest
     environment: release
     steps:
@@ -281,7 +382,7 @@ jobs:
   node-publish:
     name: Publish to npm
     timeout-minutes: 45
-    needs: node-build
+    needs: [gate, node-build]
     runs-on: ubuntu-latest
     environment: release
     permissions:
@@ -347,8 +448,14 @@ jobs:
         working-directory: bindings/node
         run: |
           rm -f ./*.node
-          echo "root binaries after cleanup: $(ls ./*.node 2>/dev/null | wc -l)"
-          echo "per-platform binaries kept:  $(ls npm/*/*.node 2>/dev/null | wc -l)"
+          # Counting with a glob rather than `ls | wc -l`: nullglob makes an
+          # empty match zero entries instead of the literal pattern, and no
+          # filename can be mis-split on the way to the count.
+          shopt -s nullglob
+          root=(./*.node)
+          kept=(npm/*/*.node)
+          echo "root binaries after cleanup: ${#root[@]}"
+          echo "per-platform binaries kept:  ${#kept[@]}"
 
       # A `license` field is a claim about the terms; it is not the terms. Every
       # one of these seven packages declared "MIT OR Apache-2.0" and shipped
@@ -367,6 +474,11 @@ jobs:
           # without a word -- which is how this went unnoticed. Check what would
           # actually be published, before publishing it.
           for dir in . npm/*/; do
+            # The ${...} below are JavaScript template literals inside node -e, not
+            # shell expansions -- the single quotes are what keeps the shell out of
+            # them. The reason sits on its own line because shellcheck reads whatever
+            # follows the directive as further directives, and reports SC1072 on it.
+            # shellcheck disable=SC2016
             ( cd "$dir" && npm pack --dry-run --json ) | node -e '
               const chunks = [];
               process.stdin.on("data", c => chunks.push(c)).on("end", () => {
@@ -391,7 +503,8 @@ jobs:
           fail=0
           publish_dir() {
             local dir=$1
-            local pkg=$(basename "$dir")
+            local pkg
+            pkg=$(basename "$dir")
             local pkgname="wickra-backtest-$pkg"
             local existing
             existing=$(npm view "$pkgname@$version" version 2>/dev/null)
@@ -467,14 +580,12 @@ jobs:
   # --------------------------------------------------------------------------
   # WASM: wasm-pack build + npm publish (as wickra-backtest-wasm)
   # --------------------------------------------------------------------------
-  wasm-publish:
-    name: Publish wickra-backtest-wasm to npm
+  wasm-build:
+    name: Build the wickra-backtest-wasm package
     timeout-minutes: 45
     runs-on: ubuntu-latest
-    environment: release
     permissions:
       contents: read
-      id-token: write
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
@@ -503,7 +614,7 @@ jobs:
           targets: wasm32-unknown-unknown
       - uses: Swatinem/rust-cache@6323deb102c322ba6fcbdcafc7e3dddab59af2b6 # v2.9.2
       - name: Install wasm-pack
-        uses: taiki-e/install-action@ba47c86ac325773530516bb756137ac718732518 # v2.86.5
+        uses: taiki-e/install-action@742a3317eac7bd62f91cd888b4eead5e784ba833 # v2.87.1
         with:
           tool: wasm-pack
       - name: Sync root README into bindings/wasm so wasm-pack ships it in pkg/
@@ -533,6 +644,11 @@ jobs:
           set -e
           cp LICENSE-MIT LICENSE-APACHE bindings/wasm/pkg/
           for dir in bindings/wasm/pkg; do
+            # The ${...} below are JavaScript template literals inside node -e, not
+            # shell expansions -- the single quotes are what keeps the shell out of
+            # them. The reason sits on its own line because shellcheck reads whatever
+            # follows the directive as further directives, and reports SC1072 on it.
+            # shellcheck disable=SC2016
             ( cd "$dir" && npm pack --dry-run --json ) | node -e '
               const chunks = [];
               process.stdin.on("data", c => chunks.push(c)).on("end", () => {
@@ -554,12 +670,61 @@ jobs:
         with:
           name: wasm-tarball
           path: bindings/wasm/pkg/wickra-backtest-wasm-*.tgz
-      - name: Publish wickra-backtest-wasm to npm (idempotent)
-        working-directory: bindings/wasm/pkg
+  # Publishes the exact tarball wasm-build produced and github-release attaches.
+  # It used to compile the package inside the publish job, which put its build
+  # behind the gate -- the one place a build must not be, because a failure
+  # there happens after the other registries have already taken the version.
+  wasm-publish:
+    name: Publish wickra-backtest-wasm to npm
+    needs: [gate, wasm-build]
+    timeout-minutes: 15
+    runs-on: ubuntu-latest
+    environment: release
+    permissions:
+      contents: read
+      id-token: write # Sigstore provenance via npm publish --provenance
+    steps:
+      - name: Set up Node
+        id: setup_node
+        continue-on-error: true
+        uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
+        with:
+          node-version: "22"
+          registry-url: "https://registry.npmjs.org"
+      - name: Wait before Node retry
+        if: steps.setup_node.outcome == 'failure'
+        shell: bash
         run: |
-          out=$(npm publish --access public --provenance 2>&1) && echo "$out" \
-            || (echo "$out" | grep -q "You cannot publish over" && echo "skip: version already on npm" \
-                || (echo "$out"; exit 1))
+          echo "::warning::setup-node failed (likely CDN flake), waiting 30s before retry..."
+          sleep 30
+      - name: Set up Node (retry)
+        if: steps.setup_node.outcome == 'failure'
+        uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
+        with:
+          node-version: "22"
+          registry-url: "https://registry.npmjs.org"
+      - uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8.0.1
+        with:
+          name: wasm-tarball
+          path: dist
+      - name: Publish wickra-backtest-wasm to npm (idempotent)
+        run: |
+          shopt -s nullglob
+          candidates=(dist/wickra-backtest-wasm-*.tgz)
+          if [ ${#candidates[@]} -ne 1 ]; then
+            echo "::error::expected exactly one wasm tarball, found ${#candidates[@]}"
+            exit 1
+          fi
+          tarball=${candidates[0]}
+          echo "publishing $tarball"
+          if out=$(npm publish "$tarball" --access public --provenance 2>&1); then
+            echo "$out"
+          elif echo "$out" | grep -q "You cannot publish over"; then
+            echo "skip: version already on npm"
+          else
+            echo "$out"
+            exit 1
+          fi
         env:
           NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
 
@@ -621,7 +786,7 @@ jobs:
   csharp-publish:
     name: Publish to NuGet
     timeout-minutes: 45
-    needs: c-abi-build
+    needs: [gate, c-abi-build]
     runs-on: ubuntu-latest
     environment: release
     permissions:
@@ -700,7 +865,7 @@ jobs:
   java-publish:
     name: Publish to Maven Central
     timeout-minutes: 45
-    needs: c-abi-build
+    needs: [gate, c-abi-build]
     runs-on: ubuntu-latest
     environment: release
     steps:
@@ -739,7 +904,7 @@ jobs:
             echo "staged ${PLAT[$target]}:"; ls -l "$dest"
           done
       - name: Set up JDK 25 + Maven Central credentials + GPG
-        uses: actions/setup-java@b6effb05e454b25005698d916606bdc6ffcbf961 # v5.7.0
+        uses: actions/setup-java@dd06d9cba3e5552c54d9f8ea23572deb30010f7c # v6.0.0
         with:
           distribution: temurin
           java-version: "25"
@@ -778,12 +943,16 @@ jobs:
   go-mirror:
     name: Mirror the Go module to wickra-backtest-go
     timeout-minutes: 45
-    needs: c-abi-build
+    needs: [gate, c-abi-build]
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           persist-credentials: false
+      - uses: actions/setup-go@b7ad1dad31e06c5925ef5d2fc7ad053ef454303e # v7.0.0
+        with:
+          go-version: "stable"
+          cache: false
       - name: Download the C ABI native libraries
         uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8.0.1
         with:
@@ -830,6 +999,27 @@ jobs:
             mkdir -p "$out/lib/$dir"; cp "$src" "$out/lib/$dir/"
           done
           echo "assembled module:"; find "$out" -type f | sort
+      # The assembled tree is what consumers will `go get`, and until now it was
+      # pushed without anyone compiling it. Nothing downstream catches a bad one
+      # either: the mirror repository has no CI of its own, so a wrongly
+      # assembled module goes public and is discovered when someone else's build
+      # breaks -- against a tag that is already out.
+      #
+      # This builds and tests it the way a consumer would: from the module root,
+      # against the vendored header and the staged linux_amd64 library, with the
+      # golden tests already excluded above. It is also the first time the
+      # exclusion itself is checked -- if a remaining test still reached for
+      # ../../golden, `go test` would fail here rather than in a stranger's
+      # terminal.
+      - name: Build and test the assembled module
+        shell: bash
+        working-directory: wickra-backtest-go-module
+        run: |
+          set -e
+          export LD_LIBRARY_PATH="$PWD/lib/linux_amd64:${LD_LIBRARY_PATH:-}"
+          go vet ./...
+          go build ./...
+          go test ./...
       - name: Push to wickra-backtest-go and tag the release
         shell: bash
         env:
@@ -890,25 +1080,19 @@ jobs:
         with:
           persist-credentials: false
           fetch-depth: 0
+      # gate refuses any ref that is not a pushed refs/tags/v*, and every job
+      # between here and it depends on gate, so github.ref_name is the tag --
+      # there is no other way to reach this line. The fallback that used to
+      # stand here resolved the newest existing tag on a dispatch, which is what
+      # made a dispatch from main able to republish a past release.
       - name: Resolve target tag
         id: tag
         env:
-          EVENT_NAME: ${{ github.event_name }}
-          REF: ${{ github.ref }}
           REF_NAME: ${{ github.ref_name }}
         run: |
-          if [ "$EVENT_NAME" = "push" ] && [[ "$REF" == refs/tags/* ]]; then
-            tag="$REF_NAME"
-          else
-            tag=$(git tag --list 'v*' --sort=-v:refname | head -n1)
-          fi
-          if [ -z "$tag" ]; then
-            echo "::error::no v* tag found to attach assets to"
-            exit 1
-          fi
-          echo "tag=$tag" >> "$GITHUB_OUTPUT"
-          echo "version=${tag#v}" >> "$GITHUB_OUTPUT"
-          echo "::notice::attaching assets to release $tag"
+          echo "tag=$REF_NAME" >> "$GITHUB_OUTPUT"
+          echo "version=${REF_NAME#v}" >> "$GITHUB_OUTPUT"
+          echo "::notice::attaching assets to release $REF_NAME"
       - name: Download all build artifacts
         uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8.0.1
         with:
@@ -927,9 +1111,11 @@ jobs:
           # Java jar (the same file deployed to Maven Central).
           find artifacts -type f -name "*.jar" -exec cp {} release-assets/ \;
           ls -lh release-assets/
-          echo "asset-count=$(ls release-assets/ | wc -l)"
+          shopt -s nullglob
+          staged=(release-assets/*)
+          echo "asset-count=${#staged[@]}"
       - name: Create / update the draft GitHub Release with assets
-        uses: softprops/action-gh-release@3d0d9888cb7fd7b750713d6e236d1fcb99157228 # v3.0.2
+        uses: softprops/action-gh-release@efb35369e0ad2afab669f228072c1b0d510eae64 # v3.0.3
         with:
           tag_name: ${{ steps.tag.outputs.tag }}
           name: wickra-backtest ${{ steps.tag.outputs.tag }}
@@ -998,6 +1184,32 @@ jobs:
           pattern: wheels-*
           path: artifacts/python
           merge-multiple: true
+      - name: Download the NuGet package
+        uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8.0.1
+        with:
+          name: nuget-package
+          path: artifacts/nuget
+      - name: Download the Java jar
+        uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8.0.1
+        with:
+          name: java-jar
+          path: artifacts/java
+      - name: Download the C ABI archives
+        uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8.0.1
+        with:
+          pattern: c-abi-*
+          path: artifacts/c-abi
+          merge-multiple: true
+      # Everything published that does not carry its own provenance. The npm
+      # packages are absent on purpose: `npm publish --provenance` attaches
+      # theirs at publish time, through the same Sigstore instance.
+      #
+      # This covered only the crates, wheels and sdist. The gap was invisible
+      # from the outside -- Scorecard reported 10/10 throughout, because it looks
+      # for a provenance file on the release rather than for what that file
+      # covers. A consumer verifying the nupkg, the jar or a C ABI archive got
+      # nothing, and had no way to tell that from a release page showing an
+      # attestation bundle.
       - name: Attest build provenance
         id: attest
         uses: actions/attest-build-provenance@4d101475d8b20a2381f78447822ac1eab6504dd8 # v4.2.2
@@ -1006,6 +1218,9 @@ jobs:
             artifacts/crates/*.crate
             artifacts/python/*.whl
             artifacts/python/*.tar.gz
+            artifacts/nuget/*.nupkg
+            artifacts/java/*.jar
+            artifacts/c-abi/*.tar.gz
       - name: Attach provenance bundle to the GitHub Release
         env:
           GH_TOKEN: ${{ github.token }}
