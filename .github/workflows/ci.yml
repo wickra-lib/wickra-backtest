@@ -204,6 +204,33 @@ jobs:
       - name: Scan every lockfile for known vulnerabilities
         run: osv-scanner scan source -r --config=osv-scanner.toml .
 
+  # Every crate here is published, so the version number is a promise to a
+  # consumer. A pub type or method quietly removed still compiles in this
+  # workspace -- nothing in it depends on the published shape -- and breaks only
+  # at the other end, after a tag nobody can take back. cargo-semver-checks
+  # compares the current source against the last release on crates.io and says
+  # which bump the change actually requires.
+  semver:
+    name: Semver compatibility
+    runs-on: ubuntu-latest
+    timeout-minutes: 30 # backstop: cap a wedged job instead of GitHub's 6h default (headroom for slow registry/package installs)
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: ./.github/actions/setup-rust
+      - uses: Swatinem/rust-cache@6323deb102c322ba6fcbdcafc7e3dddab59af2b6 # v2.9.2
+        continue-on-error: true # cache is an optimisation; never block on a stuck/slow restore
+        timeout-minutes: 6
+      - uses: taiki-e/install-action@742a3317eac7bd62f91cd888b4eead5e784ba833 # v2.87.1
+        with:
+          tool: cargo-semver-checks
+      # The four published crates, named explicitly. The bench crate carries
+      # publish = false and has no baseline to compare against.
+      - name: Check the public API against the last release
+        run: |
+          cargo semver-checks check-release             -p wickra-backtest-core             -p wickra-backtest-data             -p wickra-backtest             -p wickra-backtest-cli
+
   python:
     name: Python ${{ matrix.python-version }} on ${{ matrix.os }}
     strategy:
