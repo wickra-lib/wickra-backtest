@@ -6,6 +6,8 @@ to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## [Unreleased]
 
+## [0.1.1] - 2026-08-31
+
 ### Added
 
 - A gate between building and publishing in `release.yml`. Every publish job now
@@ -44,6 +46,10 @@ to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 - `version` and `date-released` in `CITATION.cff`.
 - `timeout-minutes` on the five jobs that lacked it and inherited GitHub's
   six-hour default.
+- `docs/README.md`, the signpost that says where the rest of the documentation
+  lives. Without it `docs/` held three real documents and nothing pointing at
+  backtest.wickra.org, which is how a second documentation tree starts in a
+  repository that already has a site.
 - The Java jar is attached to the GitHub Release. `java-publish` stages the
   native libraries for all six platforms into the binding's resources, deploys
   to Maven Central, and now also uploads the packaged jar, so the release page
@@ -64,6 +70,17 @@ to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 - `ci.yml` builds only pull requests targeting `main`.
 - `wickra-backtest-cli` is built on docs.rs with all features, like the other
   three published crates.
+
+### Fixed
+
+- The cross-library benchmark, which had failed on three consecutive nights
+  without anyone noticing -- `bench.yml` only runs on a schedule. Its lockfile
+  was compiled on Windows, so `pexpect` (which `ipython` needs only where
+  `sys_platform != "win32"`) never entered it; on the ubuntu runner pip found it
+  unpinned and `--require-hashes` refused the whole install, so not one
+  benchmark ran. The lock is now resolved with `--python-platform linux`, which
+  also drops the Windows-only `colorama` and `tzdata` from a file that only ever
+  installs on Linux.
 
 ### Removed
 
@@ -1104,5 +1121,6 @@ to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
   floating major is accurate only until the tag moves, and then it silently
   becomes a false claim a reviewer has no way to spot.
 
-[Unreleased]: https://github.com/wickra-lib/wickra-backtest/compare/v0.1.0...HEAD
+[Unreleased]: https://github.com/wickra-lib/wickra-backtest/compare/v0.1.1...HEAD
+[0.1.1]: https://github.com/wickra-lib/wickra-backtest/compare/v0.1.0...v0.1.1
 [0.1.0]: https://github.com/wickra-lib/wickra-backtest/releases/tag/v0.1.0

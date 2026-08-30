@@ -1,6 +1,6 @@
 {
   "name": "wickra-backtest-linux-x64-gnu",
-  "version": "0.1.0",
+  "version": "0.1.1",
   "description": "Native binding for wickra-backtest (linux-x64-gnu). Installed automatically as an optional dependency of wickra-backtest on matching platforms.",
   "main": "wickra-backtest.linux-x64-gnu.node",
   "files": [
