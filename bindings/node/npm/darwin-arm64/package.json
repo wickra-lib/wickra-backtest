@@ -1,6 +1,6 @@
 {
   "name": "wickra-backtest-darwin-arm64",
-  "version": "0.1.0",
+  "version": "0.1.1",
   "description": "Native binding for wickra-backtest (darwin-arm64). Installed automatically as an optional dependency of wickra-backtest on matching platforms.",
   "main": "wickra-backtest.darwin-arm64.node",
   "files": [
