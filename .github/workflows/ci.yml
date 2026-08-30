@@ -183,7 +183,7 @@ jobs:
           fail: true
 
   supply-chain:
-    name: cargo-deny
+    name: cargo-deny + osv-scanner
     runs-on: ubuntu-latest
     timeout-minutes: 30 # backstop: cap a wedged job instead of GitHub's 6h default (headroom for slow registry/package installs)
     steps:
@@ -192,8 +192,17 @@ jobs:
           persist-credentials: false
       - uses: taiki-e/install-action@ba47c86ac325773530516bb756137ac718732518 # v2.86.5
         with:
-          tool: cargo-deny
+          tool: cargo-deny,osv-scanner
       - run: cargo deny check
+
+      # cargo-deny only sees the Rust dependency graph. osv-scanner reads every
+      # lockfile in the tree -- npm, pip, maven, nuget, go -- which is where the
+      # other nine language surfaces get their dependencies from, and none of
+      # them are covered above. It also reads osv-scanner.toml, so an advisory
+      # assessed there is suppressed here rather than reported twice; without
+      # this step that file was documentation nothing acted on.
+      - name: Scan every lockfile for known vulnerabilities
+        run: osv-scanner scan source -r --config=osv-scanner.toml .
 
   python:
     name: Python ${{ matrix.python-version }} on ${{ matrix.os }}
