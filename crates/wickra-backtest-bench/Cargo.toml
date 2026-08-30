@@ -13,7 +13,12 @@ publish = false
 wickra-backtest-core.workspace = true
 
 [dev-dependencies]
-criterion = { version = "0.8", default-features = false, features = ["cargo_bench_support"] }
+# CodSpeed's drop-in for criterion. Under the CodSpeed runner it replaces the
+# walltime harness with instruction counting; everywhere else -- `cargo bench`
+# here, bench.yml on its schedule -- it behaves exactly as criterion does and
+# bundles the same walltime implementation. The alias is not cosmetic: without
+# it codspeed.yml runs the benches and reports nothing at all.
+criterion = { package = "codspeed-criterion-compat", version = "5", default-features = false, features = ["cargo_bench_support"] }
 
 [[bench]]
 name = "backtest"

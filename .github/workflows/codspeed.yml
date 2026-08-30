@@ -1,0 +1,72 @@
+name: CodSpeed
+
+# Measures the Criterion benches under instrumentation and reports regressions
+# on the pull request. bench.yml still exists and still runs on a schedule, but
+# it prints numbers someone has to go and read -- a regression surfaces weeks
+# later, attached to no particular change. This one attributes it to the PR that
+# caused it.
+#
+# Instruction counting rather than wall-clock is what makes that usable on
+# shared runners: the count does not move because a neighbouring VM got busy.
+#
+# Path-filtered, because a docs-only PR cannot change the benches and a run that
+# always fires is a run people learn to ignore.
+on:
+  push:
+    branches: [main]
+    paths: &bench-paths
+      - "crates/**"
+      - "Cargo.toml"
+      - "Cargo.lock"
+      - ".github/workflows/codspeed.yml"
+  pull_request:
+    branches: [main]
+    paths: *bench-paths
+
+permissions:
+  contents: read
+
+env:
+  CARGO_TERM_COLOR: always
+  CARGO_NET_RETRY: "10"
+  CARGO_NET_GIT_FETCH_WITH_CLI: "true"
+
+jobs:
+  benchmarks:
+    name: Instrumented benchmarks
+    runs-on: ubuntu-latest
+    timeout-minutes: 45 # backstop against a hung job, not a budget; builds the bench profile from source
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: ./.github/actions/setup-rust
+      - uses: Swatinem/rust-cache@6323deb102c322ba6fcbdcafc7e3dddab59af2b6 # v2.9.2
+        continue-on-error: true # cache is an optimisation; never block on a stuck/slow restore
+        timeout-minutes: 6
+
+      # cargo-codspeed builds the bench targets in the shape the runner expects.
+      # The CodSpeed action installs its own runner but not this, and
+      # taiki-e/install-action has no entry for it, so it comes via binstall --
+      # a prebuilt download rather than a five-minute compile of a build tool.
+      - uses: taiki-e/install-action@742a3317eac7bd62f91cd888b4eead5e784ba833 # v2.87.1
+        with:
+          tool: cargo-binstall
+      - name: Install cargo-codspeed
+        run: cargo binstall --no-confirm --locked cargo-codspeed@5.0.1
+
+      - name: Build the bench targets
+        run: cargo codspeed build -p wickra-backtest-bench
+
+      # The bench crate aliases criterion to codspeed-criterion-compat, which is
+      # what makes the run report anything. Without that alias this job passes,
+      # takes its minutes, and produces no measurement -- a silent no-op.
+      #
+      # No token: it is required for private repositories only, and this one is
+      # public. The organisation's secret inventory has no CodSpeed entry, so
+      # naming one here would be a reference to something that does not exist.
+      - name: Run the benchmarks under CodSpeed
+        uses: CodSpeedHQ/action@373d6868929f444bc08d901fd0eb0ad52a8875ea # v5.2.1
+        with:
+          mode: simulation # required since v4; unset means the action fails outright
+          run: cargo codspeed run
