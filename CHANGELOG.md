@@ -6,6 +6,22 @@ to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## [Unreleased]
 
+### Fixed
+
+- **The publish gate refused a tag whose CI had not finished yet.** It required a
+  `ci.yml` run on the tagged commit with conclusion `success`; a run still in
+  progress reports `pending`, which the check treated exactly like a failure. A
+  tag pushed shortly after its merge -- with CI still queued behind this run's own
+  build jobs -- was therefore refused for having "no successful ci.yml run", on a
+  commit that was green half an hour later. v0.1.2 hit this on its first attempt
+  and published unchanged on a rerun.
+
+  The step now waits for that run to settle, bounded to 45 minutes, and says what
+  it is waiting on. Anything genuinely red still fails on the spot, so a broken
+  commit is refused as fast as before -- only the undecided case waits.
+  `timeout-minutes` on the job moves from 10 to 60 to outlive that wait.
+
+
 ## [0.1.2] - 2026-09-01
 
 ### Fixed
