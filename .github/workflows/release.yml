@@ -88,7 +88,9 @@ jobs:
           # spot, so only the undecided case waits.
           deadline=$(( $(date +%s) + 45 * 60 ))
           while :; do
-            runs=$(gh api --paginate               "repos/$REPO/actions/runs?head_sha=$SHA&per_page=100"               --jq '.workflow_runs[] | [.id, .name, .path, .status, (.conclusion // "pending")] | @tsv')
+            runs=$(gh api --paginate \
+              "repos/$REPO/actions/runs?head_sha=$SHA&per_page=100" \
+              --jq '.workflow_runs[] | [.id, .name, .path, .status, (.conclusion // "pending")] | @tsv')
 
             if [ -z "$runs" ]; then
               echo "::error::no workflow runs recorded for $SHA -- nothing proves this commit was ever built"
@@ -97,28 +99,23 @@ jobs:
 
             # This release run is itself in progress on this SHA; so is anything
             # else still going. Neither is evidence of failure.
-            red=$(printf '%s
-' "$runs" | awk -F'	' -v this="$THIS_RUN"               '$1 != this && ($5 == "failure" || $5 == "timed_out" || $5 == "action_required") { print "  " $2 " (" $5 ")" }')
+            red=$(printf '%s\n' "$runs" | awk -F'\t' -v this="$THIS_RUN" \
+              '$1 != this && ($5 == "failure" || $5 == "timed_out" || $5 == "action_required") { print "  " $2 " (" $5 ")" }')
             if [ -n "$red" ]; then
               echo "runs on $SHA:"
-              printf '%s
-' "$runs" | cut -f2,4,5
+              printf '%s\n' "$runs" | cut -f2,4,5
               echo "::error::this commit has failing checks; refusing to publish"
-              printf '%s
-' "$red"
+              printf '%s\n' "$red"
               exit 1
             fi
 
-            if printf '%s
-' "$runs" | awk -F'	' '$3 == ".github/workflows/ci.yml" && $5 == "success"' | grep -q .; then
+            if printf '%s\n' "$runs" | awk -F'\t' '$3 == ".github/workflows/ci.yml" && $5 == "success"' | grep -q .; then
               break
             fi
 
-            if ! printf '%s
-' "$runs" | awk -F'	' '$3 == ".github/workflows/ci.yml" && $4 != "completed"' | grep -q .; then
+            if ! printf '%s\n' "$runs" | awk -F'\t' '$3 == ".github/workflows/ci.yml" && $4 != "completed"' | grep -q .; then
               echo "runs on $SHA:"
-              printf '%s
-' "$runs" | cut -f2,4,5
+              printf '%s\n' "$runs" | cut -f2,4,5
               echo "::error::no successful ci.yml run for $SHA -- tag a commit that has passed CI on main"
               exit 1
             fi
@@ -132,8 +129,7 @@ jobs:
           done
 
           echo "runs on $SHA:"
-          printf '%s
-' "$runs" | cut -f2,4,5
+          printf '%s\n' "$runs" | cut -f2,4,5
           echo "ci.yml is green on $SHA and nothing else is red"
 
   # --------------------------------------------------------------------------
