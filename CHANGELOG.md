@@ -6,6 +6,26 @@ to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## [Unreleased]
 
+### Fixed
+
+- **`npm publish` was handed a path npm read as a repository.** The wasm publish
+  step passed the packed tarball as a bare relative path
+  (`dist/wickra-backtest-wasm-<version>.tgz`). npm parses an argument of that
+  shape as the `owner/repo` GitHub shorthand rather than as a file, so it ran
+  `git ls-remote ssh://git@github.com/dist/...` and exited with code 128 before
+  reaching the registry. A leading `./` marks it as a path; the step now
+  publishes `./$tarball`.
+
+  This is what broke 0.1.1. The step had never run under a tag -- `release.yml`
+  executes only on `v*` -- and the publish jobs are independent of one another,
+  so crates.io, PyPI, npm, NuGet and Maven Central published while
+  `wasm-publish` failed. `github-release` needs every publish job, so it was
+  skipped: **0.1.1 has no GitHub release and no C ABI archives, and
+  `wickra-backtest-wasm` was never published at that version.** Because
+  r-universe resolves the C ABI from the release matching `DESCRIPTION`, its R
+  builds have been failing on a 404 ever since. Use 0.1.2.
+
+
 ## [0.1.1] - 2026-08-31
 
 ### Added
