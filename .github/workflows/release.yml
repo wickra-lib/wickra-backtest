@@ -717,7 +717,12 @@ jobs:
           fi
           tarball=${candidates[0]}
           echo "publishing $tarball"
-          if out=$(npm publish "$tarball" --access public --provenance 2>&1); then
+          # "./" is load-bearing: npm reads a bare `dir/file.tgz` as the
+          # `owner/repo` GitHub shorthand and tries to clone it, rather than
+          # reading the file. Without it the step dies on `git ls-remote` with
+          # code 128, before it ever reaches the registry -- which is exactly
+          # how 0.1.1 published five registries and no wasm package.
+          if out=$(npm publish "./$tarball" --access public --provenance 2>&1); then
             echo "$out"
           elif echo "$out" | grep -q "You cannot publish over"; then
             echo "skip: version already on npm"

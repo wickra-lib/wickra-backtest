@@ -8,7 +8,7 @@
 
     <!-- NuGet package metadata -->
     <PackageId>Wickra.Backtest</PackageId>
-    <Version>0.1.1</Version>
+    <Version>0.1.2</Version>
     <Authors>kingchenc</Authors>
     <Description>Streaming-native backtester for the Wickra indicator library — C# bindings over the C ABI.</Description>
     <PackageLicenseExpression>MIT OR Apache-2.0</PackageLicenseExpression>

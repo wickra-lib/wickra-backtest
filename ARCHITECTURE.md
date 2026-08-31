@@ -71,7 +71,7 @@ single code path is why a backtest equals a live run.
 | expose a new export to every language | `bindings/c/src/lib.rs` first — it is the hub six languages go through — then the cbindgen header, its vendored copy under `bindings/go/include`, and each binding. `scripts/check_binding_surface.py` will tell you which ones you missed |
 | add a fuzz target | `fuzz/fuzz_targets/<name>.rs`, registered in `fuzz/Cargo.toml` (its own workspace) |
 | change the CI matrix | `.github/workflows/ci.yml` |
-| change the release pipeline | `.github/workflows/release.yml`. A `v*` tag publishes to six registries in one irreversible run — rehearse on a throwaway tag |
+| change the release pipeline | `.github/workflows/release.yml`. A `v*` tag publishes to six registries in one irreversible run — rehearse on a throwaway tag. The publish jobs are independent, so one failing leaves the rest published |
 
 ## What is **deliberately** not in this repo
 
