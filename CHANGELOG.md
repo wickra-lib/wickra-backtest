@@ -6,6 +6,8 @@ to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## [Unreleased]
 
+## [0.1.2] - 2026-09-01
+
 ### Fixed
 
 - **`npm publish` was handed a path npm read as a repository.** The wasm publish
@@ -1148,6 +1150,7 @@ to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
   floating major is accurate only until the tag moves, and then it silently
   becomes a false claim a reviewer has no way to spot.
 
-[Unreleased]: https://github.com/wickra-lib/wickra-backtest/compare/v0.1.1...HEAD
+[Unreleased]: https://github.com/wickra-lib/wickra-backtest/compare/v0.1.2...HEAD
+[0.1.2]: https://github.com/wickra-lib/wickra-backtest/compare/v0.1.1...v0.1.2
 [0.1.1]: https://github.com/wickra-lib/wickra-backtest/compare/v0.1.0...v0.1.1
 [0.1.0]: https://github.com/wickra-lib/wickra-backtest/releases/tag/v0.1.0

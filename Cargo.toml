@@ -22,7 +22,7 @@ members = [
 exclude = ["fuzz"]
 
 [workspace.package]
-version = "0.1.1"
+version = "0.1.2"
 edition = "2021"
 rust-version = "1.86"
 license = "MIT OR Apache-2.0"
@@ -35,8 +35,8 @@ categories = ["finance", "simulation"]
 
 [workspace.dependencies]
 wickra-core = "1.0"
-wickra-backtest-core = { version = "0.1.1", path = "crates/wickra-backtest-core" }
-wickra-backtest-data = { version = "0.1.1", path = "crates/wickra-backtest-data" }
+wickra-backtest-core = { version = "0.1.2", path = "crates/wickra-backtest-core" }
+wickra-backtest-data = { version = "0.1.2", path = "crates/wickra-backtest-data" }
 serde = { version = "1", features = ["derive"] }
 serde_json = "1"
 schemars = "0.8"
