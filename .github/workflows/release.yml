@@ -54,7 +54,7 @@ jobs:
     name: Gate the irreversible publish
     needs: [python-wheels, python-sdist, node-build, wasm-build, c-abi-build]
     runs-on: ubuntu-latest
-    timeout-minutes: 10 # two API calls; if it is not done in ten minutes it is stuck
+    timeout-minutes: 60 # waits for ci.yml to settle; the wait itself is capped at 45 minutes
     permissions:
       actions: read # list the workflow runs for this commit
       contents: read
@@ -78,32 +78,58 @@ jobs:
           THIS_RUN: ${{ github.run_id }}
         run: |
           set -euo pipefail
-          runs=$(gh api --paginate \
-            "repos/$REPO/actions/runs?head_sha=$SHA&per_page=100" \
-            --jq '.workflow_runs[] | [.id, .name, .path, .status, (.conclusion // "pending")] | @tsv')
 
-          if [ -z "$runs" ]; then
-            echo "::error::no workflow runs recorded for $SHA -- nothing proves this commit was ever built"
-            exit 1
-          fi
+          # ci.yml that has not finished yet reports conclusion `pending`, which
+          # is not the same as a failure -- and a tag pushed shortly after its
+          # merge lands while ci.yml is still queued behind this run's own build
+          # jobs. Refusing there turns "tagged a minute early" into a failed
+          # release, so wait for the verdict rather than reading its absence as
+          # one. Bounded to 45 minutes; anything actually red ends this on the
+          # spot, so only the undecided case waits.
+          deadline=$(( $(date +%s) + 45 * 60 ))
+          while :; do
+            runs=$(gh api --paginate \
+              "repos/$REPO/actions/runs?head_sha=$SHA&per_page=100" \
+              --jq '.workflow_runs[] | [.id, .name, .path, .status, (.conclusion // "pending")] | @tsv')
+
+            if [ -z "$runs" ]; then
+              echo "::error::no workflow runs recorded for $SHA -- nothing proves this commit was ever built"
+              exit 1
+            fi
+
+            # This release run is itself in progress on this SHA; so is anything
+            # else still going. Neither is evidence of failure.
+            red=$(printf '%s\n' "$runs" | awk -F'\t' -v this="$THIS_RUN" \
+              '$1 != this && ($5 == "failure" || $5 == "timed_out" || $5 == "action_required") { print "  " $2 " (" $5 ")" }')
+            if [ -n "$red" ]; then
+              echo "runs on $SHA:"
+              printf '%s\n' "$runs" | cut -f2,4,5
+              echo "::error::this commit has failing checks; refusing to publish"
+              printf '%s\n' "$red"
+              exit 1
+            fi
+
+            if printf '%s\n' "$runs" | awk -F'\t' '$3 == ".github/workflows/ci.yml" && $5 == "success"' | grep -q .; then
+              break
+            fi
+
+            if ! printf '%s\n' "$runs" | awk -F'\t' '$3 == ".github/workflows/ci.yml" && $4 != "completed"' | grep -q .; then
+              echo "runs on $SHA:"
+              printf '%s\n' "$runs" | cut -f2,4,5
+              echo "::error::no successful ci.yml run for $SHA -- tag a commit that has passed CI on main"
+              exit 1
+            fi
+
+            if [ "$(date +%s)" -ge "$deadline" ]; then
+              echo "::error::ci.yml on $SHA did not finish within 45 minutes; refusing to publish"
+              exit 1
+            fi
+            echo "ci.yml on $SHA has not finished yet -- waiting"
+            sleep 30
+          done
 
           echo "runs on $SHA:"
           printf '%s\n' "$runs" | cut -f2,4,5
-
-          # This release run is itself in progress on this SHA; so is anything
-          # else still going. Neither is evidence of failure.
-          red=$(printf '%s\n' "$runs" | awk -F'\t' -v this="$THIS_RUN" \
-            '$1 != this && ($5 == "failure" || $5 == "timed_out" || $5 == "action_required") { print "  " $2 " (" $5 ")" }')
-          if [ -n "$red" ]; then
-            echo "::error::this commit has failing checks; refusing to publish"
-            printf '%s\n' "$red"
-            exit 1
-          fi
-
-          if ! printf '%s\n' "$runs" | awk -F'\t' '$3 == ".github/workflows/ci.yml" && $5 == "success"' | grep -q .; then
-            echo "::error::no successful ci.yml run for $SHA -- tag a commit that has passed CI on main"
-            exit 1
-          fi
           echo "ci.yml is green on $SHA and nothing else is red"
 
   # --------------------------------------------------------------------------
