@@ -1,7 +1,7 @@
 Package: wickrabacktest
 Type: Package
 Title: Wickra Backtest Engine (R Binding)
-Version: 0.1.2
+Version: 0.1.3
 Authors@R: person("kingchenc", role = c("aut", "cre"), email = "support@wickra.org")
 Description: R binding for the wickra-backtest engine. It calls the engine's
     stable C ABI from compiled C glue via .Call, returning the backtest report
