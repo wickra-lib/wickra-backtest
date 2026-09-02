@@ -1966,7 +1966,7 @@ dependencies = [
 
 [[package]]
 name = "wickra-backtest"
-version = "0.1.3"
+version = "0.1.4"
 dependencies = [
  "wickra-backtest-core",
  "wickra-backtest-data",
@@ -1974,7 +1974,7 @@ dependencies = [
 
 [[package]]
 name = "wickra-backtest-bench"
-version = "0.1.3"
+version = "0.1.4"
 dependencies = [
  "codspeed-criterion-compat",
  "wickra-backtest-core",
@@ -1982,7 +1982,7 @@ dependencies = [
 
 [[package]]
 name = "wickra-backtest-c"
-version = "0.1.3"
+version = "0.1.4"
 dependencies = [
  "serde_json",
  "wickra-backtest-core",
@@ -1990,7 +1990,7 @@ dependencies = [
 
 [[package]]
 name = "wickra-backtest-cli"
-version = "0.1.3"
+version = "0.1.4"
 dependencies = [
  "clap",
  "serde",
@@ -2001,7 +2001,7 @@ dependencies = [
 
 [[package]]
 name = "wickra-backtest-core"
-version = "0.1.3"
+version = "0.1.4"
 dependencies = [
  "proptest",
  "schemars",
@@ -2013,7 +2013,7 @@ dependencies = [
 
 [[package]]
 name = "wickra-backtest-data"
-version = "0.1.3"
+version = "0.1.4"
 dependencies = [
  "arrow-array",
  "arrow-schema",
@@ -2027,7 +2027,7 @@ dependencies = [
 
 [[package]]
 name = "wickra-backtest-examples"
-version = "0.1.3"
+version = "0.1.4"
 dependencies = [
  "serde_json",
  "wickra-backtest",
@@ -2036,7 +2036,7 @@ dependencies = [
 
 [[package]]
 name = "wickra-backtest-node"
-version = "0.1.3"
+version = "0.1.4"
 dependencies = [
  "napi",
  "napi-build",
@@ -2047,7 +2047,7 @@ dependencies = [
 
 [[package]]
 name = "wickra-backtest-python"
-version = "0.1.3"
+version = "0.1.4"
 dependencies = [
  "pyo3",
  "serde_json",
@@ -2056,7 +2056,7 @@ dependencies = [
 
 [[package]]
 name = "wickra-backtest-wasm"
-version = "0.1.3"
+version = "0.1.4"
 dependencies = [
  "serde_json",
  "wasm-bindgen",

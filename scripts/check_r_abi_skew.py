@@ -23,9 +23,10 @@ Two claims, only one of them blocking:
     signature, in the header in this tree. A violation means the wrapper is
     stale, which is a defect and fails.
   * The same, against the header at the tag `DESCRIPTION: Version` names. A
-    violation means main is ahead of the last release and r-universe stays red
-    until the next one. That is a release-readiness signal, not a defect, so it
-    warns.
+    violation means main is ahead of the last release. The registry tracks
+    `*release`, so r-universe goes on serving the previous one rather than
+    failing on this one -- which makes this a release-readiness signal, not a
+    defect, so it warns.
 
 Nothing has been released yet, so the second check finds no tag and says so. It
 starts doing work the moment the first one exists.

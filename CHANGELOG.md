@@ -6,6 +6,37 @@ to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## [Unreleased]
 
+## [0.1.4] - 2026-09-02
+
+### Fixed
+
+- **The r-universe deploy went red on every release bump, and the docs described
+  why as if it were normal.** `bindings/r/configure` downloads the C ABI from the
+  release named by `DESCRIPTION: Version`. The registry tracked this repository's
+  default branch, where a bump lands before the release it names is built, so
+  every build of a bump commit resolved a 404. Measured over the last fourteen
+  commits on `main`: the three release bumps are the only red ones, and the
+  middle of them was spared only because the builder did not happen to pick that
+  commit up.
+
+  Retrying longer was never the answer. 0.1.1 lost its GitHub release to a failed
+  wasm publish, so the version on `main` never gained one at all and the registry
+  stayed red until 0.1.2 replaced it.
+
+  The registry now carries `"branch": "*release"` for this package, so r-universe
+  resolves the most recent GitHub release instead. `release.yml` drafts a release,
+  attaches every asset, and publishes it only once all eight publish jobs have
+  succeeded -- so a tag becomes visible to the registry with its assets already in
+  place, and a release that never completes leaves the previous one in service.
+
+  `CONTRIBUTING.md` and `scripts/check_r_abi_skew.py` both stated the old
+  behaviour as a standing fact and now state this one. The skew check itself is
+  unchanged and still warns: main being ahead of the last release is a
+  release-readiness signal, it just no longer breaks anything while it waits.
+
+  The registry is a separate repository, so nothing in this release changes what
+  this package installs. It changes when r-universe builds it.
+
 ## [0.1.3] - 2026-09-02
 
 ### Changed
@@ -1187,7 +1218,8 @@ to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
   floating major is accurate only until the tag moves, and then it silently
   becomes a false claim a reviewer has no way to spot.
 
-[Unreleased]: https://github.com/wickra-lib/wickra-backtest/compare/v0.1.3...HEAD
+[Unreleased]: https://github.com/wickra-lib/wickra-backtest/compare/v0.1.4...HEAD
+[0.1.4]: https://github.com/wickra-lib/wickra-backtest/compare/v0.1.3...v0.1.4
 [0.1.3]: https://github.com/wickra-lib/wickra-backtest/compare/v0.1.2...v0.1.3
 [0.1.2]: https://github.com/wickra-lib/wickra-backtest/compare/v0.1.1...v0.1.2
 [0.1.1]: https://github.com/wickra-lib/wickra-backtest/compare/v0.1.0...v0.1.1
