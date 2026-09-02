@@ -6,6 +6,18 @@ to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## [Unreleased]
 
+## [0.1.3] - 2026-09-02
+
+### Changed
+
+- **The lockfile pinned `wickra-core` 1.0.0 while crates.io served 1.0.4.** The
+  requirement in `Cargo.toml` is `1.0`, so nothing had to move for the newer core
+  to be admissible -- the gap was the lockfile alone, and a lockfile only advances
+  when something asks it to. `cargo update -p wickra-core` closes it in a two-line
+  diff; the workspace tests and clippy pass unchanged against the newer core. This
+  clears the one stale-lock finding this repository carried in the org-wide version
+  snapshot.
+
 ### Fixed
 
 - **The Java benchmarks resolved a version that stopped existing two releases
@@ -1175,7 +1187,8 @@ to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
   floating major is accurate only until the tag moves, and then it silently
   becomes a false claim a reviewer has no way to spot.
 
-[Unreleased]: https://github.com/wickra-lib/wickra-backtest/compare/v0.1.2...HEAD
+[Unreleased]: https://github.com/wickra-lib/wickra-backtest/compare/v0.1.3...HEAD
+[0.1.3]: https://github.com/wickra-lib/wickra-backtest/compare/v0.1.2...v0.1.3
 [0.1.2]: https://github.com/wickra-lib/wickra-backtest/compare/v0.1.1...v0.1.2
 [0.1.1]: https://github.com/wickra-lib/wickra-backtest/compare/v0.1.0...v0.1.1
 [0.1.0]: https://github.com/wickra-lib/wickra-backtest/releases/tag/v0.1.0
