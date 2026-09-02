@@ -47,6 +47,18 @@ TOUCHPOINTS: list[tuple[str, str, str, int]] = [
     # The example depends on the published binding, so it carries the version
     # twice: its own, and the dependency it resolves.
     ("examples/java/pom.xml", "example version and dependency", r"<version>@V@</version>", 2),
+    # The benchmarks module resolves the binding the same way the example does.
+    # It was absent from this list until 2026-09-02 and sat at 0.1.0 through two
+    # releases while this check passed on every push: a check can only fail on a
+    # file its list names, so a missing entry is silent rather than wrong. It was
+    # found by the org-wide scan in wickra-lib/.github, which derives its file
+    # set from the repository instead of listing it.
+    (
+        "bindings/java/benchmarks/pom.xml",
+        "benchmarks version and dependency",
+        r"<version>@V@</version>",
+        2,
+    ),
     # Prose sentence, the supported row, and the unsupported bound.
     ("SECURITY.md", "supported version", r"@V@", 3),
     # The citation names the release it belongs to. Nothing else reads this
