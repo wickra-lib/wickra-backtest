@@ -2065,9 +2065,9 @@ dependencies = [
 
 [[package]]
 name = "wickra-core"
-version = "1.0.0"
+version = "1.0.4"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "e6cb6e376f92fe68af410c25e85e6d6482bc0a2981cefbf363f690e3b1a5555f"
+checksum = "3801b8e584405b19c5db178a8aae4587250a27daf26397ce3bde9e4c0badb115"
 dependencies = [
  "rayon",
  "thiserror",
