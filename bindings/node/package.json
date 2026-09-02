@@ -1,6 +1,6 @@
 {
   "name": "wickra-backtest",
-  "version": "0.1.3",
+  "version": "0.1.4",
   "description": "Streaming-native backtester for the Wickra technical-indicator library. Node bindings powered by Rust.",
   "author": "kingchenc <support@wickra.org>",
   "main": "index.js",
@@ -44,12 +44,12 @@
     ]
   },
   "optionalDependencies": {
-    "wickra-backtest-linux-x64-gnu": "0.1.3",
-    "wickra-backtest-linux-arm64-gnu": "0.1.3",
-    "wickra-backtest-darwin-x64": "0.1.3",
-    "wickra-backtest-darwin-arm64": "0.1.3",
-    "wickra-backtest-win32-x64-msvc": "0.1.3",
-    "wickra-backtest-win32-arm64-msvc": "0.1.3"
+    "wickra-backtest-linux-x64-gnu": "0.1.4",
+    "wickra-backtest-linux-arm64-gnu": "0.1.4",
+    "wickra-backtest-darwin-x64": "0.1.4",
+    "wickra-backtest-darwin-arm64": "0.1.4",
+    "wickra-backtest-win32-x64-msvc": "0.1.4",
+    "wickra-backtest-win32-arm64-msvc": "0.1.4"
   },
   "scripts": {
     "build": "napi build --platform --release",

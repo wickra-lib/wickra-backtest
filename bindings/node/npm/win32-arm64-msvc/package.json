@@ -1,6 +1,6 @@
 {
   "name": "wickra-backtest-win32-arm64-msvc",
-  "version": "0.1.3",
+  "version": "0.1.4",
   "description": "Native binding for wickra-backtest (win32-arm64-msvc). Installed automatically as an optional dependency of wickra-backtest on matching platforms.",
   "main": "wickra-backtest.win32-arm64-msvc.node",
   "files": [
