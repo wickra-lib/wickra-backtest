@@ -8,6 +8,15 @@ to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ### Fixed
 
+- **The Java benchmarks resolved a version that stopped existing two releases
+  ago.** `bindings/java/benchmarks/pom.xml` declared `0.1.0` for both its own
+  artefact and the `org.wickra:wickra-backtest` dependency it builds against,
+  while the project moved to 0.1.1 and then 0.1.2. `scripts/check_version_sync.py`
+  runs on every push and passed throughout, because the file was not in its
+  touchpoint list -- a check can only fail on a file its list names, so a missing
+  entry is silent rather than wrong. Both occurrences now track the release and
+  the file is checked, at the same count as `examples/java/pom.xml` beside it.
+
 - **The publish gate refused a tag whose CI had not finished yet.** It required a
   `ci.yml` run on the tagged commit with conclusion `success`; a run still in
   progress reports `pending`, which the check treated exactly like a failure. A
