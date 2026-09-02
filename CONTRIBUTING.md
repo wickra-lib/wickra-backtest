@@ -174,8 +174,18 @@ replacement.
 ### R is published by registration, not by the tag
 
 `release.yml` has no R job, and that is correct: r-universe *pulls*. It builds
-`bindings/r` from this repository's default branch once the package is listed in
-the organisation's registry, so the listing is the whole R release path.
+`bindings/r` once the package is listed in the organisation's registry, so the
+listing is the whole R release path.
+
+What it builds is the most recent GitHub release, not the default branch. That
+is the `"branch": "*release"` below, and it is there because `configure`
+downloads the C ABI from the release matching `DESCRIPTION: Version`. A version
+bump reaches the default branch before the release it names exists, so tracking
+that branch put every bump commit's build on a 404 -- twice on this repository,
+and for the whole of 0.1.1, whose release never completed. Tracking the release
+instead means the tag a build resolves is one whose assets are already attached:
+`release.yml` drafts the release, fills it, and publishes it only after all
+eight publish jobs have succeeded.
 
 The registry lives in the `wickra-lib.r-universe.dev` repository as a single
 `packages.json`. Adding this project is one entry alongside the indicator
@@ -185,7 +195,8 @@ library's:
 {
   "package": "wickrabacktest",
   "url": "https://github.com/wickra-lib/wickra-backtest",
-  "subdir": "bindings/r"
+  "subdir": "bindings/r",
+  "branch": "*release"
 }
 ```
 
@@ -196,8 +207,8 @@ checked here rather than discovered days later in the registry's build log:
   committed rather than left to roxygen at build time.
 - The wrapper must link against the C ABI of the version `DESCRIPTION` names,
   which `scripts/check_r_abi_skew.py` asserts on every pull request. r-universe
-  compiles the wrapper from the default branch against the *published* library,
-  a pairing no job in this repository sees otherwise.
+  compiles the wrapper from the released tag against the *published* library, a
+  pairing no job in this repository sees otherwise.
 
 ### The first release
 
