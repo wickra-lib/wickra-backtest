@@ -37,6 +37,35 @@ wkbt_download() {
 inc=""
 lib=""
 
+# WebAssembly (r-universe / webR): there is no prebuilt wasm C ABI to download,
+# but the build image ships cargo (/usr/local/cargo/bin) and emscripten
+# (EMSDK on PATH), so build the C ABI staticlib from source for
+# wasm32-unknown-emscripten right here, from the release tag this package's
+# version names. Building it in the same image with the same emscripten
+# avoids any ABI/version mismatch a prebuilt lib would risk. Default features
+# are off (threads, where a crate has them): the computation is serial there
+# and functionally identical.
+if [ "$(uname -s)" = "Emscripten" ]; then
+  version=$(sed -n 's/^Version:[[:space:]]*//p' DESCRIPTION)
+  echo "wickra-backtest: building C ABI from source for wasm32-unknown-emscripten (v${version})"
+  build=$(mktemp -d)
+  url="https://github.com/wickra-lib/wickra-backtest/archive/refs/tags/v${version}.tar.gz"
+  wkbt_download "${url}" "${build}/src.tar.gz" || exit 1
+  "${R_HOME}/bin/Rscript" -e "untar('${build}/src.tar.gz', exdir = '${build}')"
+  root="${build}/wickra-backtest-${version}"
+  rustup target add wasm32-unknown-emscripten 2>/dev/null || true
+  ( cd "${root}" && cargo build -p wickra-backtest-c --release \
+      --target wasm32-unknown-emscripten --no-default-features ) \
+    || { echo "wickra-backtest: cargo wasm build failed"; exit 1; }
+  cp "${root}/bindings/c/include/wickra_backtest.h" src/wickra_backtest.h
+  cp "${root}/target/wasm32-unknown-emscripten/release/libwickra_backtest.a" src/libwickra_backtest.a
+  rm -rf "${build}"
+  # The static archive is linked into the package object; no shared lib to
+  # bundle and no rpath needed.
+  sed "s|@WKBT_RPATH@||" src/Makevars.in > src/Makevars
+  exit 0
+fi
+
 if [ -n "${WKBT_INC}" ] && [ -n "${WKBT_LIB}" ]; then
   echo "wickra-backtest: using C ABI from WKBT_INC / WKBT_LIB (dev override)"
   inc="${WKBT_INC}"
