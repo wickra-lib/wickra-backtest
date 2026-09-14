@@ -15,24 +15,21 @@ max_concurrency = 8
 
 # Check real external links only: no mailto:, no file:, no tel:.
 scheme = ["https", "http"]
-# Covers loopback and every private range -- more than the two hand-written
-# patterns this replaces ever did: 10.0.0.0/8, 172.16.0.0/12, 192.168.0.0/16
-# and ::1 all went unexcluded.
+# Covers loopback and every private range: 10.0.0.0/8, 172.16.0.0/12,
+# 192.168.0.0/16 and ::1, not only the two hand-written patterns this replaces.
 exclude_all_private = true
 
 
-# Exclude only what genuinely cannot be checked. Everything the 0.1.0 release
-# published -- PyPI, pkg.go.dev, NuGet, Maven Central -- came off this list once
-# it started answering, so those URLs are covered now rather than skipped
-# forever by an exclusion written for a repository that had published nothing.
-# Loopback and private addresses are handled by exclude_all_private above.
+# Exclude only what genuinely cannot be checked. Everything a release
+# published -- PyPI, pkg.go.dev, NuGet, Maven Central, r-universe, docs.rs --
+# is checked once it answers rather than skipped forever by an exclusion
+# written for a repository that had published nothing. Loopback and private
+# addresses are handled by exclude_all_private above.
 exclude = [
     "example\\.com",
-    # Published, but both refuse automated clients: crates.io answers 403 and
-    # npmjs.com 403 to a non-browser request, verified with a bot user agent.
-    # Checked through their APIs instead -- four crates and seven npm packages,
-    # all live at 0.1.0. Excluded because the tool cannot see them, not because
-    # they are missing.
+    # Published, but both refuse automated clients: crates.io and npmjs.com
+    # answer 403 to a non-browser request. Checked through their APIs instead.
+    # Excluded because the tool cannot see them, not because they are missing.
     "^https?://crates\\.io/crates/wickra-backtest",
     "^https?://www\\.npmjs\\.com/package/wickra-backtest",
     # The CHANGELOG's own reference links. The first release writes a
