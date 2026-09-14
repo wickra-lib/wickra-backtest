@@ -6,6 +6,8 @@ to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## [Unreleased]
 
+## [0.1.6] - 2026-09-15
+
 ### Security
 
 - **rustls 0.23.45.** RUSTSEC-2026-0285: rustls accepted TLS 1.3 handshake
@@ -1235,7 +1237,8 @@ to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
   floating major is accurate only until the tag moves, and then it silently
   becomes a false claim a reviewer has no way to spot.
 
-[Unreleased]: https://github.com/wickra-lib/wickra-backtest/compare/v0.1.5...HEAD
+[Unreleased]: https://github.com/wickra-lib/wickra-backtest/compare/v0.1.6...HEAD
+[0.1.6]: https://github.com/wickra-lib/wickra-backtest/compare/v0.1.5...v0.1.6
 [0.1.5]: https://github.com/wickra-lib/wickra-backtest/compare/v0.1.4...v0.1.5
 [0.1.4]: https://github.com/wickra-lib/wickra-backtest/compare/v0.1.3...v0.1.4
 [0.1.3]: https://github.com/wickra-lib/wickra-backtest/compare/v0.1.2...v0.1.3
