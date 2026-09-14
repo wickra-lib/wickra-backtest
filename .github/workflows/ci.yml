@@ -266,7 +266,24 @@ jobs:
       # release job stages it the same way.
       - name: Sync root README into bindings/python
         run: cp README.md bindings/python/README.md
+      # The container image comes from quay.io, which has failed whole
+      # afternoons (502/504 on the manifest). The first attempt may fail
+      # without failing the row; a pause and one identical retry follow, the
+      # family's retry pair. A second failure is the row's verdict.
       - uses: PyO3/maturin-action@e83996d129638aa358a18fbd1dfb82f0b0fb5d3b # v1.51.0
+        id: wheel
+        continue-on-error: true
+        with:
+          working-directory: bindings/python
+          target: x86_64
+          args: --release --strip --out dist
+          manylinux: ${{ matrix.manylinux }}
+      - name: Pause before retrying the wheel build
+        if: steps.wheel.outcome == 'failure'
+        shell: bash
+        run: sleep 90
+      - if: steps.wheel.outcome == 'failure'
+        uses: PyO3/maturin-action@e83996d129638aa358a18fbd1dfb82f0b0fb5d3b # v1.51.0
         with:
           working-directory: bindings/python
           target: x86_64
