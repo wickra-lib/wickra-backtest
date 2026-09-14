@@ -6,6 +6,12 @@ to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## [Unreleased]
 
+### Security
+
+- **rustls 0.23.45.** RUSTSEC-2026-0285: rustls accepted TLS 1.3 handshake
+  messages sent at the wrong encryption level. The lock moves to the
+  patched release; nothing in the code changes.
+
 ## [0.1.5] - 2026-09-13
 
 ### Fixed
