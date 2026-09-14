@@ -90,8 +90,11 @@ jobs:
           while :; do
             runs=$(gh api --paginate \
               "repos/$REPO/actions/runs?head_sha=$SHA&per_page=100" \
-              --jq '.workflow_runs[] | [.id, .name, .path, .status, (.conclusion // "pending")] | @tsv')
+              --jq '.workflow_runs[] | select(.event != "dynamic") | [.id, .name, .path, .status, (.conclusion // "pending")] | @tsv')
 
+            # Dependabot's own runs (`event: dynamic`) are not this repository's
+            # CI: a security update it cannot apply on the tagged commit is red
+            # on the SHA without a single job of ours having failed.
             if [ -z "$runs" ]; then
               echo "::error::no workflow runs recorded for $SHA -- nothing proves this commit was ever built"
               exit 1
