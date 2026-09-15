@@ -12,6 +12,7 @@ Suggests: jsonlite
 URL: https://github.com/wickra-lib/wickra-backtest, https://backtest.wickra.org,
     https://wickra-lib.r-universe.dev
 BugReports: https://github.com/wickra-lib/wickra-backtest/issues
+Depends: R (>= 4.1)
 Encoding: UTF-8
 Roxygen: list(markdown = TRUE)
 NeedsCompilation: yes

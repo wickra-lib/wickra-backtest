@@ -3,7 +3,7 @@
 </p>
 
 [![Built on Wickra](https://img.shields.io/badge/built%20on-wickra-3b82f6)](https://github.com/wickra-lib/wickra)
-[![Status](https://img.shields.io/badge/status-alpha%20(WIP)-orange)](https://github.com/wickra-lib/wickra-backtest)
+[![Status](https://img.shields.io/badge/status-pre--release-orange)](https://github.com/wickra-lib/wickra-backtest)
 [![CI](https://raw.githubusercontent.com/wickra-lib/.github/main/profile/badges/wickra-backtest/ci.svg)](https://github.com/wickra-lib/wickra-backtest/actions/workflows/ci.yml)
 [![CodeQL](https://raw.githubusercontent.com/wickra-lib/.github/main/profile/badges/wickra-backtest/codeql.svg)](https://github.com/wickra-lib/wickra-backtest/actions/workflows/codeql.yml)
 [![codecov](https://raw.githubusercontent.com/wickra-lib/.github/main/profile/badges/wickra-backtest/codecov.svg)](https://codecov.io/gh/wickra-lib/wickra-backtest)
@@ -256,7 +256,7 @@ every binding; the C-ABI bindings that compile on install — Go (cgo) and R
 | C#       | NuGet · `Wickra.Backtest`                 | .NET 8 (`net8.0`)          |
 | Go       | module · `wickra-lib/wickra-backtest-go`  | Go 1.23 (cgo)              |
 | Java     | Maven Central · `org.wickra:wickra-backtest` | Java 22 (FFM / Panama)  |
-| R        | r-universe · `wickrabacktest`             | R ≥ 2.10 (Rtools on Win.)  |
+| R        | r-universe · `wickrabacktest`             | R ≥ 4.1 (Rtools on Win.)  |
 
 ## Project layout
 

@@ -14,7 +14,8 @@ security_url = "https://github.com/wickra-lib/wickra-backtest/security/advisorie
 [maintainer]
 # `handle` is the natural-person credit shown in package manifests; it does not
 # move with a GitHub org transfer. `github` is the org @-mention slug used in
-# CODEOWNERS and prose.
+# prose; CODEOWNERS names the handle, since GitHub takes users and teams as
+# owners and never the organisation itself.
 handle = "kingchenc"
 email  = "support@wickra.org"
 github = "wickra-lib"
