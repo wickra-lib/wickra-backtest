@@ -52,7 +52,7 @@
     <dependency>
       <groupId>org.junit.jupiter</groupId>
       <artifactId>junit-jupiter</artifactId>
-      <version>6.1.2</version>
+      <version>6.1.3</version>
       <scope>test</scope>
     </dependency>
     <dependency>
@@ -68,12 +68,12 @@
       <plugin>
         <groupId>org.apache.maven.plugins</groupId>
         <artifactId>maven-compiler-plugin</artifactId>
-        <version>3.15.0</version>
+        <version>3.16.0</version>
       </plugin>
       <plugin>
         <groupId>org.apache.maven.plugins</groupId>
         <artifactId>maven-surefire-plugin</artifactId>
-        <version>3.5.6</version>
+        <version>3.6.0</version>
         <configuration>
           <!-- FFM is stable since Java 22; native access still needs opting in. -->
           <argLine>--enable-native-access=ALL-UNNAMED "-Djava.library.path=${native.lib.dir}"</argLine>
