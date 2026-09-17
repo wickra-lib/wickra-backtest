@@ -18,7 +18,7 @@ wickra-backtest-core.workspace = true
 # here, bench.yml on its schedule -- it behaves exactly as criterion does and
 # bundles the same walltime implementation. The alias is not cosmetic: without
 # it codspeed.yml runs the benches and reports nothing at all.
-criterion = { package = "codspeed-criterion-compat", version = "5", default-features = false, features = ["cargo_bench_support"] }
+criterion = { package = "codspeed-criterion-compat", version = "5.0.1", default-features = false, features = ["cargo_bench_support"] }
 
 [[bench]]
 name = "backtest"

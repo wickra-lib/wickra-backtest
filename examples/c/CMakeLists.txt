@@ -13,7 +13,7 @@ set(WICKRA_INCLUDE_DIR "${CMAKE_CURRENT_SOURCE_DIR}/../../bindings/c/include")
 
 # The wrapper uses std::exchange, so C++14 is the floor; ask for it rather than
 # inheriting whatever the toolchain happens to default to.
-set(CMAKE_CXX_STANDARD 14)
+set(CMAKE_CXX_STANDARD 17)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 
 # Pick the right link target per platform/toolchain.

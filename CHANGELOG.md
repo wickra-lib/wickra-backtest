@@ -6,6 +6,20 @@ to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## [Unreleased]
 
+### Changed
+
+- **The repository spells shared things the way the family does.** A cross-repo
+  scan lined the 24 wickra-lib repositories up and this one differed in: junit
+  6.1.2 and the Maven compiler and surefire plugins one line behind (6.1.3 /
+  3.16.0 / 3.6.0 now), `Microsoft.NET.Test.Sdk` 18.8.1 and
+  `xunit.runner.visualstudio` 3.1.5 where the family tests with 18.9.0 / 4.0.0,
+  `@napi-rs/cli` at ^3.7.4 against the family's ^3.9.0, the C example's
+  `CMAKE_CXX_STANDARD` 14 where the family builds with 17, and the Go and Java
+  binding jobs testing only the newest toolchain -- a `go 1.23` / `release 22`
+  floor row on ubuntu now runs alongside stable / 25, so the floor the manifests
+  promise is what CI proves. The fuzz job runs the family's pinned
+  `nightly-2026-07-01` and the example job's `dotnet-version` reads `8.0.x`.
+
 ## [0.1.6] - 2026-09-15
 
 ### Security

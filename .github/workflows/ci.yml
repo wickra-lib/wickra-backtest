@@ -401,11 +401,15 @@ jobs:
       - run: python examples/python/backtest.py
 
   go:
-    name: Go on ${{ matrix.os }}
+    name: Go ${{ matrix.go }} on ${{ matrix.os }}
     strategy:
       fail-fast: false
       matrix:
         os: [ubuntu-latest, macos-latest, windows-latest]
+        go: ["stable"]
+        include:
+          - os: ubuntu-latest
+            go: "1.23"
     runs-on: ${{ matrix.os }}
     timeout-minutes: 30 # backstop: cap a wedged job instead of GitHub's 6h default (headroom for slow registry/package installs)
     steps:
@@ -414,7 +418,7 @@ jobs:
           persist-credentials: false
       - uses: actions/setup-go@b7ad1dad31e06c5925ef5d2fc7ad053ef454303e # v7.0.0
         with:
-          go-version: "stable"
+          go-version: "${{ matrix.go }}"
           cache: false
       - uses: ./.github/actions/setup-rust
       - uses: Swatinem/rust-cache@6323deb102c322ba6fcbdcafc7e3dddab59af2b6 # v2.9.2
@@ -667,7 +671,7 @@ jobs:
         timeout-minutes: 6
       - uses: actions/setup-dotnet@a98b56852c35b8e3190ac28c8c2271da59106c68 # v6.0.0
         with:
-          dotnet-version: "8.0"
+          dotnet-version: "8.0.x"
       # The test project copies the native library next to the test assembly from
       # target/debug (see the <Content> items in the .csproj), so build it in the
       # debug profile here.
@@ -687,11 +691,15 @@ jobs:
         run: dotnet pack bindings/csharp/Wickra.Backtest/Wickra.Backtest.csproj -c Release -o nupkg
 
   java:
-    name: Java on ${{ matrix.os }}
+    name: Java ${{ matrix.java }} on ${{ matrix.os }}
     strategy:
       fail-fast: false
       matrix:
         os: [ubuntu-latest, macos-latest, windows-latest]
+        java: ["25"]
+        include:
+          - os: ubuntu-latest
+            java: "22"
     runs-on: ${{ matrix.os }}
     timeout-minutes: 30 # backstop: cap a wedged job instead of GitHub's 6h default (headroom for slow registry/package installs)
     steps:
@@ -710,7 +718,7 @@ jobs:
       - uses: actions/setup-java@dd06d9cba3e5552c54d9f8ea23572deb30010f7c # v6.0.0
         with:
           distribution: temurin
-          java-version: "25"
+          java-version: "${{ matrix.java }}"
           cache: maven
       - name: Java info
         run: java -version
@@ -872,6 +880,9 @@ jobs:
           # `nightly` can break on an unrelated day for reasons that have nothing
           # to do with this code, and a fuzz smoke test that fails at random stops
           # being read. Same date as the indicator repository. Bump deliberately.
+          # The family's fuzz nightly, pinned by date: a rolling `nightly` regressed
+          # with a codegen ICE unrelated to this code. Move the date deliberately,
+          # in every repo at once.
           toolchain: nightly-2026-07-01
       - uses: Swatinem/rust-cache@6323deb102c322ba6fcbdcafc7e3dddab59af2b6 # v2.9.2
         continue-on-error: true # cache is an optimisation; never block on a stuck/slow restore
