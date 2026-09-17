@@ -25,12 +25,23 @@ A static library (`libwickra_backtest.a` / `wickra_backtest.lib`) is emitted alo
 
 ## Build and run the examples
 
-With CMake, as the CI C ABI job does:
+### With CMake (portable, used by CI)
 
 ```sh
 cmake -S examples/c -B examples/c/build
 cmake --build examples/c/build --config Release
 ctest --test-dir examples/c/build -C Release --output-on-failure
+```
+
+### Directly with a compiler
+
+```sh
+# Linux / macOS
+cc examples/c/example.c -I bindings/c/include -L target/release -lwickra_backtest -lm -o example
+LD_LIBRARY_PATH=target/release ./example        # macOS: DYLD_LIBRARY_PATH
+
+# Windows (MinGW gcc, linking the DLL directly)
+gcc examples/c/example.c -I bindings/c/include target/release/wickra_backtest.dll -lm -o example.exe
 ```
 
 ## The examples
