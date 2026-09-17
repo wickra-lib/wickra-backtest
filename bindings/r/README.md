@@ -2,33 +2,37 @@
   <a href="https://wickra.org"><img src="https://raw.githubusercontent.com/wickra-lib/.github/main/profile/wickra-banner.webp?v=514" alt="Wickra Backtest — backtest and live are byte-identical" width="100%"></a>
 </p>
 
-[![Built on Wickra](https://img.shields.io/badge/built%20on-wickra-3b82f6)](https://github.com/wickra-lib/wickra)
 [![CI](https://raw.githubusercontent.com/wickra-lib/.github/main/profile/badges/wickra-backtest/ci.svg)](https://github.com/wickra-lib/wickra-backtest/actions/workflows/ci.yml)
 [![codecov](https://raw.githubusercontent.com/wickra-lib/.github/main/profile/badges/wickra-backtest/codecov.svg)](https://codecov.io/gh/wickra-lib/wickra-backtest)
+[![r-universe](https://raw.githubusercontent.com/wickra-lib/.github/main/profile/badges/wickra-backtest/r-universe.svg)](https://wickra-lib.r-universe.dev)
 [![License: MIT OR Apache-2.0](https://raw.githubusercontent.com/wickra-lib/.github/main/profile/badges/wickra-backtest/license.svg)](https://github.com/wickra-lib/wickra-backtest#license)
 
 # Wickra Backtest — R
 
 ---
 
+> **▶ Live demo:** run a strategy in your browser and watch the equity curve build bar by bar — **[backtest-live.wickra.org](https://backtest-live.wickra.org)** · zero backend, the same engine this repository ships, compiled to WebAssembly.
+
+**Backtest and live — for R. `install.packages("wickrabacktest", repos = "https://wickra-lib.r-universe.dev")` — over the C ABI via `.Call`, prebuilt library fetched on install.**
+
 R binding for the [wickra-backtest](https://github.com/wickra-lib/wickra-backtest) engine. Compiled C glue
 calls the stable **C ABI** via `.Call`, so the results are byte-identical to the
 Rust, Python, Node.js, WASM, C#, Java and Go bindings: one engine kernel behind
 every language.
 
-## Requirements
+## Install
 
-- R 4.x with a toolchain (Rtools on Windows, the standard build tools elsewhere)
-- The native library `wickra_backtest` (built from the C-ABI crate)
+From r-universe:
 
-## Build the native library
-
-```bash
-cargo build -p wickra-backtest-c           # debug   -> target/debug
-cargo build -p wickra-backtest-c --release # release -> target/release
+```r
+install.packages("wickrabacktest", repos = "https://wickra-lib.r-universe.dev")
 ```
 
-## Install and test
+The package's `configure` downloads the prebuilt C ABI library for this exact
+version from the GitHub release and bundles it, so an ordinary install needs
+nothing but a C toolchain (Rtools on Windows) for the thin `.Call` glue layer. To
+build against a local checkout instead, point it at the header and library with
+the environment variables below.
 
 The package finds the header and native library through two environment
 variables (`WKBT_INC`, `WKBT_LIB`); the library must also be reachable at run
@@ -43,7 +47,19 @@ R CMD INSTALL bindings/r
 Rscript bindings/r/tests/run_tests.R
 ```
 
-## Usage
+### Requirements
+
+- R 4.x with a toolchain (Rtools on Windows, the standard build tools elsewhere)
+- The native library `wickra_backtest` (built from the C-ABI crate)
+
+### Building from this repository (contributors)
+
+```bash
+cargo build -p wickra-backtest-c           # debug   -> target/debug
+cargo build -p wickra-backtest-c --release # release -> target/release
+```
+
+## Quick start
 
 ```r
 library(wickrabacktest)
@@ -92,7 +108,22 @@ zero. Strategies reading a side feed drive the run with
 `backtest_stream_step_json()`, passing `{"candle": ..., "feeds": ...}` per bar;
 using a finished run raises an error.
 
+## Benchmark
+
+`benchmarks/` reports this binding's throughput over the shared core. It measures
+the call overhead of R's native `.Call` interface over the C ABI, not a cross-library ratio (the same Rust core runs
+under every binding) — see the repository
+[BENCHMARKS.md](https://github.com/wickra-lib/wickra-backtest/blob/main/BENCHMARKS.md) for the
+numbers, the machine and how each harness is run.
+
 ## Documentation
+
+The full guide, the spec reference and the API documentation live in the main
+repository and the documentation site:
+
+- **Repository:** <https://github.com/wickra-lib/wickra-backtest>
+- **Docs** (guides, spec reference, cookbook): <https://backtest.wickra.org>
+- **Runnable example:** [`examples/r/`](https://github.com/wickra-lib/wickra-backtest/tree/main/examples/r)
 
 - **Repository:** <https://github.com/wickra-lib/wickra-backtest>
 - **Strategy spec reference:** [STRATEGY_SPEC.md](https://github.com/wickra-lib/wickra-backtest/blob/main/docs/STRATEGY_SPEC.md)
@@ -102,21 +133,26 @@ using a finished run raises an error.
 The same `StrategySpec` runs identically across Rust, Python, Node.js, WASM, C,
 C++, C#, Go, Java and R — one engine kernel, byte-identical reports.
 
+Wickra Backtest ships native bindings for Python, Node.js, WASM and Rust, plus a C ABI hub that any
+C-capable language (C, C++, C#, Go, Java, R) links against — all forwarding to the
+same data-driven, `unsafe`-forbidden Rust core.
+
 ## Security
 
 Found a security issue? **Please don't open a public issue.** Report it privately
 via the repository's *Security* tab (*"Report a vulnerability"*) or email
-**support@wickra.org**. Full policy:
-<https://github.com/wickra-lib/wickra-backtest/blob/main/SECURITY.md>.
+**support@wickra.org** with a subject line starting `[wickra security]`. Full
+policy: <https://github.com/wickra-lib/wickra-backtest/blob/main/SECURITY.md>.
 
 ## Disclaimer
 
 Not a trading system. Backtest results are deterministic transforms of the input
 data — they are not financial advice and are not indicative of future
-performance. Any use in a live trading context is at your own risk. Provided
-**as is**, without warranty of any kind.
+performance. Any use in a live trading context is at your own risk. The software
+is provided **as is**, without warranty of any kind; see the license files for
+the full terms.
 
 ## License
 
-Licensed under either of [MIT](https://github.com/wickra-lib/wickra-backtest/blob/main/LICENSE-MIT) or
-[Apache-2.0](https://github.com/wickra-lib/wickra-backtest/blob/main/LICENSE-APACHE) at your option.
+Licensed under either of [Apache-2.0](https://github.com/wickra-lib/wickra-backtest/blob/main/LICENSE-APACHE)
+or [MIT](https://github.com/wickra-lib/wickra-backtest/blob/main/LICENSE-MIT) at your option.

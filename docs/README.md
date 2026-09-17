@@ -1,4 +1,4 @@
-# docs/
+# Documentation
 
 A signpost, not a documentation tree.
 
@@ -41,3 +41,11 @@ first one, and nobody notices, because both look maintained.
 If a page would describe *how to call the library from a language*, it belongs
 on the site. If it describes *what the engine accepts or does*, and a release
 can change the answer, it belongs beside the code — here.
+
+## Editing the docs
+
+The documentation site is a separate git repository at
+`https://github.com/wickra-lib/wickra-backtest-site`. Open a pull request there to
+propose changes; the site is built with VitePress and deploys to
+`backtest.wickra.org`. The files in this directory change in the same commit as
+the code they describe.
