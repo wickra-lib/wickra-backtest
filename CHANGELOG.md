@@ -6,6 +6,8 @@ to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## [Unreleased]
 
+## [0.1.7] - 2026-09-17
+
 ### Fixed
 
 - **The Java binding loads the library it ships.** The jar carries the native
@@ -1280,7 +1282,8 @@ to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
   floating major is accurate only until the tag moves, and then it silently
   becomes a false claim a reviewer has no way to spot.
 
-[Unreleased]: https://github.com/wickra-lib/wickra-backtest/compare/v0.1.6...HEAD
+[Unreleased]: https://github.com/wickra-lib/wickra-backtest/compare/v0.1.7...HEAD
+[0.1.7]: https://github.com/wickra-lib/wickra-backtest/compare/v0.1.6...v0.1.7
 [0.1.6]: https://github.com/wickra-lib/wickra-backtest/compare/v0.1.5...v0.1.6
 [0.1.5]: https://github.com/wickra-lib/wickra-backtest/compare/v0.1.4...v0.1.5
 [0.1.4]: https://github.com/wickra-lib/wickra-backtest/compare/v0.1.3...v0.1.4

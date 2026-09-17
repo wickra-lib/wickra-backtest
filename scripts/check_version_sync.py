@@ -61,6 +61,10 @@ TOUCHPOINTS: list[tuple[str, str, str, int]] = [
     ),
     # Prose sentence, the supported row, and the unsupported bound.
     ("SECURITY.md", "supported version", r"@V@", 3),
+    # The Status section opens with the release; the Java README installs by
+    # Maven and by Gradle. Prose that names the release and nothing else.
+    ("README.md", "status line", r"\*\*@V@ — the current release\.\*\*", 1),
+    ("bindings/java/README.md", "install snippets (Maven and Gradle)", r"@V@", 2),
     # The citation names the release it belongs to. Nothing else reads this
     # file, so a stale `version` here is invisible until GitHub's citation box
     # or Zenodo shows it beside a `date-released` that did move.
