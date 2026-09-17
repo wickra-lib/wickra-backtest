@@ -27,8 +27,16 @@ const STREAM_METHODS = [
 ];
 const STREAM_GETTERS = ["isFinished", "numTrades"];
 
+// The napi-rs loader adds its own diagnostics to the module object
+// (`__napiBindingTarget` since @napi-rs/cli 3.10); they belong to the loader,
+// not to the binding's surface, and are left out of the comparison.
+const exported = () =>
+  Object.keys(wickra)
+    .filter((name) => !name.startsWith("__"))
+    .sort();
+
 test("Node binding exports exactly the declared surface", () => {
-  assert.deepStrictEqual(Object.keys(wickra).sort(), EXPORTS);
+  assert.deepStrictEqual(exported(), EXPORTS);
   for (const name of ["run", "runJson", "version"]) {
     assert.strictEqual(typeof wickra[name], "function", `missing export ${name}`);
   }
