@@ -10,13 +10,13 @@ to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 - **The Java binding loads the library it ships.** The jar carries the native
   library under `native/<os>-<arch>/` -- the release pipeline stages every
-  platform there -- but the loader only ever looked at `-Dnative.lib.dir` and
-  the working directory, so a Maven Central consumer got a jar it could not
-  load without pointing the JVM at a library it had to build itself. The loader
-  now resolves in wickra's order: `-Dnative.lib.dir` when set, the bundled copy
-  extracted to a temporary file, every `target/release` or `target/debug` up
-  the tree from the working directory and the class's own location, then the
-  bare name.
+  platform there -- but `System.loadLibrary` only ever searched
+  `java.library.path`, so a Maven Central consumer got a jar it could not load
+  without pointing the JVM at a library it had to build itself. `NativeLoader`
+  now resolves in wickra's order: `java.library.path` first (an explicit
+  `-Djava.library.path=<dir>` always wins), the bundled copy extracted to a
+  temporary file, then every `target/release` or `target/debug` up the tree
+  from the working directory and the class's own location.
 
 ### Changed
 
