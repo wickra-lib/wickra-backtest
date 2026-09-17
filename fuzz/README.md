@@ -1,4 +1,4 @@
-# Fuzzing wickra-backtest
+# Fuzzing Wickra Backtest
 
 [`cargo-fuzz`](https://rust-fuzz.github.io/book/cargo-fuzz.html) harnesses for
 the parsing and execution entry points. Fuzzing requires a nightly Rust
@@ -9,28 +9,40 @@ property tests in `crates/wickra-backtest-core/tests/properties.rs`.
 
 ```bash
 cargo install cargo-fuzz
-rustup toolchain install nightly
+rustup toolchain install nightly-2026-07-01
 ```
+
+The date is the family's fuzz nightly, pinned in `ci.yml`: a rolling `nightly`
+regressed with a codegen ICE unrelated to this code, so every repository moves
+the date together, on purpose.
 
 ## Targets
 
 | Target | What it exercises |
 | --- | --- |
-| `spec_parse` | `StrategySpec::parse` over arbitrary text — malformed JSON, wrong shape, undeclared indicator references. |
-| `run_json` | The unified `run_json` request bundle (spec + candles + feeds) from a single untrusted string — the full parse → validate → engine path. |
-| `engine_run` | The engine over arbitrary `[open, high, low, close, volume]` candle streams with an indicator + rule strategy — NaN, ±inf, inverted bars, extreme magnitudes. |
-| `fill_model` | The execution / fill model: stop-loss, take-profit, trailing stop, limit entry, leverage, maker/taker fees and slippage over arbitrary candles. |
-| `data_loader` | The CSV / JSON-Lines / JSON-array candle parsers over arbitrary bytes. |
+| `spec_parse` | The strategy-spec parser with arbitrary input. |
+| `run_json` | The unified `run_json` entry point with arbitrary input. |
+| `engine_run` | The engine over arbitrary candle sequences. |
+| `fill_model` | The execution / fill model over arbitrary candle sequences. |
+| `data_loader` | The candle data loaders with arbitrary input. |
 
 ## Run
 
 ```bash
-cargo +nightly fuzz run spec_parse
-cargo +nightly fuzz run run_json
-cargo +nightly fuzz run engine_run
-cargo +nightly fuzz run fill_model
-cargo +nightly fuzz run data_loader
+# From the repository root:
+cargo +nightly-2026-07-01 fuzz run --target x86_64-unknown-linux-gnu spec_parse
+cargo +nightly-2026-07-01 fuzz run --target x86_64-unknown-linux-gnu run_json
+cargo +nightly-2026-07-01 fuzz run --target x86_64-unknown-linux-gnu engine_run
+cargo +nightly-2026-07-01 fuzz run --target x86_64-unknown-linux-gnu fill_model
+cargo +nightly-2026-07-01 fuzz run --target x86_64-unknown-linux-gnu data_loader
 ```
 
-Each target must run indefinitely without a crash: every input either produces
-a valid result or a typed `Err`, never a panic.
+Each run continues until a crash is found or it is interrupted. A short
+time-boxed smoke run is what CI does:
+
+```bash
+cargo +nightly-2026-07-01 fuzz run --target x86_64-unknown-linux-gnu spec_parse -- -max_total_time=30
+```
+
+The expectation for every target is that it never panics: malformed or
+adversarial input must surface as an `Err` or an in-band error, never a crash.

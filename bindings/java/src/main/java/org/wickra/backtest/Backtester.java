@@ -33,7 +33,7 @@ public final class Backtester {
     private static final MethodHandle VERSION;
 
     static {
-        System.loadLibrary("wickra_backtest");
+        NativeLoader.load("wickra_backtest");
         LOOKUP = SymbolLookup.loaderLookup();
         RUN = LINKER.downcallHandle(
                 symbol("wickra_backtest_run"),

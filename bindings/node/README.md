@@ -1,27 +1,43 @@
 <p align="center">
-  <a href="https://wickra.org"><img src="https://raw.githubusercontent.com/wickra-lib/.github/main/profile/wickra-banner.webp?v=514" alt="Wickra Backtest — backtest and live are byte-identical" width="100%"></a>
+  <a href="https://wickra.org"><img src="https://raw.githubusercontent.com/wickra-lib/.github/main/profile/wickra-banner.webp?v=514-7" alt="Wickra Backtest — backtest and live are byte-identical" width="100%"></a>
 </p>
 
-[![Built on Wickra](https://img.shields.io/badge/built%20on-wickra-3b82f6)](https://github.com/wickra-lib/wickra)
 [![CI](https://raw.githubusercontent.com/wickra-lib/.github/main/profile/badges/wickra-backtest/ci.svg)](https://github.com/wickra-lib/wickra-backtest/actions/workflows/ci.yml)
 [![codecov](https://raw.githubusercontent.com/wickra-lib/.github/main/profile/badges/wickra-backtest/codecov.svg)](https://codecov.io/gh/wickra-lib/wickra-backtest)
+[![npm](https://raw.githubusercontent.com/wickra-lib/.github/main/profile/badges/wickra-backtest/npm.svg)](https://www.npmjs.com/package/wickra-backtest)
 [![License: MIT OR Apache-2.0](https://raw.githubusercontent.com/wickra-lib/.github/main/profile/badges/wickra-backtest/license.svg)](https://github.com/wickra-lib/wickra-backtest#license)
 
 # Wickra Backtest — Node.js
 
 ---
 
+> **▶ Live demo:** run a strategy in your browser and watch the equity curve build bar by bar — **[backtest-live.wickra.org](https://backtest-live.wickra.org)** · zero backend, the same engine this repository ships, compiled to WebAssembly.
+
+**Backtest and live — for Node.js. `npm install wickra-backtest` — prebuilt native binary, no system dependencies.**
+
 Node.js binding for the [wickra-backtest](https://github.com/wickra-lib/wickra-backtest) engine, built with
 napi-rs. It runs a strategy spec over OHLCV arrays and returns the report as a
 JSON string — byte-identical to the Rust, Python, WASM, C#, Java, Go, C/C++ and
 R bindings: one engine kernel behind every language.
 
-## Requirements
+## Install
+
+```bash
+npm install wickra-backtest
+```
+
+The native addon ships as a prebuilt binary per platform (Linux, macOS,
+Windows — x64 and arm64), selected automatically through optional
+dependencies. There is nothing to compile.
+
+### Requirements
 
 - Node.js 18+
 - The native addon (built from this crate with napi-rs)
 
-## Build
+### Building from this repository (contributors)
+
+**Build.**
 
 ```bash
 cd bindings/node
@@ -29,7 +45,13 @@ npm install
 npm run build      # compiles the Rust addon and regenerates index.js / index.d.ts
 ```
 
-## Usage
+**Test.**
+
+```bash
+npm test
+```
+
+## Quick start
 
 ```js
 const { run } = require('.'); // or: import { run } from 'wickra-backtest'
@@ -88,13 +110,22 @@ that read a side feed drive the run with `stepJson` instead, passing
 `{ candle, feeds }` per bar. `finishJson()` ends the run; `close()` discards one
 without producing a report.
 
-## Test
+## Benchmark
 
-```bash
-npm test
-```
+`benchmarks/` reports this binding's throughput over the shared core. It measures
+the call overhead of napi-rs, not a cross-library ratio (the same Rust core runs
+under every binding) — see the repository
+[BENCHMARKS.md](https://github.com/wickra-lib/wickra-backtest/blob/main/BENCHMARKS.md) for the
+numbers, the machine and how each harness is run.
 
 ## Documentation
+
+The full guide, the spec reference and the API documentation live in the main
+repository and the documentation site:
+
+- **Repository:** <https://github.com/wickra-lib/wickra-backtest>
+- **Docs** (guides, spec reference, cookbook): <https://backtest.wickra.org>
+- **Runnable example:** [`examples/node/`](https://github.com/wickra-lib/wickra-backtest/tree/main/examples/node)
 
 - **Repository:** <https://github.com/wickra-lib/wickra-backtest>
 - **Strategy spec reference:** [STRATEGY_SPEC.md](https://github.com/wickra-lib/wickra-backtest/blob/main/docs/STRATEGY_SPEC.md)
@@ -104,21 +135,26 @@ npm test
 The same `StrategySpec` runs identically across Rust, Python, Node.js, WASM, C,
 C++, C#, Go, Java and R — one engine kernel, byte-identical reports.
 
+Wickra Backtest ships native bindings for Python, Node.js, WASM and Rust, plus a C ABI hub that any
+C-capable language (C, C++, C#, Go, Java, R) links against — all forwarding to the
+same data-driven, `unsafe`-forbidden Rust core.
+
 ## Security
 
 Found a security issue? **Please don't open a public issue.** Report it privately
 via the repository's *Security* tab (*"Report a vulnerability"*) or email
-**support@wickra.org**. Full policy:
-<https://github.com/wickra-lib/wickra-backtest/blob/main/SECURITY.md>.
+**support@wickra.org** with a subject line starting `[wickra security]`. Full
+policy: <https://github.com/wickra-lib/wickra-backtest/blob/main/SECURITY.md>.
 
 ## Disclaimer
 
 Not a trading system. Backtest results are deterministic transforms of the input
 data — they are not financial advice and are not indicative of future
-performance. Any use in a live trading context is at your own risk. Provided
-**as is**, without warranty of any kind.
+performance. Any use in a live trading context is at your own risk. The software
+is provided **as is**, without warranty of any kind; see the license files for
+the full terms.
 
 ## License
 
-Licensed under either of [MIT](https://github.com/wickra-lib/wickra-backtest/blob/main/LICENSE-MIT) or
-[Apache-2.0](https://github.com/wickra-lib/wickra-backtest/blob/main/LICENSE-APACHE) at your option.
+Licensed under either of [Apache-2.0](https://github.com/wickra-lib/wickra-backtest/blob/main/LICENSE-APACHE)
+or [MIT](https://github.com/wickra-lib/wickra-backtest/blob/main/LICENSE-MIT) at your option.

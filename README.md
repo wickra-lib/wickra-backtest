@@ -1,5 +1,5 @@
 <p align="center">
-  <a href="https://wickra.org"><img src="https://raw.githubusercontent.com/wickra-lib/.github/main/profile/wickra-banner.webp?v=514" alt="Wickra Backtest — backtest and live are byte-identical" width="100%"></a>
+  <a href="https://wickra.org"><img src="https://raw.githubusercontent.com/wickra-lib/.github/main/profile/wickra-banner.webp?v=514-7" alt="Wickra Backtest — backtest and live are byte-identical" width="100%"></a>
 </p>
 
 [![Built on Wickra](https://img.shields.io/badge/built%20on-wickra-3b82f6)](https://github.com/wickra-lib/wickra)
@@ -29,9 +29,11 @@
 event-driven backtester built on the [Wickra](https://github.com/wickra-lib/wickra)
 indicator core.
 
-> **▶ Live demo:** run a strategy in your browser and watch the equity curve build bar by bar — **[backtest-live.wickra.org](https://backtest-live.wickra.org)** · zero backend, the same engine this repository ships, compiled to WebAssembly.
+> **▶ Live demos:** the backtester compiled to WebAssembly, an equity curve building bar by bar — **[backtest-live.wickra.org](https://backtest-live.wickra.org)**;
+> one StrategySpec side by side in Python, Rust, JS and Go — **[playground.wickra.org](https://playground.wickra.org)**;
+> all 514 indicators of the core over a real Binance feed — **[live.wickra.org](https://live.wickra.org)**. Zero backend, all of them.
 
-> **Part of the [Wickra ecosystem](https://github.com/wickra-lib):** the same data-driven core and ten-language binding surface also power [wickra-exchange](https://github.com/wickra-lib/wickra-exchange), [wickra-terminal](https://github.com/wickra-lib/wickra-terminal), [wickra-screener](https://github.com/wickra-lib/wickra-screener) and 20 more — see [the full list](https://github.com/wickra-lib).
+**Part of the [Wickra ecosystem](#ecosystem):** the same data-driven core and ten-language binding surface also power [wickra-exchange](https://github.com/wickra-lib/wickra-exchange), [wickra-terminal](https://github.com/wickra-lib/wickra-terminal), [wickra-screener](https://github.com/wickra-lib/wickra-screener) and 20 more — see [the full list](https://github.com/wickra-lib).
 
 The engine consumes the **exact same `wickra-core` O(1) indicator kernels** that
 power live Wickra, and a strategy is **data (a JSON spec), not code** — so a
@@ -78,6 +80,13 @@ with wbt.StreamingBacktest(spec=spec) as live:
 The two reports are byte-identical. That is the whole claim, and a shared
 [golden corpus](golden/) holds every one of the ten bindings to it.
 
+## Status
+
+**0.1.6 — the current release.** The engine, the data-driven `StrategySpec`, the
+full execution and cost model, the microstructure feeds and all ten language
+bindings are implemented and tested; a shared [golden corpus](golden/) pins the
+cross-language equality byte-for-byte.
+
 ## Documentation
 
 - **[Strategy spec reference](docs/STRATEGY_SPEC.md)** — the full DSL: operands,
@@ -123,15 +132,6 @@ runs unchanged from ten languages and a shared golden corpus pins every one of
 them to the same report, byte for byte. No other engine in this table offers that
 because none of them needs to.
 
-## Status
-
-**Alpha / work in progress.** The engine, the data-driven `StrategySpec`, the
-full execution and cost model, the microstructure feeds and all ten language
-bindings are implemented and tested; a shared [golden corpus](golden/) pins the
-cross-language equality byte-for-byte. Released as **v0.1.0** to every registry:
-crates.io, PyPI, npm, NuGet, Maven Central, the Go module proxy and
-R-universe.
-
 ## Quickstart
 
 A strategy is **data** — a JSON spec. Run one over a candle file with the `wkbt` CLI:
@@ -174,7 +174,7 @@ the **same engine** one bar at a time — backtest and live are one code path. A
 single `run_json` request bundles candles, the spec and any feeds, and is the
 uniform entry point every binding wraps.
 
-## Run the same spec in any language
+## Use in any language
 
 Every binding takes the same OHLCV arrays (or a `run_json` request) and JSON spec
 and returns the same report — byte-identical (a dict in Python). Each has a
@@ -200,63 +200,6 @@ The C, C++, C#, Go, Java and R bindings all call through the same C ABI hub; the
 [golden corpus](golden/) asserts every language produces the same report, for
 both the plain OHLCV path and the order-book / trade / derivatives /
 cross-section feed paths.
-
-## Benchmarks
-
-O(1) per bar — about **1.7M bars/second** on one core (a year of 1-minute bars in
-~0.3 s). The cost of a bar is bounded by the indicators the spec configures, never
-by how much history precedes it. Full tables and how to reproduce them live in
-**[BENCHMARKS.md](BENCHMARKS.md)**.
-
-### Pick your language with eyes open — per-binding throughput
-
-Every binding drives the **same** Rust engine, so this is **not** a speed claim —
-it is the raw cost of crossing each language's FFI boundary, measured with the
-[shared example strategy](examples/ema-cross.json) over 100,000 bars (median of
-three runs, one development machine). **Batch collapses towards the floor;
-streaming is where the boundary shows** — so if you drive a live loop bar by bar,
-the table tells you which binding keeps up.
-
-| Binding | streaming | ns/bar | batch | ns/bar |
-|---------|----------:|-------:|------:|-------:|
-| C       | 6,750,000 b/s |   148 | 6,548,000 b/s |   153 |
-| C#      | 6,188,000 b/s |   162 | 6,315,000 b/s |   158 |
-| Go      | 4,621,000 b/s |   216 | 6,448,000 b/s |   155 |
-| Java    | 4,493,000 b/s |   223 | 5,565,000 b/s |   180 |
-| WASM    | 4,127,000 b/s |   242 | 4,878,000 b/s |   205 |
-| Node    | 3,438,000 b/s |   291 | 2,530,000 b/s |   395 |
-| Python  | 1,411,000 b/s |   709 | 1,486,000 b/s |   673 |
-| R       |   284,000 b/s | 3,527 | 6,213,000 b/s |   161 |
-
-**C is the floor**: it calls the exported functions directly, with no marshalling
-of its own, so its ~148 ns/bar is the engine plus a function call — every other
-row is that number plus what the language adds. Two results are the opposite of
-what one might assume: **Node's batch path is slower than its streaming path**
-(marshalling six JavaScript arrays across napi costs more than 100,000 scalar
-calls), and **WASM beats the native Node binding on both paths**. All ten share
-one verified implementation, so the *numbers* differ but the *values* do not.
-Methodology and the per-binding discussion are in
-[BENCHMARKS.md](BENCHMARKS.md#per-binding-throughput--the-cost-of-the-boundary).
-
-## Requirements
-
-The minimum supported version per language. The same engine kernel runs behind
-every binding; the C-ABI bindings that compile on install — Go (cgo) and R
-(`.Call`) — also need a C compiler, and Java runs with
-`--enable-native-access=ALL-UNNAMED`.
-
-| Language | Package                                   | Minimum supported          |
-|----------|-------------------------------------------|----------------------------|
-| Rust     | crates.io · `wickra-backtest`             | 1.86 (MSRV)                |
-| Python   | PyPI · `wickra-backtest` (abi3 wheel)     | 3.9 (tested through 3.13)  |
-| Node.js  | npm · `wickra-backtest` (N-API 8)         | 22 (tested on 22 · 24 LTS) |
-| WASM     | npm · `wickra-backtest-wasm`              | any modern JS engine       |
-| C        | `wickra_backtest.h` + library (releases)  | C99 compiler               |
-| C++      | the C ABI + optional `wickra_backtest.hpp` | C++14 compiler            |
-| C#       | NuGet · `Wickra.Backtest`                 | .NET 8 (`net8.0`)          |
-| Go       | module · `wickra-lib/wickra-backtest-go`  | Go 1.23 (cgo)              |
-| Java     | Maven Central · `org.wickra:wickra-backtest` | Java 22 (FFM / Panama)  |
-| R        | r-universe · `wickrabacktest`             | R ≥ 4.1 (Rtools on Win.)  |
 
 ## Project layout
 
@@ -363,6 +306,63 @@ than argued.
 > bars for a single indicator. A golden case built on one of those would have to
 > compare to a relative tolerance instead. None currently does, and that is a
 > property of the corpus worth keeping deliberately rather than by accident.
+
+## Requirements
+
+The minimum supported version per language. The same engine kernel runs behind
+every binding; the C-ABI bindings that compile on install — Go (cgo) and R
+(`.Call`) — also need a C compiler, and Java runs with
+`--enable-native-access=ALL-UNNAMED`.
+
+| Language | Package                                   | Minimum supported          |
+|----------|-------------------------------------------|----------------------------|
+| Rust     | crates.io · `wickra-backtest`             | 1.86 (MSRV)                |
+| Python   | PyPI · `wickra-backtest` (abi3 wheel)     | 3.9 (tested through 3.13)  |
+| Node.js  | npm · `wickra-backtest` (N-API 8)         | 22 (tested on 22 · 24 LTS) |
+| WASM     | npm · `wickra-backtest-wasm`              | any modern JS engine       |
+| C        | `wickra_backtest.h` + library (releases)  | C99 compiler               |
+| C++      | the C ABI + optional `wickra_backtest.hpp` | C++14 compiler            |
+| C#       | NuGet · `Wickra.Backtest`                 | .NET 8 (`net8.0`)          |
+| Go       | module · `wickra-lib/wickra-backtest-go`  | Go 1.23 (cgo)              |
+| Java     | Maven Central · `org.wickra:wickra-backtest` | Java 22 (FFM / Panama)  |
+| R        | r-universe · `wickrabacktest`             | R ≥ 4.1 (Rtools on Win.)  |
+
+## Benchmarks
+
+O(1) per bar — about **1.7M bars/second** on one core (a year of 1-minute bars in
+~0.3 s). The cost of a bar is bounded by the indicators the spec configures, never
+by how much history precedes it. Full tables and how to reproduce them live in
+**[BENCHMARKS.md](BENCHMARKS.md)**.
+
+### Pick your language with eyes open — per-binding throughput
+
+Every binding drives the **same** Rust engine, so this is **not** a speed claim —
+it is the raw cost of crossing each language's FFI boundary, measured with the
+[shared example strategy](examples/ema-cross.json) over 100,000 bars (median of
+three runs, one development machine). **Batch collapses towards the floor;
+streaming is where the boundary shows** — so if you drive a live loop bar by bar,
+the table tells you which binding keeps up.
+
+| Binding | streaming | ns/bar | batch | ns/bar |
+|---------|----------:|-------:|------:|-------:|
+| C       | 6,750,000 b/s |   148 | 6,548,000 b/s |   153 |
+| C#      | 6,188,000 b/s |   162 | 6,315,000 b/s |   158 |
+| Go      | 4,621,000 b/s |   216 | 6,448,000 b/s |   155 |
+| Java    | 4,493,000 b/s |   223 | 5,565,000 b/s |   180 |
+| WASM    | 4,127,000 b/s |   242 | 4,878,000 b/s |   205 |
+| Node    | 3,438,000 b/s |   291 | 2,530,000 b/s |   395 |
+| Python  | 1,411,000 b/s |   709 | 1,486,000 b/s |   673 |
+| R       |   284,000 b/s | 3,527 | 6,213,000 b/s |   161 |
+
+**C is the floor**: it calls the exported functions directly, with no marshalling
+of its own, so its ~148 ns/bar is the engine plus a function call — every other
+row is that number plus what the language adds. Two results are the opposite of
+what one might assume: **Node's batch path is slower than its streaming path**
+(marshalling six JavaScript arrays across napi costs more than 100,000 scalar
+calls), and **WASM beats the native Node binding on both paths**. All ten share
+one verified implementation, so the *numbers* differ but the *values* do not.
+Methodology and the per-binding discussion are in
+[BENCHMARKS.md](BENCHMARKS.md#per-binding-throughput--the-cost-of-the-boundary).
 
 ## Ecosystem
 

@@ -1,27 +1,64 @@
-# Examples
+# Wickra Backtest examples
 
 `ema-cross.json` is a fast/slow EMA crossover with a trailing stop;
 `sample.csv` is a small synthetic OHLCV series.
 
-Run the backtest with the `wkbt` CLI:
+## Rust — `examples/rust/`
+
+| Example | What it does |
+| --- | --- |
+| `src/main.rs` | Run the shared EMA-cross strategy from Rust, both ways. |
+
+## C / C++ — `examples/c/`
+
+Build the library first (`cargo build -p wickra-backtest-c --release`), then build and run
+the examples via CMake, as the CI C ABI job does:
 
 ```bash
-cargo run --bin wkbt -- run --data examples/sample.csv --spec examples/ema-cross.json
+cmake -S examples/c -B examples/c/build
+cmake --build examples/c/build --config Release
+ctest --test-dir examples/c/build -C Release --output-on-failure
 ```
 
-Write the full report plus the trade and equity streams:
+| Example | What it does |
+| --- | --- |
+| `cpp_smoke.cpp` | C++ example for the wickra-backtest C ABI, through the optional RAII wrapper (`wickra_backtest.hpp`). |
+| `example.c` | Minimal C example for the wickra-backtest C ABI. |
+| `example_cpp.cpp` | C++ build of the minimal C example. |
+| `streaming.c` | Streaming example for the wickra-backtest C ABI. |
+| `streaming_cpp.cpp` | C++ build of the streaming example, from the same source as the C target. |
+
+## C# — `examples/csharp/`
+
+| Example | What it does |
+| --- | --- |
+| `Program.cs` | Run the shared EMA-cross strategy from C#, both ways. |
+
+## Go — `examples/go/`
+
+## R — `examples/r/`
+
+## Java — `examples/java/`
+
+## Python — `examples/python/`
+
+## Node.js — `examples/node/`
+
+## WASM — `examples/wasm/`
+
+Build the WASM package, serve the repository root, and open the page in a browser;
+the module script inside it is what runs (CI parses it with `node --check`):
 
 ```bash
-cargo run --bin wkbt -- run \
-  --data examples/sample.csv \
-  --spec examples/ema-cross.json \
-  --report report.json \
-  --trades trades.jsonl \
-  --equity equity.jsonl
+wasm-pack build bindings/wasm --target web
+python -m http.server 8000     # then open http://localhost:8000/examples/wasm/
 ```
 
-The same strategy spec is just data, so it runs identically from every Wickra
-language binding — the backtest values match live, by construction.
+## Example datasets
+
+The examples are self-contained: the spec and the input are inline, so there is
+no shared `data/` directory to load. The cross-language golden fixtures, which
+every binding is checked against byte for byte, live in [`../golden/`](../golden).
 
 ## One example per language
 
@@ -47,35 +84,3 @@ and every one of them exits non-zero if its two reports disagree. CI runs all
 ten, each in the job that has just built that language's binding, so an
 example that stops working fails the build rather than waiting for a reader
 to try it.
-
-## C / C++
-
-`c/` holds programs that link the generated header and the compiled C ABI, so
-they show what any C-capable language sees:
-
-- `example.c` — the batch entry point: OHLCV arrays in, one report JSON out.
-- `streaming.c` — the same strategy driven one bar at a time, reading the closed
-  trade count and the latest equity point between bars. It also runs the same
-  bars through the batch entry point and exits non-zero if the two reports
-  differ, so "backtest and live are one code path" is checked from outside Rust.
-- `example_cpp.cpp`, `streaming_cpp.cpp` — the two sources above, compiled as
-  C++. They are one `#include` each: the point is the compiler, not the code.
-- `cpp_smoke.cpp` — the streaming run again, this time through the optional
-  header-only RAII wrapper
-  [`bindings/c/include/wickra_backtest.hpp`](../bindings/c/include/wickra_backtest.hpp).
-  It checks that a moved-from or released owner is left empty, because the ABI
-  has a consuming call — `finish` takes the handle — and an owner that forgot to
-  give it up would double-free.
-
-All five build and run as CTest cases:
-
-```bash
-cargo build -p wickra-backtest-c --release
-cmake -S examples/c -B examples/c/build
-cmake --build examples/c/build --config Release
-ctest --test-dir examples/c/build -C Release --output-on-failure
-```
-
-That run covers both languages: the CMake project enables C and C++, so the
-C++ reach is compiled on every CI run rather than asserted in a README.
-

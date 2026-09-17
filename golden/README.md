@@ -1,4 +1,4 @@
-# Golden parity corpus
+# Golden fixtures
 
 This directory is the **cross-language contract** for the backtester: a set of
 strategy cases and the single canonical report each one must produce. Every
@@ -32,7 +32,7 @@ using multi-output `"name.field"` references.
    match **byte-for-byte**; the Python binding returns a dict and matches the
    parsed expected JSON **value-for-value**.
 
-## Regenerating the expected reports
+## Blessing
 
 After an intentional engine change that alters output:
 

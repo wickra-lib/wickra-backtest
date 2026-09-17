@@ -1,15 +1,19 @@
 <p align="center">
-  <a href="https://wickra.org"><img src="https://raw.githubusercontent.com/wickra-lib/.github/main/profile/wickra-banner.webp?v=514" alt="Wickra Backtest — backtest and live are byte-identical" width="100%"></a>
+  <a href="https://wickra.org"><img src="https://raw.githubusercontent.com/wickra-lib/.github/main/profile/wickra-banner.webp?v=514-7" alt="Wickra Backtest — backtest and live are byte-identical" width="100%"></a>
 </p>
 
-[![Built on Wickra](https://img.shields.io/badge/built%20on-wickra-3b82f6)](https://github.com/wickra-lib/wickra)
 [![CI](https://raw.githubusercontent.com/wickra-lib/.github/main/profile/badges/wickra-backtest/ci.svg)](https://github.com/wickra-lib/wickra-backtest/actions/workflows/ci.yml)
 [![codecov](https://raw.githubusercontent.com/wickra-lib/.github/main/profile/badges/wickra-backtest/codecov.svg)](https://codecov.io/gh/wickra-lib/wickra-backtest)
+[![Maven Central](https://raw.githubusercontent.com/wickra-lib/.github/main/profile/badges/wickra-backtest/maven.svg)](https://central.sonatype.com/artifact/org.wickra/wickra-backtest)
 [![License: MIT OR Apache-2.0](https://raw.githubusercontent.com/wickra-lib/.github/main/profile/badges/wickra-backtest/license.svg)](https://github.com/wickra-lib/wickra-backtest#license)
 
 # Wickra Backtest — Java
 
 ---
+
+> **▶ Live demo:** run a strategy in your browser and watch the equity curve build bar by bar — **[backtest-live.wickra.org](https://backtest-live.wickra.org)** · zero backend, the same engine this repository ships, compiled to WebAssembly.
+
+**Backtest and live — for Java. `org.wickra:wickra-backtest` — prebuilt native library inside the jar, no JNI, no system dependencies.**
 
 Java binding for the [wickra-backtest](https://github.com/wickra-lib/wickra-backtest) engine. It calls the
 stable **C ABI** through the Java **Foreign Function and Memory API** (FFM,
@@ -22,7 +26,30 @@ language.
 - Java 22+ (tested on 25)
 - The native library `wickra_backtest` (built from the C-ABI crate)
 
-## Build the native library
+## Install
+
+Maven:
+
+```xml
+<dependency>
+  <groupId>org.wickra</groupId>
+  <artifactId>wickra-backtest</artifactId>
+  <version>0.1.6</version>
+</dependency>
+```
+
+Gradle:
+
+```kotlin
+implementation("org.wickra:wickra-backtest:0.1.6")
+```
+
+The native library ships prebuilt per platform inside the jar and is
+extracted automatically on first use. There is nothing to compile.
+
+### Building from this repository (contributors)
+
+**Build the native library.**
 
 ```bash
 cargo build -p wickra-backtest-c          # debug   -> target/debug
@@ -32,16 +59,14 @@ cargo build -p wickra-backtest-c --release # release -> target/release
 This produces `wickra_backtest.dll` (Windows), `libwickra_backtest.so` (Linux)
 or `libwickra_backtest.dylib` (macOS).
 
-## Run the tests
-
-`mvn test` passes the target directory on `java.library.path` (see `pom.xml`):
+**Run the tests.** `mvn test` passes the target directory on `java.library.path` (see `pom.xml`):
 
 ```bash
 cd bindings/java
 mvn test
 ```
 
-## Usage
+## Quick start
 
 Put the native library on `java.library.path`
 (`-Djava.library.path=/path/to/target/debug`) and call:
@@ -97,7 +122,22 @@ volume and the bar index as its timestamp. Strategies reading a side feed drive
 the run with `stepJson`, passing `{"candle": ..., "feeds": ...}` per bar; using a
 finished run throws `IllegalStateException`.
 
+## Benchmark
+
+`benchmarks/` reports this binding's throughput over the shared core. It measures
+the call overhead of the Java Foreign Function & Memory API over the C ABI, not a cross-library ratio (the same Rust core runs
+under every binding) — see the repository
+[BENCHMARKS.md](https://github.com/wickra-lib/wickra-backtest/blob/main/BENCHMARKS.md) for the
+numbers, the machine and how each harness is run.
+
 ## Documentation
+
+The full guide, the spec reference and the API documentation live in the main
+repository and the documentation site:
+
+- **Repository:** <https://github.com/wickra-lib/wickra-backtest>
+- **Docs** (guides, spec reference, cookbook): <https://backtest.wickra.org>
+- **Runnable example:** [`examples/java/`](https://github.com/wickra-lib/wickra-backtest/tree/main/examples/java)
 
 - **Repository:** <https://github.com/wickra-lib/wickra-backtest>
 - **Strategy spec reference:** [STRATEGY_SPEC.md](https://github.com/wickra-lib/wickra-backtest/blob/main/docs/STRATEGY_SPEC.md)
@@ -107,21 +147,26 @@ finished run throws `IllegalStateException`.
 The same `StrategySpec` runs identically across Rust, Python, Node.js, WASM, C,
 C++, C#, Go, Java and R — one engine kernel, byte-identical reports.
 
+Wickra Backtest ships native bindings for Python, Node.js, WASM and Rust, plus a C ABI hub that any
+C-capable language (C, C++, C#, Go, Java, R) links against — all forwarding to the
+same data-driven, `unsafe`-forbidden Rust core.
+
 ## Security
 
 Found a security issue? **Please don't open a public issue.** Report it privately
 via the repository's *Security* tab (*"Report a vulnerability"*) or email
-**support@wickra.org**. Full policy:
-<https://github.com/wickra-lib/wickra-backtest/blob/main/SECURITY.md>.
+**support@wickra.org** with a subject line starting `[wickra security]`. Full
+policy: <https://github.com/wickra-lib/wickra-backtest/blob/main/SECURITY.md>.
 
 ## Disclaimer
 
 Not a trading system. Backtest results are deterministic transforms of the input
 data — they are not financial advice and are not indicative of future
-performance. Any use in a live trading context is at your own risk. Provided
-**as is**, without warranty of any kind.
+performance. Any use in a live trading context is at your own risk. The software
+is provided **as is**, without warranty of any kind; see the license files for
+the full terms.
 
 ## License
 
-Licensed under either of [MIT](https://github.com/wickra-lib/wickra-backtest/blob/main/LICENSE-MIT) or
-[Apache-2.0](https://github.com/wickra-lib/wickra-backtest/blob/main/LICENSE-APACHE) at your option.
+Licensed under either of [Apache-2.0](https://github.com/wickra-lib/wickra-backtest/blob/main/LICENSE-APACHE)
+or [MIT](https://github.com/wickra-lib/wickra-backtest/blob/main/LICENSE-MIT) at your option.
