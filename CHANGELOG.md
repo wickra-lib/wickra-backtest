@@ -6,6 +6,22 @@ to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## [Unreleased]
 
+## [0.1.8] - 2026-09-23
+
+A maintenance release: the engine, its bindings and its results are unchanged.
+It publishes the refreshed dependency tree and toolchain pins.
+
+### Changed
+
+- **Built on wickra-core 1.0.5.** The lock takes the indicator core's latest
+  release; the `1.0` requirement already admitted it.
+- **Third-party dependencies refreshed.** `Cargo.lock` takes 100 crates to their
+  newest semver-compatible versions, run across the family in one pass so every
+  repository resolves the same day's versions. No manifest changed.
+- **`@napi-rs/cli` 3.10.4** for the Node binding, the family's line.
+- **The README's static badges are served by the organization** rather than
+  hot-linked from shields.io, so they no longer break when shields is down.
+
 ## [0.1.7] - 2026-09-17
 
 ### Fixed
@@ -137,7 +153,6 @@ to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
   commit is refused as fast as before -- only the undecided case waits.
   `timeout-minutes` on the job moves from 10 to 60 to outlive that wait.
 
-
 ## [0.1.2] - 2026-09-01
 
 ### Fixed
@@ -158,7 +173,6 @@ to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
   `wickra-backtest-wasm` was never published at that version.** Because
   r-universe resolves the C ABI from the release matching `DESCRIPTION`, its R
   builds have been failing on a 404 ever since. Use 0.1.2.
-
 
 ## [0.1.1] - 2026-08-31
 
@@ -249,7 +263,6 @@ to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
   `Cargo.lock`, and `cargo-deny` reported the suppression as matching nothing.
 - The tag fallback in `github-release`, which resolved the newest existing tag
   on a non-tag event. The gate now refuses those refs outright.
-
 
 ## [0.1.0] - 2026-08-28
 
@@ -1282,7 +1295,8 @@ to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
   floating major is accurate only until the tag moves, and then it silently
   becomes a false claim a reviewer has no way to spot.
 
-[Unreleased]: https://github.com/wickra-lib/wickra-backtest/compare/v0.1.7...HEAD
+[Unreleased]: https://github.com/wickra-lib/wickra-backtest/compare/v0.1.8...HEAD
+[0.1.8]: https://github.com/wickra-lib/wickra-backtest/compare/v0.1.7...v0.1.8
 [0.1.7]: https://github.com/wickra-lib/wickra-backtest/compare/v0.1.6...v0.1.7
 [0.1.6]: https://github.com/wickra-lib/wickra-backtest/compare/v0.1.5...v0.1.6
 [0.1.5]: https://github.com/wickra-lib/wickra-backtest/compare/v0.1.4...v0.1.5
