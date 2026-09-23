@@ -13,7 +13,7 @@ It publishes the refreshed dependency tree and toolchain pins.
 
 ### Changed
 
-- **Built on wickra-core 1.0.5.** The lock takes the indicator core's latest
+- **Built on wickra-core 1.0.6.** The lock takes the indicator core's latest
   release; the `1.0` requirement already admitted it.
 - **Third-party dependencies refreshed.** `Cargo.lock` takes 105 crates to their
   newest versions compatible with the Rust floor (the lock now resolves
