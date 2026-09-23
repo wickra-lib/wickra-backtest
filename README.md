@@ -82,7 +82,7 @@ The two reports are byte-identical. That is the whole claim, and a shared
 
 ## Status
 
-**0.1.7 — the current release.** The engine, the data-driven `StrategySpec`, the
+**0.1.8 — the current release.** The engine, the data-driven `StrategySpec`, the
 full execution and cost model, the microstructure feeds and all ten language
 bindings are implemented and tested; a shared [golden corpus](golden/) pins the
 cross-language equality byte-for-byte.
