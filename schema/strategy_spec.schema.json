@@ -3,17 +3,14 @@
   "title": "StrategySpec",
   "description": "A complete strategy specification.",
   "type": "object",
-  "required": [
-    "entry",
-    "exit",
-    "indicators",
-    "sizing",
-    "symbol",
-    "timeframe"
-  ],
   "properties": {
     "costs": {
       "description": "Trading costs.",
+      "allOf": [
+        {
+          "$ref": "#/definitions/Costs"
+        }
+      ],
       "default": {
         "funding": false,
         "maker_bps": 0.0,
@@ -22,12 +19,7 @@
           "type": "fixed_bps"
         },
         "taker_bps": 0.0
-      },
-      "allOf": [
-        {
-          "$ref": "#/definitions/Costs"
-        }
-      ]
+      }
     },
     "entry": {
       "description": "Long-entry condition.",
@@ -39,6 +31,11 @@
     },
     "execution": {
       "description": "Execution model.",
+      "allOf": [
+        {
+          "$ref": "#/definitions/Execution"
+        }
+      ],
       "default": {
         "fill_timing": "next_open",
         "latency_bars": 0,
@@ -47,12 +44,7 @@
         "order_type": "market",
         "partial_fills": false,
         "stop_offset_pct": null
-      },
-      "allOf": [
-        {
-          "$ref": "#/definitions/Execution"
-        }
-      ]
+      }
     },
     "exit": {
       "description": "Long-exit condition.",
@@ -70,15 +62,20 @@
       }
     },
     "ref_symbol": {
-      "description": "The reference instrument a pairwise indicator is meant to be run against.\n\nAlso metadata. Naming it here does not load anything: the reference series is passed alongside the candles, through `RunRequest.reference` or `run_with_ref`. This field records which instrument the caller is expected to pass, so a spec using a pairwise indicator is not ambiguous about what it is pairing against.",
-      "default": null,
+      "description": "The reference instrument a pairwise indicator is meant to be run against.\n\nAlso metadata. Naming it here does not load anything: the reference series\nis passed alongside the candles, through `RunRequest.reference` or\n`run_with_ref`. This field records which instrument the caller is expected\nto pass, so a spec using a pairwise indicator is not ambiguous about what\nit is pairing against.",
       "type": [
         "string",
         "null"
-      ]
+      ],
+      "default": null
     },
     "risk": {
       "description": "Risk controls.",
+      "allOf": [
+        {
+          "$ref": "#/definitions/Risk"
+        }
+      ],
       "default": {
         "liquidation": false,
         "max_leverage": null,
@@ -86,16 +83,10 @@
         "stop_loss_pct": null,
         "take_profit_pct": null,
         "trailing_stop_pct": null
-      },
-      "allOf": [
-        {
-          "$ref": "#/definitions/Risk"
-        }
-      ]
+      }
     },
     "short_entry": {
       "description": "Optional short-entry condition.",
-      "default": null,
       "anyOf": [
         {
           "$ref": "#/definitions/Condition"
@@ -103,11 +94,11 @@
         {
           "type": "null"
         }
-      ]
+      ],
+      "default": null
     },
     "short_exit": {
       "description": "Optional short-exit condition.",
-      "default": null,
       "anyOf": [
         {
           "$ref": "#/definitions/Condition"
@@ -115,7 +106,8 @@
         {
           "type": "null"
         }
-      ]
+      ],
+      "default": null
     },
     "sizing": {
       "description": "Position sizing.",
@@ -126,31 +118,39 @@
       ]
     },
     "spec_version": {
-      "description": "Spec format version (defaults to [`SPEC_VERSION`]).\n\nA spec from an older format still parses -- the DSL only grows within a version -- but one declaring a newer format is rejected rather than read with fields this build does not know about.",
-      "default": 1,
+      "description": "Spec format version (defaults to [`SPEC_VERSION`]).\n\nA spec from an older format still parses -- the DSL only grows within a\nversion -- but one declaring a newer format is rejected rather than\nread with fields this build does not know about.",
       "type": "integer",
       "format": "uint32",
-      "minimum": 0.0
+      "default": 1,
+      "minimum": 0
     },
     "symbol": {
-      "description": "Primary trading symbol.\n\nMetadata, not an input: the engine never resolves it and cannot fetch data. The caller supplies the candles, and this records which instrument they are expected to be, so a stored spec still says what it was written for.",
+      "description": "Primary trading symbol.\n\nMetadata, not an input: the engine never resolves it and cannot fetch\ndata. The caller supplies the candles, and this records which instrument\nthey are expected to be, so a stored spec still says what it was written\nfor.",
       "type": "string"
     },
     "timeframe": {
-      "description": "Bar timeframe (e.g. `\"1h\"`).\n\nMetadata, like `symbol`: a free-form label recording the bar size the spec was written for. The engine reads whatever candles it is given and does not check them against this.",
+      "description": "Bar timeframe (e.g. `\"1h\"`).\n\nMetadata, like `symbol`: a free-form label recording the bar size the spec\nwas written for. The engine reads whatever candles it is given and does not\ncheck them against this.",
       "type": "string"
     },
     "warmup": {
       "description": "Explicit warmup bars (defaults to the max indicator warmup).",
-      "default": null,
       "type": [
         "integer",
         "null"
       ],
       "format": "uint32",
-      "minimum": 0.0
+      "default": null,
+      "minimum": 0
     }
   },
+  "required": [
+    "symbol",
+    "timeframe",
+    "indicators",
+    "entry",
+    "exit",
+    "sizing"
+  ],
   "definitions": {
     "Condition": {
       "description": "A boolean node — evaluates to true/false each bar.",
@@ -158,9 +158,6 @@
         {
           "description": "`a > b`.",
           "type": "object",
-          "required": [
-            "gt"
-          ],
           "properties": {
             "gt": {
               "type": "array",
@@ -176,14 +173,14 @@
               "minItems": 2
             }
           },
-          "additionalProperties": false
+          "additionalProperties": false,
+          "required": [
+            "gt"
+          ]
         },
         {
           "description": "`a < b`.",
           "type": "object",
-          "required": [
-            "lt"
-          ],
           "properties": {
             "lt": {
               "type": "array",
@@ -199,14 +196,14 @@
               "minItems": 2
             }
           },
-          "additionalProperties": false
+          "additionalProperties": false,
+          "required": [
+            "lt"
+          ]
         },
         {
           "description": "`a >= b`.",
           "type": "object",
-          "required": [
-            "ge"
-          ],
           "properties": {
             "ge": {
               "type": "array",
@@ -222,14 +219,14 @@
               "minItems": 2
             }
           },
-          "additionalProperties": false
+          "additionalProperties": false,
+          "required": [
+            "ge"
+          ]
         },
         {
           "description": "`a <= b`.",
           "type": "object",
-          "required": [
-            "le"
-          ],
           "properties": {
             "le": {
               "type": "array",
@@ -245,14 +242,14 @@
               "minItems": 2
             }
           },
-          "additionalProperties": false
+          "additionalProperties": false,
+          "required": [
+            "le"
+          ]
         },
         {
           "description": "`a == b`.",
           "type": "object",
-          "required": [
-            "eq"
-          ],
           "properties": {
             "eq": {
               "type": "array",
@@ -268,14 +265,14 @@
               "minItems": 2
             }
           },
-          "additionalProperties": false
+          "additionalProperties": false,
+          "required": [
+            "eq"
+          ]
         },
         {
           "description": "`a != b`.",
           "type": "object",
-          "required": [
-            "ne"
-          ],
           "properties": {
             "ne": {
               "type": "array",
@@ -291,14 +288,14 @@
               "minItems": 2
             }
           },
-          "additionalProperties": false
+          "additionalProperties": false,
+          "required": [
+            "ne"
+          ]
         },
         {
           "description": "`a` crosses above `b` this bar.",
           "type": "object",
-          "required": [
-            "cross_above"
-          ],
           "properties": {
             "cross_above": {
               "type": "array",
@@ -314,14 +311,14 @@
               "minItems": 2
             }
           },
-          "additionalProperties": false
+          "additionalProperties": false,
+          "required": [
+            "cross_above"
+          ]
         },
         {
           "description": "`a` crosses below `b` this bar.",
           "type": "object",
-          "required": [
-            "cross_below"
-          ],
           "properties": {
             "cross_below": {
               "type": "array",
@@ -337,14 +334,14 @@
               "minItems": 2
             }
           },
-          "additionalProperties": false
+          "additionalProperties": false,
+          "required": [
+            "cross_below"
+          ]
         },
         {
           "description": "`lo <= a <= hi`: `[a, lo, hi]`.",
           "type": "object",
-          "required": [
-            "between"
-          ],
           "properties": {
             "between": {
               "type": "array",
@@ -363,14 +360,14 @@
               "minItems": 3
             }
           },
-          "additionalProperties": false
+          "additionalProperties": false,
+          "required": [
+            "between"
+          ]
         },
         {
           "description": "`a` is greater than its value `n` bars ago: `[a, n]`.",
           "type": "object",
-          "required": [
-            "rising"
-          ],
           "properties": {
             "rising": {
               "type": "array",
@@ -381,21 +378,21 @@
                 {
                   "type": "integer",
                   "format": "uint32",
-                  "minimum": 0.0
+                  "minimum": 0
                 }
               ],
               "maxItems": 2,
               "minItems": 2
             }
           },
-          "additionalProperties": false
+          "additionalProperties": false,
+          "required": [
+            "rising"
+          ]
         },
         {
           "description": "`a` is less than its value `n` bars ago: `[a, n]`.",
           "type": "object",
-          "required": [
-            "falling"
-          ],
           "properties": {
             "falling": {
               "type": "array",
@@ -406,21 +403,21 @@
                 {
                   "type": "integer",
                   "format": "uint32",
-                  "minimum": 0.0
+                  "minimum": 0
                 }
               ],
               "maxItems": 2,
               "minItems": 2
             }
           },
-          "additionalProperties": false
+          "additionalProperties": false,
+          "required": [
+            "falling"
+          ]
         },
         {
           "description": "All sub-conditions true (AND).",
           "type": "object",
-          "required": [
-            "all"
-          ],
           "properties": {
             "all": {
               "type": "array",
@@ -429,14 +426,14 @@
               }
             }
           },
-          "additionalProperties": false
+          "additionalProperties": false,
+          "required": [
+            "all"
+          ]
         },
         {
           "description": "Any sub-condition true (OR).",
           "type": "object",
-          "required": [
-            "any"
-          ],
           "properties": {
             "any": {
               "type": "array",
@@ -445,46 +442,49 @@
               }
             }
           },
-          "additionalProperties": false
+          "additionalProperties": false,
+          "required": [
+            "any"
+          ]
         },
         {
           "description": "Negation.",
           "type": "object",
-          "required": [
-            "not"
-          ],
           "properties": {
             "not": {
               "$ref": "#/definitions/Condition"
             }
           },
-          "additionalProperties": false
+          "additionalProperties": false,
+          "required": [
+            "not"
+          ]
         },
         {
           "description": "True iff a position is currently open.",
           "type": "object",
-          "required": [
-            "in_position"
-          ],
           "properties": {
             "in_position": {
               "type": "boolean"
             }
           },
-          "additionalProperties": false
+          "additionalProperties": false,
+          "required": [
+            "in_position"
+          ]
         },
         {
           "description": "Predicate on the number of bars since entry.",
           "type": "object",
-          "required": [
-            "bars_since_entry"
-          ],
           "properties": {
             "bars_since_entry": {
               "$ref": "#/definitions/IntPredicate"
             }
           },
-          "additionalProperties": false
+          "additionalProperties": false,
+          "required": [
+            "bars_since_entry"
+          ]
         }
       ]
     },
@@ -493,33 +493,33 @@
       "type": "object",
       "properties": {
         "funding": {
-          "description": "Charge perpetual funding each bar to an open position, using the derivatives feed's funding rate and mark price (longs pay when the rate is positive, shorts receive). Requires a derivatives feed; default off.",
-          "default": false,
-          "type": "boolean"
+          "description": "Charge perpetual funding each bar to an open position, using the\nderivatives feed's funding rate and mark price (longs pay when the rate\nis positive, shorts receive). Requires a derivatives feed; default off.",
+          "type": "boolean",
+          "default": false
         },
         "maker_bps": {
           "description": "Maker fee in basis points.",
-          "default": 0.0,
           "type": "number",
-          "format": "double"
+          "format": "double",
+          "default": 0.0
         },
         "slippage": {
           "description": "Slippage model.",
-          "default": {
-            "bps": 0.0,
-            "type": "fixed_bps"
-          },
           "allOf": [
             {
               "$ref": "#/definitions/Slippage"
             }
-          ]
+          ],
+          "default": {
+            "bps": 0.0,
+            "type": "fixed_bps"
+          }
         },
         "taker_bps": {
           "description": "Taker fee in basis points.",
-          "default": 0.0,
           "type": "number",
-          "format": "double"
+          "format": "double",
+          "default": 0.0
         }
       }
     },
@@ -529,60 +529,60 @@
       "properties": {
         "fill_timing": {
           "description": "When a signalled order fills.",
-          "default": "next_open",
           "allOf": [
             {
               "$ref": "#/definitions/FillTiming"
             }
-          ]
+          ],
+          "default": "next_open"
         },
         "latency_bars": {
           "description": "Simulated latency in bars before a fill.",
-          "default": 0,
           "type": "integer",
           "format": "uint32",
-          "minimum": 0.0
+          "default": 0,
+          "minimum": 0
         },
         "limit_offset_pct": {
-          "description": "Limit-order trigger as a percent offset from the signal bar's close (required for `order_type = \"limit\"`). Negative places a long limit below the market (buy the dip); positive places a short limit above it.",
-          "default": null,
+          "description": "Limit-order trigger as a percent offset from the signal bar's close\n(required for `order_type = \"limit\"`). Negative places a long limit\nbelow the market (buy the dip); positive places a short limit above it.",
           "type": [
             "number",
             "null"
           ],
-          "format": "double"
+          "format": "double",
+          "default": null
         },
         "max_participation": {
-          "description": "Maximum fraction of a bar's volume a single entry may consume (required when `partial_fills` is set).",
-          "default": null,
+          "description": "Maximum fraction of a bar's volume a single entry may consume (required\nwhen `partial_fills` is set).",
           "type": [
             "number",
             "null"
           ],
-          "format": "double"
+          "format": "double",
+          "default": null
         },
         "order_type": {
           "description": "Order type.",
-          "default": "market",
           "allOf": [
             {
               "$ref": "#/definitions/OrderType"
             }
-          ]
+          ],
+          "default": "market"
         },
         "partial_fills": {
-          "description": "Whether partial fills are modelled. When set, an entry fills at most `max_participation * bar_volume` and the unfilled remainder is cancelled.",
-          "default": false,
-          "type": "boolean"
+          "description": "Whether partial fills are modelled. When set, an entry fills at most\n`max_participation * bar_volume` and the unfilled remainder is cancelled.",
+          "type": "boolean",
+          "default": false
         },
         "stop_offset_pct": {
-          "description": "Stop-order trigger as a percent offset from the signal bar's close (required for `order_type = \"stop\"`). Positive places a long stop above the market (breakout); negative places a short stop below it.",
-          "default": null,
+          "description": "Stop-order trigger as a percent offset from the signal bar's close\n(required for `order_type = \"stop\"`). Positive places a long stop above\nthe market (breakout); negative places a short stop below it.",
           "type": [
             "number",
             "null"
           ],
-          "format": "double"
+          "format": "double",
+          "default": null
         }
       }
     },
@@ -590,46 +590,34 @@
       "description": "The data feed an indicator is driven by.",
       "oneOf": [
         {
-          "description": "OHLCV candles (default). Also the feed for pairwise indicators, which are fed the bar close alongside the reference series' close.",
+          "description": "OHLCV candles (default). Also the feed for pairwise indicators, which are\nfed the bar close alongside the reference series' close.",
           "type": "string",
-          "enum": [
-            "kline"
-          ]
+          "const": "kline"
         },
         {
           "description": "Trade prints.",
           "type": "string",
-          "enum": [
-            "trade"
-          ]
+          "const": "trade"
         },
         {
           "description": "Order-book snapshots.",
           "type": "string",
-          "enum": [
-            "orderbook"
-          ]
+          "const": "orderbook"
         },
         {
           "description": "Trade prints quoted against the book mid.",
           "type": "string",
-          "enum": [
-            "trade_quote"
-          ]
+          "const": "trade_quote"
         },
         {
           "description": "Perpetual/derivatives ticks — funding, open interest, mark and index.",
           "type": "string",
-          "enum": [
-            "derivatives"
-          ]
+          "const": "derivatives"
         },
         {
           "description": "The market cross-section, for breadth indicators.",
           "type": "string",
-          "enum": [
-            "cross_section"
-          ]
+          "const": "cross_section"
         }
       ]
     },
@@ -639,28 +627,21 @@
         {
           "description": "On the next bar's open — the look-ahead-bias-free default.",
           "type": "string",
-          "enum": [
-            "next_open"
-          ]
+          "const": "next_open"
         },
         {
-          "description": "On the signalling bar's own close (close-to-close execution). An opt-in, deliberately optimistic mode: the fill uses the very close that produced the signal, which is not actually tradeable in live execution. Market orders only, and incompatible with `latency_bars`.",
+          "description": "On the signalling bar's own close (close-to-close execution). An opt-in,\ndeliberately optimistic mode: the fill uses the very close that produced\nthe signal, which is not actually tradeable in live execution. Market\norders only, and incompatible with `latency_bars`.",
           "type": "string",
-          "enum": [
-            "close"
-          ]
+          "const": "close"
         }
       ]
     },
     "IndicatorSpec": {
       "description": "One indicator instance: a `wickra-core` type name plus its parameters.",
       "type": "object",
-      "required": [
-        "type"
-      ],
       "properties": {
         "feed": {
-          "description": "Which feed drives it. Optional, and redundant when present: the indicator type already determines its feed. State it and the spec is cross-checked against the registry, so a rename or a copied block that no longer matches the indicator fails at parse instead of silently producing no values.",
+          "description": "Which feed drives it. Optional, and redundant when present: the indicator\ntype already determines its feed. State it and the spec is cross-checked\nagainst the registry, so a rename or a copied block that no longer matches\nthe indicator fails at parse instead of silently producing no values.",
           "anyOf": [
             {
               "$ref": "#/definitions/Feed"
@@ -672,8 +653,8 @@
         },
         "params": {
           "description": "Constructor parameters.",
-          "default": [],
           "type": "array",
+          "default": [],
           "items": {
             "type": "number",
             "format": "double"
@@ -683,7 +664,10 @@
           "description": "The `wickra-core` indicator type name (e.g. `\"Ema\"`).",
           "type": "string"
         }
-      }
+      },
+      "required": [
+        "type"
+      ]
     },
     "IntPredicate": {
       "description": "An integer comparison predicate (used by stateful conditions).",
@@ -691,77 +675,77 @@
         {
           "description": "`> n`.",
           "type": "object",
-          "required": [
-            "gt"
-          ],
           "properties": {
             "gt": {
               "type": "integer",
               "format": "uint32",
-              "minimum": 0.0
+              "minimum": 0
             }
           },
-          "additionalProperties": false
+          "additionalProperties": false,
+          "required": [
+            "gt"
+          ]
         },
         {
           "description": "`< n`.",
           "type": "object",
-          "required": [
-            "lt"
-          ],
           "properties": {
             "lt": {
               "type": "integer",
               "format": "uint32",
-              "minimum": 0.0
+              "minimum": 0
             }
           },
-          "additionalProperties": false
+          "additionalProperties": false,
+          "required": [
+            "lt"
+          ]
         },
         {
           "description": "`>= n`.",
           "type": "object",
-          "required": [
-            "ge"
-          ],
           "properties": {
             "ge": {
               "type": "integer",
               "format": "uint32",
-              "minimum": 0.0
+              "minimum": 0
             }
           },
-          "additionalProperties": false
+          "additionalProperties": false,
+          "required": [
+            "ge"
+          ]
         },
         {
           "description": "`<= n`.",
           "type": "object",
-          "required": [
-            "le"
-          ],
           "properties": {
             "le": {
               "type": "integer",
               "format": "uint32",
-              "minimum": 0.0
+              "minimum": 0
             }
           },
-          "additionalProperties": false
+          "additionalProperties": false,
+          "required": [
+            "le"
+          ]
         },
         {
           "description": "`== n`.",
           "type": "object",
-          "required": [
-            "eq"
-          ],
           "properties": {
             "eq": {
               "type": "integer",
               "format": "uint32",
-              "minimum": 0.0
+              "minimum": 0
             }
           },
-          "additionalProperties": false
+          "additionalProperties": false,
+          "required": [
+            "eq"
+          ]
         }
       ]
     },
@@ -793,22 +777,19 @@
         {
           "description": "A price field of the current bar.",
           "type": "object",
-          "required": [
-            "price"
-          ],
           "properties": {
             "price": {
               "$ref": "#/definitions/PriceField"
             }
           },
-          "additionalProperties": false
+          "additionalProperties": false,
+          "required": [
+            "price"
+          ]
         },
         {
           "description": "The value of an operand `n` bars ago: `[\"operand\", n]`.",
           "type": "object",
-          "required": [
-            "prev"
-          ],
           "properties": {
             "prev": {
               "type": "array",
@@ -819,21 +800,21 @@
                 {
                   "type": "integer",
                   "format": "uint32",
-                  "minimum": 0.0
+                  "minimum": 0
                 }
               ],
               "maxItems": 2,
               "minItems": 2
             }
           },
-          "additionalProperties": false
+          "additionalProperties": false,
+          "required": [
+            "prev"
+          ]
         },
         {
           "description": "`a + b`.",
           "type": "object",
-          "required": [
-            "add"
-          ],
           "properties": {
             "add": {
               "type": "array",
@@ -849,14 +830,14 @@
               "minItems": 2
             }
           },
-          "additionalProperties": false
+          "additionalProperties": false,
+          "required": [
+            "add"
+          ]
         },
         {
           "description": "`a - b`.",
           "type": "object",
-          "required": [
-            "sub"
-          ],
           "properties": {
             "sub": {
               "type": "array",
@@ -872,14 +853,14 @@
               "minItems": 2
             }
           },
-          "additionalProperties": false
+          "additionalProperties": false,
+          "required": [
+            "sub"
+          ]
         },
         {
           "description": "`a * b`.",
           "type": "object",
-          "required": [
-            "mul"
-          ],
           "properties": {
             "mul": {
               "type": "array",
@@ -895,14 +876,14 @@
               "minItems": 2
             }
           },
-          "additionalProperties": false
+          "additionalProperties": false,
+          "required": [
+            "mul"
+          ]
         },
         {
           "description": "`a / b`.",
           "type": "object",
-          "required": [
-            "div"
-          ],
           "properties": {
             "div": {
               "type": "array",
@@ -918,7 +899,10 @@
               "minItems": 2
             }
           },
-          "additionalProperties": false
+          "additionalProperties": false,
+          "required": [
+            "div"
+          ]
         }
       ]
     },
@@ -928,30 +912,22 @@
         {
           "description": "Market order (default).",
           "type": "string",
-          "enum": [
-            "market"
-          ]
+          "const": "market"
         },
         {
           "description": "Limit order.",
           "type": "string",
-          "enum": [
-            "limit"
-          ]
+          "const": "limit"
         },
         {
           "description": "Stop order.",
           "type": "string",
-          "enum": [
-            "stop"
-          ]
+          "const": "stop"
         },
         {
           "description": "Stop-limit order.",
           "type": "string",
-          "enum": [
-            "stop_limit"
-          ]
+          "const": "stop_limit"
         }
       ]
     },
@@ -961,51 +937,37 @@
         {
           "description": "Open.",
           "type": "string",
-          "enum": [
-            "open"
-          ]
+          "const": "open"
         },
         {
           "description": "High.",
           "type": "string",
-          "enum": [
-            "high"
-          ]
+          "const": "high"
         },
         {
           "description": "Low.",
           "type": "string",
-          "enum": [
-            "low"
-          ]
+          "const": "low"
         },
         {
           "description": "Close.",
           "type": "string",
-          "enum": [
-            "close"
-          ]
+          "const": "close"
         },
         {
           "description": "Volume.",
           "type": "string",
-          "enum": [
-            "volume"
-          ]
+          "const": "volume"
         },
         {
           "description": "`(high + low + close) / 3`.",
           "type": "string",
-          "enum": [
-            "hlc3"
-          ]
+          "const": "hlc3"
         },
         {
           "description": "`(open + high + low + close) / 4`.",
           "type": "string",
-          "enum": [
-            "ohlc4"
-          ]
+          "const": "ohlc4"
         }
       ]
     },
@@ -1014,54 +976,54 @@
       "type": "object",
       "properties": {
         "liquidation": {
-          "description": "Liquidate a leveraged position intrabar at its bankruptcy price (where account equity reaches zero). Only bites above 1x leverage; default off.",
-          "default": false,
-          "type": "boolean"
+          "description": "Liquidate a leveraged position intrabar at its bankruptcy price (where\naccount equity reaches zero). Only bites above 1x leverage; default off.",
+          "type": "boolean",
+          "default": false
         },
         "max_leverage": {
           "description": "Maximum leverage.",
-          "default": null,
           "type": [
             "number",
             "null"
           ],
-          "format": "double"
+          "format": "double",
+          "default": null
         },
         "max_position_pct": {
           "description": "Maximum position as a percent of equity.",
-          "default": null,
           "type": [
             "number",
             "null"
           ],
-          "format": "double"
+          "format": "double",
+          "default": null
         },
         "stop_loss_pct": {
           "description": "Stop-loss as a percent move against the position.",
-          "default": null,
           "type": [
             "number",
             "null"
           ],
-          "format": "double"
+          "format": "double",
+          "default": null
         },
         "take_profit_pct": {
           "description": "Take-profit as a percent move in favour.",
-          "default": null,
           "type": [
             "number",
             "null"
           ],
-          "format": "double"
+          "format": "double",
+          "default": null
         },
         "trailing_stop_pct": {
           "description": "Trailing-stop as a percent retrace from the peak.",
-          "default": null,
           "type": [
             "number",
             "null"
           ],
-          "format": "double"
+          "format": "double",
+          "default": null
         }
       }
     },
@@ -1071,10 +1033,6 @@
         {
           "description": "A fraction of current equity.",
           "type": "object",
-          "required": [
-            "fraction",
-            "type"
-          ],
           "properties": {
             "fraction": {
               "description": "Fraction in `[0, 1]`.",
@@ -1083,19 +1041,17 @@
             },
             "type": {
               "type": "string",
-              "enum": [
-                "fixed_fraction"
-              ]
+              "const": "fixed_fraction"
             }
-          }
+          },
+          "required": [
+            "type",
+            "fraction"
+          ]
         },
         {
           "description": "A fixed quantity of the base asset.",
           "type": "object",
-          "required": [
-            "qty",
-            "type"
-          ],
           "properties": {
             "qty": {
               "description": "Quantity.",
@@ -1104,19 +1060,17 @@
             },
             "type": {
               "type": "string",
-              "enum": [
-                "fixed_qty"
-              ]
+              "const": "fixed_qty"
             }
-          }
+          },
+          "required": [
+            "type",
+            "qty"
+          ]
         },
         {
           "description": "A fixed cash notional.",
           "type": "object",
-          "required": [
-            "cash",
-            "type"
-          ],
           "properties": {
             "cash": {
               "description": "Cash amount.",
@@ -1125,26 +1079,23 @@
             },
             "type": {
               "type": "string",
-              "enum": [
-                "fixed_cash"
-              ]
+              "const": "fixed_cash"
             }
-          }
+          },
+          "required": [
+            "type",
+            "cash"
+          ]
         },
         {
-          "description": "Size to a target volatility: the position notional is scaled so the position's per-bar return volatility approximates `target_vol`. With realized per-bar volatility `rv` over `lookback` bars, the notional is `equity * target_vol / rv` (then capped by the leverage limits). No position is taken until `lookback` bars of history exist.",
+          "description": "Size to a target volatility: the position notional is scaled so the\nposition's per-bar return volatility approximates `target_vol`. With\nrealized per-bar volatility `rv` over `lookback` bars, the notional is\n`equity * target_vol / rv` (then capped by the leverage limits). No\nposition is taken until `lookback` bars of history exist.",
           "type": "object",
-          "required": [
-            "lookback",
-            "target_vol",
-            "type"
-          ],
           "properties": {
             "lookback": {
               "description": "Lookback bars for the realized-volatility estimate.",
               "type": "integer",
               "format": "uint32",
-              "minimum": 0.0
+              "minimum": 0
             },
             "target_vol": {
               "description": "Target per-bar return volatility, as a fraction (e.g. `0.02` = 2%).",
@@ -1153,19 +1104,18 @@
             },
             "type": {
               "type": "string",
-              "enum": [
-                "vol_target"
-              ]
+              "const": "vol_target"
             }
-          }
+          },
+          "required": [
+            "type",
+            "target_vol",
+            "lookback"
+          ]
         },
         {
           "description": "Size from the stop-loss distance and a per-trade risk budget.",
           "type": "object",
-          "required": [
-            "risk_pct",
-            "type"
-          ],
           "properties": {
             "risk_pct": {
               "description": "Risk per trade in percent of equity.",
@@ -1174,11 +1124,13 @@
             },
             "type": {
               "type": "string",
-              "enum": [
-                "risk_per_trade"
-              ]
+              "const": "risk_per_trade"
             }
-          }
+          },
+          "required": [
+            "type",
+            "risk_pct"
+          ]
         }
       ]
     },
@@ -1188,10 +1140,6 @@
         {
           "description": "A fixed number of basis points.",
           "type": "object",
-          "required": [
-            "bps",
-            "type"
-          ],
           "properties": {
             "bps": {
               "description": "Basis points.",
@@ -1200,34 +1148,30 @@
             },
             "type": {
               "type": "string",
-              "enum": [
-                "fixed_bps"
-              ]
+              "const": "fixed_bps"
             }
-          }
+          },
+          "required": [
+            "type",
+            "bps"
+          ]
         },
         {
           "description": "Slippage equal to the bid/ask spread (needs an order-book feed).",
           "type": "object",
-          "required": [
-            "type"
-          ],
           "properties": {
             "type": {
               "type": "string",
-              "enum": [
-                "spread"
-              ]
+              "const": "spread"
             }
-          }
+          },
+          "required": [
+            "type"
+          ]
         },
         {
           "description": "Linear price impact in the traded volume.",
           "type": "object",
-          "required": [
-            "coef",
-            "type"
-          ],
           "properties": {
             "coef": {
               "description": "Impact coefficient.",
@@ -1236,11 +1180,13 @@
             },
             "type": {
               "type": "string",
-              "enum": [
-                "volume_impact"
-              ]
+              "const": "volume_impact"
             }
-          }
+          },
+          "required": [
+            "type",
+            "coef"
+          ]
         }
       ]
     }

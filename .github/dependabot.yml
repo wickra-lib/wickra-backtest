@@ -20,14 +20,14 @@ updates:
       - dependency-name: "ureq"
         update-types: ["version-update:semver-major"]
       # schemars generates the committed StrategySpec schema, so ANY version
-      # change to it is a change to the public contract callers write against --
-      # not only the 1.x jump this originally held back. Verified twice by
-      # bumping it and watching strategy_spec_schema_is_committed fail: 1.2
-      # switches the JSON Schema draft, and 0.9 drifts as well, because for a
-      # 0.x crate cargo treats a minor as breaking while Dependabot classifies
-      # it as a minor update and proposes it straight through a major-only hold.
-      # So the hold is on the dependency, not on an update type. Lifting it is a
-      # deliberate migration: bump, rebless the schema, review the diff.
+      # change to it is a change to the public contract callers write against.
+      # The move from 0.8 to 1.x (0.1.9) was made that way: generate with
+      # SchemaSettings::draft07() so the draft stays, rebless, and prove the new
+      # schema describes the same specs (equal once enum[x]/const x, description
+      # whitespace and required order are normalised). The next version is the
+      # same deliberate step, so the hold stays on the dependency, not on an
+      # update type: Dependabot classifies a 0.x minor as a minor update and
+      # would propose it straight through a major-only hold.
       - dependency-name: "schemars"
     groups:
       # napi-rs (napi / napi-derive / napi-build) is a coordinated major
@@ -57,7 +57,7 @@ updates:
     # fuzz/Cargo.toml declares only libfuzzer-sys and two path dependencies, but
     # Dependabot follows those back into the root workspace -- so without these
     # this entry proposes changes to the root Cargo.toml that the entry above
-    # forbids, and it did: a schemars 1.x bump that breaks the committed
+    # forbids, and it did: a schemars bump that changes the committed
     # strategy-spec schema. The holds have to be stated wherever the manifest can
     # be reached from, not only where it is declared.
     ignore:

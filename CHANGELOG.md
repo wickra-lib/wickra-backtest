@@ -6,6 +6,40 @@ to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## [Unreleased]
 
+## [0.1.9] - 2026-09-27
+
+A maintenance release: the engine, its bindings and its results are unchanged.
+The strategy-spec schema moves to schemars 1.x and still describes exactly the
+specs it did.
+
+### Changed
+
+- **schemars 1.x generates the strategy-spec schema.** `schemars` moves from
+  0.8.22 to 1.2.2; `strategy_spec_schema()` asks for draft 07 explicitly, since
+  1.x would otherwise emit draft 2020-12 (`$defs`, `prefixItems`) and change the
+  contract editors and validators read. `schema/strategy_spec.schema.json` is
+  regenerated: it describes the same specs -- equal once the textual changes are
+  set aside, which are single-value `enum` written as `const`, descriptions
+  keeping the line breaks of their doc comments, and `required` in another
+  order. The shipped example specs agree with it
+  (`scripts/check_example_specs.py`). The Dependabot hold on schemars stays, with
+  its comment rewritten: the next version is the same deliberate step.
+- **The Node binding's build-tool tree matches the family.** The packages
+  `bindings/node/package-lock.json` holds only for `@napi-rs/cli` 3.10.4 are
+  resolved again, so every repository in the family builds with one identical
+  tree; the CLI itself, which generates the committed loader, stays.
+- **The READMEs show the organization's banner as vectors,** so its text stays
+  sharp at any width and zoom.
+
+### Fixed
+
+- **A release can be finished by a re-run once Maven Central has the bundle.**
+  The Java job looks the version up on repo1.maven.org before deploying and
+  skips the deploy when it is there, building the jar instead. Central can take
+  longer to publish than the plugin polls for; the deploy then fails after the
+  bundle was accepted, the jobs behind it -- build provenance and the GitHub
+  Release -- are skipped, and a re-run used to fail on the duplicate.
+
 ## [0.1.8] - 2026-09-23
 
 A maintenance release: the engine, its bindings and its results are unchanged.
@@ -1306,7 +1340,8 @@ It publishes the refreshed dependency tree and toolchain pins.
   floating major is accurate only until the tag moves, and then it silently
   becomes a false claim a reviewer has no way to spot.
 
-[Unreleased]: https://github.com/wickra-lib/wickra-backtest/compare/v0.1.8...HEAD
+[Unreleased]: https://github.com/wickra-lib/wickra-backtest/compare/v0.1.9...HEAD
+[0.1.9]: https://github.com/wickra-lib/wickra-backtest/compare/v0.1.8...v0.1.9
 [0.1.8]: https://github.com/wickra-lib/wickra-backtest/compare/v0.1.7...v0.1.8
 [0.1.7]: https://github.com/wickra-lib/wickra-backtest/compare/v0.1.6...v0.1.7
 [0.1.6]: https://github.com/wickra-lib/wickra-backtest/compare/v0.1.5...v0.1.6
