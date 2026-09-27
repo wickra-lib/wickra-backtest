@@ -62,9 +62,16 @@ pub fn version() -> &'static str {
 /// The JSON Schema for [`StrategySpec`], pretty-printed. Editors and tooling can
 /// validate strategy specs against it; the committed
 /// `schema/strategy_spec.schema.json` is generated from this.
+///
+/// Draft 07, stated rather than defaulted: schemars 1.x generates draft 2020-12
+/// unless told otherwise, and the draft is part of the contract editors and
+/// validators read -- `$defs` for `definitions`, `prefixItems` for tuple
+/// `items`. Kept on draft 07 the schema describes the same specs it always did.
 #[must_use]
 pub fn strategy_spec_schema() -> String {
-    let schema = schemars::schema_for!(StrategySpec);
+    let schema = schemars::generate::SchemaSettings::draft07()
+        .into_generator()
+        .into_root_schema_for::<StrategySpec>();
     serde_json::to_string_pretty(&schema).unwrap_or_default()
 }
 
