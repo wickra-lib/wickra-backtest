@@ -22,8 +22,8 @@ specs it did.
   set aside, which are single-value `enum` written as `const`, descriptions
   keeping the line breaks of their doc comments, and `required` in another
   order. The shipped example specs agree with it
-  (`scripts/check_example_specs.py`). The Dependabot hold on schemars stays, with
-  its comment rewritten: the next version is the same deliberate step.
+  (`scripts/check_example_specs.py`). The Dependabot hold on schemars stays,
+  with its comment rewritten: the next version is the same deliberate step.
 - **The Node binding's build-tool tree matches the family.** The packages
   `bindings/node/package-lock.json` holds only for `@napi-rs/cli` 3.10.4 are
   resolved again, so every repository in the family builds with one identical
