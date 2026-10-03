@@ -577,7 +577,7 @@ mod tests {
         // A clear up move then a reversal beyond the threshold yields segments.
         let candles = rising_closes(&[100.0, 103.0, 106.0, 109.0, 104.0, 99.0]);
         let bars = to_kagi(&candles, 3.0).unwrap();
-        assert!(!bars.is_empty());
+        assert_ne!(bars, Vec::new());
         // Every emitted bar is a valid candle (high >= low) with the edge prices.
         assert!(bars.iter().all(|b| b.high >= b.low));
     }
@@ -590,7 +590,7 @@ mod tests {
             100.0, 101.0, 102.0, 103.0, 104.0, 105.0, 106.0, 105.0, 104.0, 103.0, 100.0,
         ]);
         let cols = to_pnf(&candles, 1.0, 3).unwrap();
-        assert!(!cols.is_empty());
+        assert_ne!(cols, Vec::new());
         // Every column is a valid candle, and the completed rising column opens
         // at its low edge and closes at its high edge.
         assert!(cols.iter().all(|c| c.high >= c.low));

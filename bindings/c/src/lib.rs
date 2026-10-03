@@ -589,7 +589,7 @@ mod tests {
     fn version_is_nul_terminated() {
         let p = wickra_backtest_version();
         let s = unsafe { CStr::from_ptr(p).to_str().unwrap() };
-        assert!(!s.is_empty());
+        assert_ne!(s, "");
     }
 
     #[test]
@@ -926,7 +926,7 @@ mod tests {
         assert!(!err.is_null());
         let msg = unsafe { CStr::from_ptr(err).to_str().unwrap().to_string() };
         unsafe { wickra_backtest_free_string(err) };
-        assert!(!msg.is_empty());
+        assert_ne!(msg, "");
     }
 
     /// A null handle is a caller mistake, not a crash: every entry point that can

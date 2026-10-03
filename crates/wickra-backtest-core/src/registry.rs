@@ -3349,6 +3349,6 @@ mod tests {
         let mut sma = build("Sma", &[2.0]).unwrap();
         sma.update(&input(&candle(10.0, 10.0, 10.0)));
         sma.update(&input(&candle(20.0, 20.0, 20.0)));
-        assert!(sma.fields().is_empty());
+        assert_eq!(sma.fields(), Vec::new());
     }
 }

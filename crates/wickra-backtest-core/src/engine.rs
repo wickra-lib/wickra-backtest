@@ -1798,7 +1798,7 @@ mod tests {
             bar(1, 11.0, 11.0, 11.0, 11.0),
         ];
         let r = run(&spec, &candles).unwrap();
-        assert!(r.trades.is_empty());
+        assert_eq!(r.trades, Vec::new());
     }
 
     #[test]
@@ -1918,7 +1918,7 @@ mod tests {
             .collect();
         let r = run(&spec, &candles).unwrap();
         // Once `lookback` bars of history exist, a vol-targeted position is taken.
-        assert!(!r.trades.is_empty());
+        assert_ne!(r.trades, Vec::new());
         assert!(r.trades[0].qty > 0.0);
     }
 
@@ -2072,7 +2072,7 @@ mod tests {
             bar(2, 100.0, 102.0, 100.0, 101.0), // low never reaches 99
         ];
         let r = run_with_capital(&spec, &candles, 10_000.0).unwrap();
-        assert!(r.trades.is_empty());
+        assert_eq!(r.trades, Vec::new());
     }
 
     #[test]
