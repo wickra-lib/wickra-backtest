@@ -153,7 +153,7 @@ fn run_writes_every_output_file_it_is_given() {
             serde_json::from_str::<serde_json::Value>(line).unwrap();
         }
     }
-    assert!(!std::fs::read_to_string(&equity).unwrap().is_empty());
+    assert_ne!(std::fs::read_to_string(&equity).unwrap(), "");
 }
 
 #[test]
