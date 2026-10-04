@@ -49,7 +49,7 @@ jobs:
       # The CodSpeed action installs its own runner but not this, and
       # taiki-e/install-action has no entry for it, so it comes via binstall --
       # a prebuilt download rather than a five-minute compile of a build tool.
-      - uses: taiki-e/install-action@4cef1412cce204788f482e778a0b9187f9626a29 # v2.87.21
+      - uses: taiki-e/install-action@9983c65e42da123ff25d1f78505eb6de315aa172 # v2.87.20
         with:
           tool: cargo-binstall
       - name: Install cargo-codspeed
