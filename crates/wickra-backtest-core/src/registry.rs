@@ -2041,9 +2041,12 @@ pub fn build(kind: &str, params: &[f64]) -> Result<Box<dyn EvalIndicator>> {
             kind,
             wc::SpreadBollingerBands::new(p(0)?, float_param(params, 1, kind)?),
         )?))),
+        // CryptoQuant's ratio is open interest over the exchange's coin reserve,
+        // which no DerivativesTick carries: the bar close is the open interest
+        // and the reference series the exchange reserve.
+        "EstimatedLeverageRatio" => Ok(Box::new(PairClose(wc::EstimatedLeverageRatio::new()))),
         // --- derivatives indicators, fed the bar's DerivativesTick ---
         "CalendarSpread" => Ok(Box::new(DerivativesIn(wc::CalendarSpread::new()))),
-        "EstimatedLeverageRatio" => Ok(Box::new(DerivativesIn(wc::EstimatedLeverageRatio::new()))),
         "FundingBasis" => Ok(Box::new(DerivativesIn(wc::FundingBasis::new()))),
         "FundingImpliedApr" => Ok(Box::new(DerivativesIn(map_new(
             kind,
@@ -2290,7 +2293,7 @@ pub fn feed_of(kind: &str) -> Option<Feed> {
         "EmpiricalModeDecomposition" => Some(Feed::Kline),
         "Engulfing" => Some(Feed::Kline),
         "Equivolume" => Some(Feed::Kline),
-        "EstimatedLeverageRatio" => Some(Feed::Derivatives),
+        "EstimatedLeverageRatio" => Some(Feed::Kline),
         "EvenBetterSinewave" => Some(Feed::Kline),
         "EveningDojiStar" => Some(Feed::Kline),
         "Evwma" => Some(Feed::Kline),
