@@ -6,8 +6,8 @@ abstract: >-
   core. A strategy is a JSON spec, so the same strategy runs identically across
   ten languages and a backtest matches a live run by construction.
 type: software
-version: "0.1.9"
-date-released: "2026-09-27"
+version: "0.2.0"
+date-released: "2026-10-06"
 authors:
   - alias: kingchenc
     website: "https://wickra.org"

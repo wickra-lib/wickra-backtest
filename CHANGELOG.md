@@ -6,6 +6,24 @@ to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## [Unreleased]
 
+## [0.2.0] - 2026-10-06
+
+Built on wickra 2.0, the formula-audit release of the indicator core. The
+indicators wickra corrected compute their published definitions in strategies
+too; a spec that uses none of them backtests exactly as before.
+
+### Changed
+
+- **wickra-core 2.0.** The indicators the audit corrected -- among them Keltner,
+  Psar / SarExt, Rvi, Inertia, Kvo, the Hilbert family and MAMA, the DeMark and
+  candlestick patterns -- return the values of their published definitions.
+  wickra's changelog lists every one, with the warmup changes and new defaults.
+- **`EstimatedLeverageRatio` is a pair indicator.** wickra-core 2.0 computes
+  CryptoQuant's ratio from open interest and the exchange's coin reserve, which
+  no derivatives tick carries. The registry feeds it like the other pair
+  indicators: the bar close is the open interest, the reference series the
+  exchange reserve.
+
 ## [0.1.9] - 2026-09-27
 
 A maintenance release: the engine, its bindings and its results are unchanged.
@@ -1340,7 +1358,8 @@ It publishes the refreshed dependency tree and toolchain pins.
   floating major is accurate only until the tag moves, and then it silently
   becomes a false claim a reviewer has no way to spot.
 
-[Unreleased]: https://github.com/wickra-lib/wickra-backtest/compare/v0.1.9...HEAD
+[Unreleased]: https://github.com/wickra-lib/wickra-backtest/compare/v0.2.0...HEAD
+[0.2.0]: https://github.com/wickra-lib/wickra-backtest/compare/v0.1.9...v0.2.0
 [0.1.9]: https://github.com/wickra-lib/wickra-backtest/compare/v0.1.8...v0.1.9
 [0.1.8]: https://github.com/wickra-lib/wickra-backtest/compare/v0.1.7...v0.1.8
 [0.1.7]: https://github.com/wickra-lib/wickra-backtest/compare/v0.1.6...v0.1.7
