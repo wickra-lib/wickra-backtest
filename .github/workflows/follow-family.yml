@@ -1,0 +1,45 @@
+name: Follow the family
+
+# When a wickra-* crate this repository depends on is released, move the lock
+# (and any exact pin) to it and open a pull request that merges itself once the
+# required checks pass. The release happens in another repository, so a daily
+# schedule is what notices it -- the same pull model as the sites'
+# sync-from-*.yml. Nothing crosses a major or a 0.x minor; that stays a
+# person's change. The logic is wickra-lib/.github's actions/follow-family; the
+# wickra-lib-bot token signs the commit and, unlike GITHUB_TOKEN, starts the
+# pull request's CI and main's workflows after the merge.
+on:
+  schedule:
+    - cron: "0 7 * * *"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: follow-family
+  cancel-in-progress: false
+
+jobs:
+  follow:
+    name: Follow family releases
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - name: Mint a wickra-lib-bot token for this repository
+        id: app
+        uses: actions/create-github-app-token@bcd2ba49218906704ab6c1aa796996da409d3eb1 # v3.2.0
+        with:
+          app-id: ${{ secrets.WICKRA_BOT_APP_ID }}
+          private-key: ${{ secrets.WICKRA_BOT_PRIVATE_KEY }}
+          permission-contents: write
+          permission-pull-requests: write
+      - name: Move to new family releases
+        uses: wickra-lib/.github/actions/follow-family@782bf3d7a8edb80ada87dc7ba9067e2bf5752710 # v1.0.0
+        with:
+          token: ${{ steps.app.outputs.token }}
+          locks: "."
+          automerge: "true"
