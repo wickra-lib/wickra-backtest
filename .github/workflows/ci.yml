@@ -173,23 +173,36 @@ jobs:
       - name: The example specs agree with the published schema
         run: python3 scripts/check_example_specs.py
 
-  # An early heads-up on a broken link in a pull request. Deliberately
-  # non-blocking: external link rot is non-deterministic, and a third-party site
-  # rate-limiting must never fail someone's PR. The authoritative run is the
-  # weekly schedule in links.yml.
+  # Advisory heads-up on link rot in the change itself; the weekly links.yml is
+  # the full sweep. It can never turn a commit red: lychee runs with
+  # continue-on-error on the step, so a dead link -- or one that resolves only
+  # after the release, like the tag a CHANGELOG compare link names -- becomes a
+  # warning annotation and a line in the job summary, which main_status lists.
+  # A job-level continue-on-error would not do: the check run still concludes
+  # `failure`, the commit shows red and a release gate reading check runs stops.
   links:
     name: External links (non-blocking)
     runs-on: ubuntu-latest
-    continue-on-error: true
     timeout-minutes: 10
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           persist-credentials: false
       - uses: lycheeverse/lychee-action@e7477775783ea5526144ba13e8db5eec57747ce8 # v2.9.0
+        id: lychee
+        continue-on-error: true
+        timeout-minutes: 8
         with:
           args: --config lychee.toml --no-progress --root-dir "${{ github.workspace }}" "*.md" "bindings/*/README.md"
           fail: true
+      - name: Report broken links as warnings
+        if: steps.lychee.outcome == 'failure'
+        run: |
+          if [ -f lychee/out.md ]; then
+            grep -E '^\* \[' lychee/out.md | head -n 30 \
+              | sed -e 's/%/%25/g' -e 's/^\* /::warning title=Broken link::/' || true
+          fi
+          echo "::warning title=Broken links::lychee did not pass; the job summary lists every finding"
 
   supply-chain:
     name: cargo-deny + osv-scanner
