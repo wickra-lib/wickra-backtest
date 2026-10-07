@@ -34,7 +34,7 @@ env:
 jobs:
   benchmarks:
     name: Instrumented benchmarks
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-26.04
     timeout-minutes: 45 # backstop against a hung job, not a budget; builds the bench profile from source
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
