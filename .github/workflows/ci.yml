@@ -36,7 +36,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        os: [ubuntu-latest, windows-latest, macos-latest]
+        os: [ubuntu-26.04, windows-latest, macos-latest]
     runs-on: ${{ matrix.os }}
     timeout-minutes: 30 # backstop: cap a wedged job instead of GitHub's 6h default (headroom for slow registry/package installs)
     steps:
@@ -70,7 +70,7 @@ jobs:
 
   lint:
     name: Format & Clippy
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-26.04
     timeout-minutes: 30 # backstop: cap a wedged job instead of GitHub's 6h default (headroom for slow registry/package installs)
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
@@ -87,7 +87,7 @@ jobs:
 
   msrv:
     name: MSRV workspace (1.86)
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-26.04
     timeout-minutes: 30 # backstop: cap a wedged job instead of GitHub's 6h default (headroom for slow registry/package installs)
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
@@ -106,7 +106,7 @@ jobs:
 
   msrv-node:
     name: MSRV node binding (1.88)
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-26.04
     timeout-minutes: 30 # backstop: cap a wedged job instead of GitHub's 6h default (headroom for slow registry/package installs)
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
@@ -122,7 +122,7 @@ jobs:
 
   binding-surface:
     name: Binding surface parity
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-26.04
     timeout-minutes: 10 # a static check; if it is not done in ten minutes it is stuck
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
@@ -182,7 +182,7 @@ jobs:
   # `failure`, the commit shows red and a release gate reading check runs stops.
   links:
     name: External links (non-blocking)
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-26.04
     timeout-minutes: 10
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
@@ -206,7 +206,7 @@ jobs:
 
   supply-chain:
     name: cargo-deny + osv-scanner
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-26.04
     timeout-minutes: 30 # backstop: cap a wedged job instead of GitHub's 6h default (headroom for slow registry/package installs)
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
@@ -266,7 +266,7 @@ jobs:
       fail-fast: false
       matrix:
         manylinux: [auto, musllinux_1_2]
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-26.04
     timeout-minutes: 45 # backstop: builds the release profile inside a container
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
@@ -304,7 +304,7 @@ jobs:
           manylinux: ${{ matrix.manylinux }}
 
       # Building is half the claim. The wheel has to import, and for musllinux
-      # that can only be shown under musl -- ubuntu-latest is glibc, so a plain
+      # that can only be shown under musl -- ubuntu-26.04 is glibc, so a plain
       # pip install there would silently prove nothing about the artefact the
       # release publishes.
       - name: Import the wheel under glibc
@@ -320,7 +320,7 @@ jobs:
 
   semver:
     name: Semver compatibility
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-26.04
     timeout-minutes: 30 # backstop: cap a wedged job instead of GitHub's 6h default (headroom for slow registry/package installs)
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
@@ -344,15 +344,15 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        os: [ubuntu-latest, macos-latest, windows-latest]
+        os: [ubuntu-26.04, macos-latest, windows-latest]
         # abi3-py39 wheels ship for every version from 3.9 up, so the floor, the
         # current default and the newest each get a run rather than 3.12 alone.
         python-version: ["3.9", "3.11", "3.12", "3.13"]
-        # GitHub builds no Python 3.9 for Ubuntu 26.04, the image ubuntu-latest
+        # GitHub builds no Python 3.9 for Ubuntu 26.04, the image ubuntu-26.04
         # moves to from 2026-10-19 (3.9 is end-of-life), so the floor's Linux
-        # cell runs on ubuntu-24.04; the other cells follow ubuntu-latest.
+        # cell runs on ubuntu-24.04; the other cells follow ubuntu-26.04.
         exclude:
-          - os: ubuntu-latest
+          - os: ubuntu-26.04
             python-version: "3.9"
         include:
           - os: ubuntu-24.04
@@ -427,10 +427,10 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        os: [ubuntu-latest, macos-latest, windows-latest]
+        os: [ubuntu-26.04, macos-latest, windows-latest]
         go: ["stable"]
         include:
-          - os: ubuntu-latest
+          - os: ubuntu-26.04
             go: "1.23"
     runs-on: ${{ matrix.os }}
     timeout-minutes: 30 # backstop: cap a wedged job instead of GitHub's 6h default (headroom for slow registry/package installs)
@@ -515,7 +515,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        os: [ubuntu-latest, macos-latest, windows-latest]
+        os: [ubuntu-26.04, macos-latest, windows-latest]
         node-version: ["22", "24"]
     runs-on: ${{ matrix.os }}
     timeout-minutes: 30 # backstop: cap a wedged job instead of GitHub's 6h default (headroom for slow registry/package installs)
@@ -598,7 +598,7 @@ jobs:
 
   wasm:
     name: WASM build
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-26.04
     timeout-minutes: 30 # backstop: cap a wedged job instead of GitHub's 6h default (headroom for slow registry/package installs)
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
@@ -634,7 +634,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        os: [ubuntu-latest, macos-latest, windows-latest]
+        os: [ubuntu-26.04, macos-latest, windows-latest]
     runs-on: ${{ matrix.os }}
     timeout-minutes: 30 # backstop: cap a wedged job instead of GitHub's 6h default (headroom for slow registry/package installs)
     steps:
@@ -680,7 +680,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        os: [ubuntu-latest, macos-latest, windows-latest]
+        os: [ubuntu-26.04, macos-latest, windows-latest]
     runs-on: ${{ matrix.os }}
     timeout-minutes: 30 # backstop: cap a wedged job instead of GitHub's 6h default (headroom for slow registry/package installs)
     steps:
@@ -717,10 +717,10 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        os: [ubuntu-latest, macos-latest, windows-latest]
+        os: [ubuntu-26.04, macos-latest, windows-latest]
         java: ["25"]
         include:
-          - os: ubuntu-latest
+          - os: ubuntu-26.04
             java: "22"
     runs-on: ${{ matrix.os }}
     timeout-minutes: 30 # backstop: cap a wedged job instead of GitHub's 6h default (headroom for slow registry/package installs)
@@ -759,7 +759,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        os: [ubuntu-latest, macos-latest, windows-latest]
+        os: [ubuntu-26.04, macos-latest, windows-latest]
     runs-on: ${{ matrix.os }}
     timeout-minutes: 30 # backstop: cap a wedged job instead of GitHub's 6h default (headroom for slow registry/package installs)
     env:
@@ -825,7 +825,7 @@ jobs:
       # from the tarball is precisely what r-universe does. Ubuntu only; the
       # checks are platform-independent and the package has no vignettes.
       - name: R CMD check, the way r-universe will
-        if: matrix.os == 'ubuntu-latest'
+        if: matrix.os == 'ubuntu-26.04'
         shell: bash
         run: |
           # No path normalisation: this step is Ubuntu-only, where
@@ -853,7 +853,7 @@ jobs:
 
   coverage:
     name: Coverage
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-26.04
     timeout-minutes: 30 # backstop: cap a wedged job instead of GitHub's 6h default (headroom for slow registry/package installs)
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
@@ -889,7 +889,7 @@ jobs:
 
   fuzz-smoke:
     name: Fuzz (smoke)
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-26.04
     timeout-minutes: 30 # backstop: cap a wedged job instead of GitHub's 6h default (headroom for slow registry/package installs)
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
@@ -965,7 +965,7 @@ jobs:
       - r
       - coverage
       - fuzz-smoke
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-26.04
     timeout-minutes: 5
     permissions: {}
     steps:
