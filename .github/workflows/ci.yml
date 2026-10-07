@@ -348,6 +348,15 @@ jobs:
         # abi3-py39 wheels ship for every version from 3.9 up, so the floor, the
         # current default and the newest each get a run rather than 3.12 alone.
         python-version: ["3.9", "3.11", "3.12", "3.13"]
+        # GitHub builds no Python 3.9 for Ubuntu 26.04, the image ubuntu-latest
+        # moves to from 2026-10-19 (3.9 is end-of-life), so the floor's Linux
+        # cell runs on ubuntu-24.04; the other cells follow ubuntu-latest.
+        exclude:
+          - os: ubuntu-latest
+            python-version: "3.9"
+        include:
+          - os: ubuntu-24.04
+            python-version: "3.9"
     runs-on: ${{ matrix.os }}
     timeout-minutes: 30 # backstop: cap a wedged job instead of GitHub's 6h default (headroom for slow registry/package installs)
     steps:
