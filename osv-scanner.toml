@@ -9,7 +9,67 @@
 # files, so the tool that never heard about it keeps reporting -- and Scorecard's
 # Vulnerabilities check reads the OSV side, which is the one that costs points.
 #
-# There are currently no suppressed advisories, on either side. Add an
-# [[IgnoredVulns]] entry here (with an `id` and a `reason`) only after assessing
-# that the advisory does not affect this project, and add the matching `ignore`
-# entry to deny.toml in the same commit.
+# Add an [[IgnoredVulns]] entry here (with an `id` and a `reason`) only after
+# assessing that the advisory does not affect this project, and add the matching
+# `ignore` entry to deny.toml in the same commit.
+
+# zstd, through parquet 59 (the optional `parquet` stack): parquet depends on
+# zstd with default features off and calls nothing but the `zstd::bulk` API --
+# one-shot `compress2` / `decompress` with a compression level. zstd runs with
+# no features and zstd-safe with only `std`, so the `experimental`, `seekable`,
+# `zstdmt`, `zdict_builder` and `legacy` code paths are not compiled. The fixes
+# need zstd 0.14.3 and zstd-safe 8.2.0, which parquet 59 cannot take (`zstd
+# ^0.13`); parquet 60 takes them and requires Rust 1.88. Remove these with the
+# move to parquet 60. RUSTSEC-2026-0410 (zstd-sys) is fixed in the lock: 2.1.2
+# fits zstd-safe 7.
+[[IgnoredVulns]]
+id = "RUSTSEC-2026-0391"
+reason = "zstd stream encoders/decoders built with_context; parquet 59 uses only the zstd::bulk API, never a stream or with_context. Remove with parquet 60."
+
+[[IgnoredVulns]]
+id = "RUSTSEC-2026-0395"
+reason = "CParameter::StableInBuffer needs zstd-safe's `experimental` feature, which is off (zstd-safe has only `std`); parquet sets only CompressionLevel. Remove with parquet 60."
+
+[[IgnoredVulns]]
+id = "RUSTSEC-2026-0396"
+reason = "Seekable seek-table reads need the `seekable` feature, which is off (zstd-safe has only `std`). Remove with parquet 60."
+
+[[IgnoredVulns]]
+id = "RUSTSEC-2026-0397"
+reason = "OutBuffer::around_pos is called only by zstd's streaming code; parquet uses only the zstd::bulk API, whose compress2/decompress write through WriteBuf::write_from. Remove with parquet 60."
+
+[[IgnoredVulns]]
+id = "RUSTSEC-2026-0398"
+reason = "Seekable::decompress needs the `seekable` feature, which is off (zstd-safe has only `std`). Remove with parquet 60."
+
+[[IgnoredVulns]]
+id = "RUSTSEC-2026-0399"
+reason = "CCtx::init_using_cdict / DCtx::init_using_ddict need the `experimental` feature, which is off (zstd-safe has only `std`). Remove with parquet 60."
+
+[[IgnoredVulns]]
+id = "RUSTSEC-2026-0400"
+reason = "a one-shot call on a context with an unfinished stream; parquet's zstd::bulk contexts only ever run one-shot calls, never a stream. Remove with parquet 60."
+
+[[IgnoredVulns]]
+id = "RUSTSEC-2026-0401"
+reason = "train_from_buffer trains a dictionary; nothing in this graph trains one, and the `zdict_builder` feature is off (zstd-safe has only `std`). Remove with parquet 60."
+
+[[IgnoredVulns]]
+id = "RUSTSEC-2026-0402"
+reason = "CCtx::try_clone needs the `experimental` feature and a `zstdmt` context, both off (zstd-safe has only `std`). Remove with parquet 60."
+
+[[IgnoredVulns]]
+id = "RUSTSEC-2026-0403"
+reason = "DCtx::decompress_stream on a failing legacy frame; parquet 59 uses only the zstd::bulk API, and the `legacy` feature is off (zstd runs with no features). Remove with parquet 60."
+
+[[IgnoredVulns]]
+id = "RUSTSEC-2026-0404"
+reason = "DCtx::try_clone needs the `experimental` feature, which is off (zstd-safe has only `std`). Remove with parquet 60."
+
+[[IgnoredVulns]]
+id = "RUSTSEC-2026-0405"
+reason = "SeekableCStream::compress_stream needs the `seekable` feature, which is off (zstd-safe has only `std`). Remove with parquet 60."
+
+[[IgnoredVulns]]
+id = "RUSTSEC-2026-0406"
+reason = "an unfinished multithreaded frame needs CParameter::NbWorkers on a C library built with `zstdmt`, which is off (zstd-safe has only `std`); parquet sets only CompressionLevel. Remove with parquet 60."
