@@ -11,11 +11,23 @@ all-features = true
 [advisories]
 version = 2
 yanked = "deny"
-# No advisory is currently suppressed. An entry here must be mirrored in
-# osv-scanner.toml with the same reasoning: the two files are read by different
-# tools, so an advisory suppressed in only one is not suppressed at all, and
-# Scorecard's Vulnerabilities check reads the OSV side.
-ignore = []
+# Every entry here is mirrored in osv-scanner.toml with the same reasoning: the
+# two files are read by different tools, so an advisory suppressed in only one is
+# not suppressed at all, and Scorecard's Vulnerabilities check reads the OSV side.
+#
+# The three zstd entries: zstd reaches this graph only through parquet 59 (the
+# optional `parquet` stack), which depends on zstd with default features off and
+# calls nothing but the `zstd::bulk` API -- `cargo tree -e features` shows no zstd
+# feature at all and only `std` on zstd-safe. Fixes exist only in zstd 0.14.3 and
+# zstd-safe 8.2.0, which parquet 59 cannot take (`zstd ^0.13`, still so in
+# 59.3.2); parquet 60 takes them and requires Rust 1.88. Remove these three
+# entries with the move to parquet 60. zstd-sys's own advisory
+# (RUSTSEC-2026-0410) is fixed in the lock instead: 2.1.2 fits zstd-safe 7.
+ignore = [
+    { id = "RUSTSEC-2026-0391", reason = "zstd stream encoders/decoders built with_context; parquet 59 uses only the zstd::bulk API, never a stream or with_context. Remove with parquet 60." },
+    { id = "RUSTSEC-2026-0398", reason = "zstd-safe Seekable::decompress; needs the `seekable` feature, which nothing in this graph enables (zstd-safe has only `std`). Remove with parquet 60." },
+    { id = "RUSTSEC-2026-0403", reason = "zstd-safe DCtx::decompress_stream on a failing legacy frame; parquet 59 uses only the zstd::bulk API, and the `legacy` feature is off (zstd runs with no features). Remove with parquet 60." },
+]
 
 [licenses]
 version = 2
