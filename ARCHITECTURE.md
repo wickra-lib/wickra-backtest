@@ -78,8 +78,8 @@ single code path is why a backtest equals a live run.
 - **Order routing and execution.** The engine computes; it opens no sockets,
   places no orders and holds no keys. The streaming API is the seam where a live
   bot attaches, and that bot is the caller's.
-- **Indicators.** They live in `wickra-core`. This repository wraps 495 of them
-  behind one object-safe interface and never reimplements one, which is what
+- **Indicators.** They live in `wickra-core`. This repository wraps 495
+  backtestable indicators behind one object-safe interface and never reimplements one, which is what
   keeps a backtested value identical to a live one.
 - **Parameter search.** Optimisation, walk-forward and cross-validation are
   loops *around* a backtest. The engine is the inner loop and is deliberately
