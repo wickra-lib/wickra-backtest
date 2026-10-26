@@ -6,6 +6,23 @@ to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## [Unreleased]
 
+### Security
+
+- **zstd-sys 2.1.2.** RUSTSEC-2026-0410: on wasm32 the allocator shim zstd-sys
+  hands the C library did not check for allocation failure and wrote decoded
+  data over the bottom of linear memory. The lock moves to the patched release;
+  nothing in the code changes.
+- **Thirteen zstd advisories assessed as not affecting this project**
+  (RUSTSEC-2026-0391, -0395 to -0406). zstd reaches the graph only through
+  parquet 59, which calls nothing but the `zstd::bulk` API -- one-shot
+  `compress2` / `decompress` -- with zstd's default features off, so zstd runs
+  with no features and zstd-safe with only `std`. The flaws sit in the stream
+  encoders and decoders, the `experimental`, `seekable`, `zstdmt` and
+  `zdict_builder` code paths, and legacy-frame streaming. The fixes need zstd
+  0.14 and zstd-safe 8, which parquet 59 cannot take; the exceptions in
+  `deny.toml` and `osv-scanner.toml` carry the reasoning per advisory and go
+  with the move to parquet 60.
+
 ## [0.2.0] - 2026-10-06
 
 Built on wickra 2.0, the formula-audit release of the indicator core. The
