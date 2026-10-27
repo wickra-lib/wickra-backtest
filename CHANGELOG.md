@@ -6,6 +6,16 @@ to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## [Unreleased]
 
+## [0.2.1] - 2026-10-28
+
+A maintenance release: the engine, its bindings and its results are unchanged.
+It ships the security fixes in the dependency tree.
+
+### Changed
+
+- **The ecosystem list quotes the backtest registry's count** (495) for the
+  products that resolve indicators through it, rather than the core's 514.
+
 ### Security
 
 - **zstd-sys 2.1.2.** RUSTSEC-2026-0410: on wasm32 the allocator shim zstd-sys
@@ -22,6 +32,14 @@ to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
   0.14 and zstd-safe 8, which parquet 59 cannot take; the exceptions in
   `deny.toml` and `osv-scanner.toml` carry the reasoning per advisory and go
   with the move to parquet 60.
+- **rustls 0.23.46** in the lockfile, for RUSTSEC-2026-0346 to RUSTSEC-2026-0349:
+  TLS secrets in the `Debug` output of client session values, application data
+  sent to the outer server after an ECH rejection, Brotli certificate
+  decompression allocating before authentication, and a ServerHello downgrade to
+  classical key exchange.
+- **rustls-webpki 0.103.16 and webpki-roots 1.0.10** in the lockfile, for
+  RUSTSEC-2026-0382 and RUSTSEC-2026-0381: certificates chaining through the
+  distrusted emSign intermediates are refused.
 
 ## [0.2.0] - 2026-10-06
 
@@ -1375,7 +1393,8 @@ It publishes the refreshed dependency tree and toolchain pins.
   floating major is accurate only until the tag moves, and then it silently
   becomes a false claim a reviewer has no way to spot.
 
-[Unreleased]: https://github.com/wickra-lib/wickra-backtest/compare/v0.2.0...HEAD
+[Unreleased]: https://github.com/wickra-lib/wickra-backtest/compare/v0.2.1...HEAD
+[0.2.1]: https://github.com/wickra-lib/wickra-backtest/compare/v0.2.0...v0.2.1
 [0.2.0]: https://github.com/wickra-lib/wickra-backtest/compare/v0.1.9...v0.2.0
 [0.1.9]: https://github.com/wickra-lib/wickra-backtest/compare/v0.1.8...v0.1.9
 [0.1.8]: https://github.com/wickra-lib/wickra-backtest/compare/v0.1.7...v0.1.8
