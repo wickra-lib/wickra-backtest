@@ -751,14 +751,32 @@ jobs:
       - name: Java info
         run: java -version
       - name: Test the Java binding
-        run: mvn -B -f bindings/java test
+        uses: nick-fields/retry@ad984534de44a9489a53aefd81eb77f87c70dc60 # v4.0.0
+        with:
+          timeout_minutes: 30
+          max_attempts: 2
+          retry_wait_seconds: 30
+          shell: bash
+          command: mvn -B -f bindings/java test
       # examples/java resolves org.wickra:wickra-backtest from the local Maven
       # repository, so the binding has to be installed before the example can
       # compile against it. The tests ran in the step above; skip them here.
       - name: Install the Java binding locally
-        run: mvn -B -f bindings/java install -DskipTests
+        uses: nick-fields/retry@ad984534de44a9489a53aefd81eb77f87c70dc60 # v4.0.0
+        with:
+          timeout_minutes: 30
+          max_attempts: 2
+          retry_wait_seconds: 30
+          shell: bash
+          command: mvn -B -f bindings/java install -DskipTests
       - name: Run the Java example
-        run: mvn -B -f examples/java compile exec:exec
+        uses: nick-fields/retry@ad984534de44a9489a53aefd81eb77f87c70dc60 # v4.0.0
+        with:
+          timeout_minutes: 30
+          max_attempts: 2
+          retry_wait_seconds: 30
+          shell: bash
+          command: mvn -B -f examples/java compile exec:exec
 
   r:
     name: R on ${{ matrix.os }}

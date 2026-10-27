@@ -130,7 +130,13 @@ jobs:
 
       - name: Build the Java binding
         if: matrix.language == 'java-kotlin'
-        run: mvn -B -f bindings/java compile
+        uses: nick-fields/retry@ad984534de44a9489a53aefd81eb77f87c70dc60 # v4.0.0
+        with:
+          timeout_minutes: 30
+          max_attempts: 2
+          retry_wait_seconds: 30
+          shell: bash
+          command: mvn -B -f bindings/java compile
 
       # `go build ./...` at the repo root finds no go.mod -- the module lives
       # under bindings/go, and examples/go is a second module that has to be
