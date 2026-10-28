@@ -13,6 +13,10 @@ It ships the security fixes in the dependency tree.
 
 ### Changed
 
+- **Built on wickra-core 2.1.0.** The lock takes the indicator core's minor
+  release; the `2.0` requirement already admitted it. It adds `RunningDrawdown`
+  and updates `MaxDrawdown` in amortised O(1) with the same values; nothing here
+  computes differently.
 - **The ecosystem list quotes the backtest registry's count** (495) for the
   products that resolve indicators through it, rather than the core's 514.
 
