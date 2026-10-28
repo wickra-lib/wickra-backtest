@@ -3,13 +3,13 @@
 ## Supported versions
 
 This project is pre-1.0 (alpha). Security fixes are applied to the latest
-released version, `0.2.0`, only; please upgrade to the newest release before
+released version, `0.2.1`, only; please upgrade to the newest release before
 reporting an issue.
 
 | Version | Supported |
 |---------|-----------|
-| 0.2.0 (latest) | ✅ |
-| < 0.2.0 | ❌ |
+| 0.2.1 (latest) | ✅ |
+| < 0.2.1 | ❌ |
 
 ## Reporting a vulnerability
 
