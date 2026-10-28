@@ -20,6 +20,14 @@ It ships the security fixes in the dependency tree.
 - **The ecosystem list quotes the backtest registry's count** (495) for the
   products that resolve indicators through it, rather than the core's 514.
 
+### Fixed
+
+- **`central-publishing-maven-plugin` 0.12.0** for the Java binding. Since
+  early October the GitHub runners carry Maven 3.10.0, which writes
+  `maven-metadata-local.xml` and `_remote.repositories` into the staging
+  directory; 0.11.0 bundles them, and Central rejects the deployment with
+  "Bundle has content that does NOT have a .pom file".
+
 ### Security
 
 - **zstd-sys 2.1.2.** RUSTSEC-2026-0410: on wasm32 the allocator shim zstd-sys
