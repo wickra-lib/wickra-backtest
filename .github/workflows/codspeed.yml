@@ -43,7 +43,7 @@ jobs:
         with:
           persist-credentials: false
       - uses: ./.github/actions/setup-rust
-      - uses: Swatinem/rust-cache@6323deb102c322ba6fcbdcafc7e3dddab59af2b6 # v2.9.2
+      - uses: Swatinem/rust-cache@d1527c8f67ef9af357290475d4af4b0fab8f12e0 # v2.9.3
         continue-on-error: true # cache is an optimisation; never block on a stuck/slow restore
         timeout-minutes: 6
 
@@ -51,7 +51,7 @@ jobs:
       # The CodSpeed action installs its own runner but not this, and
       # taiki-e/install-action has no entry for it, so it comes via binstall --
       # a prebuilt download rather than a five-minute compile of a build tool.
-      - uses: taiki-e/install-action@9983c65e42da123ff25d1f78505eb6de315aa172 # v2.87.20
+      - uses: taiki-e/install-action@1e29709c0ec63babbe8f266397a465f29a825f91 # v2.87.31
         with:
           tool: cargo-binstall
       - name: Install cargo-codspeed
@@ -68,7 +68,7 @@ jobs:
       # public. The organisation's secret inventory has no CodSpeed entry, so
       # naming one here would be a reference to something that does not exist.
       - name: Run the benchmarks under CodSpeed
-        uses: CodSpeedHQ/action@373d6868929f444bc08d901fd0eb0ad52a8875ea # v5.2.1
+        uses: CodSpeedHQ/action@78102a468f96d8e0ccb92d0ec49425753fc42062 # v5.6.0
         with:
           mode: simulation # required since v4; unset means the action fails outright
           run: cargo codspeed run

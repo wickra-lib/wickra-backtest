@@ -70,7 +70,7 @@ jobs:
         with:
           dotnet-version: "8.0.x"
 
-      - uses: actions/setup-java@de7274f081f381c8f8158605e0321c36c376e2e6 # v6.0.1
+      - uses: actions/setup-java@b843ebf9b913146b38da2eaa7aeddf76074ae1ad # v6.1.0
         if: matrix.language == 'java-kotlin'
         with:
           distribution: temurin
@@ -87,7 +87,7 @@ jobs:
       # not part of any of their databases -- build it here, before init.
       - uses: ./.github/actions/setup-rust
         if: matrix.build-mode == 'manual'
-      - uses: Swatinem/rust-cache@6323deb102c322ba6fcbdcafc7e3dddab59af2b6 # v2.9.2
+      - uses: Swatinem/rust-cache@d1527c8f67ef9af357290475d4af4b0fab8f12e0 # v2.9.3
         if: matrix.build-mode == 'manual'
         continue-on-error: true # cache is an optimisation; never block on a stuck/slow restore
         timeout-minutes: 6
@@ -107,7 +107,7 @@ jobs:
       # --- init -------------------------------------------------------------
 
       - name: Initialize CodeQL
-        uses: github/codeql-action/init@2892aa5e19bbd11bc0cff5427e3b750a04d9e3c2 # v4.38.2
+        uses: github/codeql-action/init@9b3254085494b55a0f7c4c2b3d2d52cc712ce370 # v4.39.1
         # Overlay (incremental) databases need `build-mode: none`. A traced build --
         # manual or autobuild -- cannot produce one, and the action then falls back
         # to a full database with a warning on every run. Turning overlay off for
@@ -157,6 +157,6 @@ jobs:
           cmake --build examples/c/build --config Release
 
       - name: Perform CodeQL analysis
-        uses: github/codeql-action/analyze@2892aa5e19bbd11bc0cff5427e3b750a04d9e3c2 # v4.38.2
+        uses: github/codeql-action/analyze@9b3254085494b55a0f7c4c2b3d2d52cc712ce370 # v4.39.1
         with:
           category: "/language:${{ matrix.language }}"

@@ -31,14 +31,14 @@ jobs:
           persist-credentials: false
       - name: Mint a wickra-lib-bot token for this repository
         id: app
-        uses: actions/create-github-app-token@bcd2ba49218906704ab6c1aa796996da409d3eb1 # v3.2.0
+        uses: actions/create-github-app-token@64ab729a6294000f5aa4a4bc0b73d1f32bc45510 # v3.3.0
         with:
           client-id: ${{ vars.WICKRA_BOT_CLIENT_ID }}
           private-key: ${{ secrets.WICKRA_BOT_PRIVATE_KEY }}
           permission-contents: write
           permission-pull-requests: write
       - name: Move to new family releases
-        uses: wickra-lib/.github/actions/follow-family@782bf3d7a8edb80ada87dc7ba9067e2bf5752710 # v1.0.0
+        uses: wickra-lib/.github/actions/follow-family@da1bd395c27f33dbed632c8e4e48e12f85394858 # v1.1.0
         with:
           token: ${{ steps.app.outputs.token }}
           locks: "."
