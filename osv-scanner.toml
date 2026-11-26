@@ -73,3 +73,7 @@ reason = "SeekableCStream::compress_stream needs the `seekable` feature, which i
 [[IgnoredVulns]]
 id = "RUSTSEC-2026-0406"
 reason = "an unfinished multithreaded frame needs CParameter::NbWorkers on a C library built with `zstdmt`, which is off (zstd-safe has only `std`); parquet sets only CompressionLevel. Remove with parquet 60."
+
+[[IgnoredVulns]]
+id = "RUSTSEC-2026-0543"
+reason = "chrono is flagged unmaintained, not vulnerable; it reaches this graph only through arrow-array in the optional parquet stack, and arrow has no chrono-free release. Remove when arrow drops it."

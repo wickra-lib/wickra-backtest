@@ -195,7 +195,8 @@ impl PyStreamingBacktest {
 }
 
 #[pymodule]
-fn _wickra_backtest(m: &Bound<'_, PyModule>) -> PyResult<()> {
+#[pyo3(name = "_wickra_backtest")]
+fn wickra_backtest_extension(m: &Bound<'_, PyModule>) -> PyResult<()> {
     m.add("__version__", env!("CARGO_PKG_VERSION"))?;
     m.add_function(wrap_pyfunction!(run, m)?)?;
     m.add_function(wrap_pyfunction!(run_json, m)?)?;
