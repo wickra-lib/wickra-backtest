@@ -6,6 +6,49 @@ to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## [Unreleased]
 
+## [0.2.2] - 2026-11-26
+
+A maintenance release: it follows wickra-core 2.2.0, builds on Rust 1.100 and Go 1.27, and
+ships the refreshed dependency tree.
+
+### Changed
+
+- **Built on wickra-core 2.2.0** (from 2.1.0). The lock takes the indicator
+  core's release; the caret requirement already admitted it. Saturated `Rsi` and
+  `StochRsi` values are now exactly 100 (and 0), and `TtmSqueeze` detrends its
+  momentum per bar, as the reference does, with a warmup of `2 * period - 1`;
+  anything here that runs those indicators can report different values with it.
+- **Third-party dependencies refreshed.** `Cargo.lock` takes 84 crates at their
+  latest releases within the declared ranges. The npm and Python dev locks are
+  re-resolved the same way. No manifest changed.
+- **Dependabot's monthly updates** (GitHub Actions, Cargo, Maven, npm, NuGet): 8
+  pull requests, each checked against the versions the rest of the family holds.
+- **CI and release workflow:** point osv-scanner at the Python lockfiles it was
+  silently skipping; use setup-java's *-env-var inputs.
+
+### Fixed
+
+- **Builds on Rust 1.100.** Its `clippy::used_underscore_items` fires on the
+  code `#[pymodule]` generates for an underscore-named module function. The
+  function has a plain name now and `#[pyo3(name = "_...")]` keeps the extension
+  module's import name unchanged.
+- **The Go binding links on Windows with Go 1.27,** which rejects
+  `-l:<name>.dll` in `#cgo LDFLAGS` as an invalid flag. It is `-l<name>` now;
+  the MinGW linker resolves that to the same DLL.
+
+### Security
+
+- **url 2.5.9** in the lockfile, for RUSTSEC-2026-0592: a stack overflow in
+  `Url::origin()` on nested `blob:` URLs.
+- **rustix 1.1.6** in the lockfile, for RUSTSEC-2026-0486: xattr functions
+  marked unwritten bytes as initialised when given a zero-length buffer.
+- **parquet 59.3.3** in the lockfile, for RUSTSEC-2026-0595: Bloom filters were
+  written as plaintext when writing encrypted Parquet.
+- **Assessed as not affecting this project:** RUSTSEC-2026-0543. chrono is
+  flagged unmaintained, not vulnerable; it reaches this graph only through
+  arrow-array in the optional parquet stack, and arrow has no chrono-free
+  release. Remove when arrow drops it.
+
 ## [0.2.1] - 2026-10-28
 
 A maintenance release: the engine, its bindings and its results are unchanged.
@@ -1405,7 +1448,8 @@ It publishes the refreshed dependency tree and toolchain pins.
   floating major is accurate only until the tag moves, and then it silently
   becomes a false claim a reviewer has no way to spot.
 
-[Unreleased]: https://github.com/wickra-lib/wickra-backtest/compare/v0.2.1...HEAD
+[Unreleased]: https://github.com/wickra-lib/wickra-backtest/compare/v0.2.2...HEAD
+[0.2.2]: https://github.com/wickra-lib/wickra-backtest/compare/v0.2.1...v0.2.2
 [0.2.1]: https://github.com/wickra-lib/wickra-backtest/compare/v0.2.0...v0.2.1
 [0.2.0]: https://github.com/wickra-lib/wickra-backtest/compare/v0.1.9...v0.2.0
 [0.1.9]: https://github.com/wickra-lib/wickra-backtest/compare/v0.1.8...v0.1.9
