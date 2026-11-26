@@ -39,6 +39,7 @@ ignore = [
     { id = "RUSTSEC-2026-0404", reason = "DCtx::try_clone needs the `experimental` feature, which is off (zstd-safe has only `std`). Remove with parquet 60." },
     { id = "RUSTSEC-2026-0405", reason = "SeekableCStream::compress_stream needs the `seekable` feature, which is off (zstd-safe has only `std`). Remove with parquet 60." },
     { id = "RUSTSEC-2026-0406", reason = "an unfinished multithreaded frame needs CParameter::NbWorkers on a C library built with `zstdmt`, which is off (zstd-safe has only `std`); parquet sets only CompressionLevel. Remove with parquet 60." },
+    { id = "RUSTSEC-2026-0543", reason = "chrono is flagged unmaintained, not vulnerable; it reaches this graph only through arrow-array in the optional parquet stack, and arrow has no chrono-free release. Remove when arrow drops it." },
 ]
 
 [licenses]
