@@ -6,8 +6,8 @@
 accept = [200, 206, 429, 502, 503, 504]
 
 # Retry transient failures.
-max_retries = 3
-retry_wait_time = 2
+max_retries = 4
+retry_wait_time = 30
 timeout = 20
 
 # Don't hammer hosts.
@@ -21,7 +21,7 @@ exclude_all_private = true
 
 
 # Exclude only what genuinely cannot be checked. Everything a release
-# published -- PyPI, pkg.go.dev, NuGet, Maven Central, r-universe, docs.rs --
+# published -- PyPI, pkg.go.dev, NuGet, Maven Central, docs.rs --
 # is checked once it answers rather than skipped forever by an exclusion
 # written for a repository that had published nothing. Loopback and private
 # addresses are handled by exclude_all_private above.
@@ -32,6 +32,10 @@ exclude = [
     # Excluded because the tool cannot see them, not because they are missing.
     "^https?://crates\\.io/crates/wickra-backtest",
     "^https?://www\\.npmjs\\.com/package/wickra-backtest",
+    # r-universe's HTML pages sit behind a Cloudflare challenge that answers
+    # 403 to every non-browser client; live in a browser, and the package
+    # state is read from r-universe's API, which is not challenged.
+    "^https?://wickra-lib\\.r-universe\\.dev",
     # The CHANGELOG's own reference links. The first release writes a
     # `releases/tag/vX` link and every one after it a `compare/vA...vB`; the
     # `[Unreleased]` link points at a tag too. All of them 404 between the
