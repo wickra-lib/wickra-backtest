@@ -6,6 +6,14 @@ to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## [Unreleased]
 
+### Changed
+
+- **CI caches the Maven repository with restore-keys.** setup-java's own
+  cache keyed on the pom alone, so every version bump started empty and
+  fetched every plugin from Maven Central again; in a release train that ran
+  into Central's 429 throttling. A changed pom now restores the previous
+  cache and downloads only what is new.
+
 ## [0.2.3] - 2026-11-27
 
 A release of the build and release pipeline; the library code is unchanged.
