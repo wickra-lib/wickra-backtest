@@ -34,14 +34,14 @@ Maven:
 <dependency>
   <groupId>org.wickra</groupId>
   <artifactId>wickra-backtest</artifactId>
-  <version>0.2.2</version>
+  <version>0.2.3</version>
 </dependency>
 ```
 
 Gradle:
 
 ```kotlin
-implementation("org.wickra:wickra-backtest:0.2.2")
+implementation("org.wickra:wickra-backtest:0.2.3")
 ```
 
 The native library ships prebuilt per platform inside the jar and is
