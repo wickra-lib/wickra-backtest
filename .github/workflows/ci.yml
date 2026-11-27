@@ -4,6 +4,7 @@ on:
   push:
     branches: [main]
   pull_request:
+    types: [opened, synchronize, reopened, ready_for_review]
     branches: [main]
 
 permissions:
@@ -32,6 +33,7 @@ env:
 
 jobs:
   test:
+    if: ${{ !github.event.pull_request.draft }}
     name: Test (${{ matrix.os }})
     strategy:
       fail-fast: false
@@ -69,6 +71,7 @@ jobs:
       - run: cargo run -p wickra-backtest-examples
 
   lint:
+    if: ${{ !github.event.pull_request.draft }}
     name: Format & Clippy
     runs-on: ubuntu-latest
     timeout-minutes: 30 # backstop: cap a wedged job instead of GitHub's 6h default (headroom for slow registry/package installs)
@@ -86,6 +89,7 @@ jobs:
       - run: cargo clippy --workspace --all-targets --all-features -- -D warnings
 
   msrv:
+    if: ${{ !github.event.pull_request.draft }}
     name: MSRV workspace (1.86)
     runs-on: ubuntu-latest
     timeout-minutes: 30 # backstop: cap a wedged job instead of GitHub's 6h default (headroom for slow registry/package installs)
@@ -105,6 +109,7 @@ jobs:
       - run: cargo build --workspace --exclude wickra-backtest-python --exclude wickra-backtest-node
 
   msrv-node:
+    if: ${{ !github.event.pull_request.draft }}
     name: MSRV node binding (1.88)
     runs-on: ubuntu-latest
     timeout-minutes: 30 # backstop: cap a wedged job instead of GitHub's 6h default (headroom for slow registry/package installs)
@@ -121,6 +126,7 @@ jobs:
       - run: cargo build -p wickra-backtest-node
 
   binding-surface:
+    if: ${{ !github.event.pull_request.draft }}
     name: Binding surface parity
     runs-on: ubuntu-latest
     timeout-minutes: 10 # a static check; if it is not done in ten minutes it is stuck
@@ -181,6 +187,7 @@ jobs:
   # A job-level continue-on-error would not do: the check run still concludes
   # `failure`, the commit shows red and a release gate reading check runs stops.
   links:
+    if: ${{ !github.event.pull_request.draft }}
     name: External links (non-blocking)
     runs-on: ubuntu-latest
     timeout-minutes: 10
@@ -205,6 +212,7 @@ jobs:
           echo "::warning title=Broken links::lychee did not pass; the job summary lists every finding"
 
   supply-chain:
+    if: ${{ !github.event.pull_request.draft }}
     name: cargo-deny + osv-scanner
     runs-on: ubuntu-latest
     timeout-minutes: 30 # backstop: cap a wedged job instead of GitHub's 6h default (headroom for slow registry/package installs)
@@ -275,6 +283,7 @@ jobs:
   # produces actually imports under musl, which is a different libc, not a
   # different flag.
   python-wheel-container-smoke:
+    if: ${{ !github.event.pull_request.draft }}
     name: Linux wheel in ${{ matrix.manylinux }}
     strategy:
       fail-fast: false
@@ -333,6 +342,7 @@ jobs:
           docker run --rm -v "$PWD/bindings/python/dist:/dist:ro" python:3.11-alpine             sh -c "pip install --no-index --find-links /dist wickra-backtest                    && python -c \"import wickra_backtest as wbt; print(wbt.__name__, 'imported')\""
 
   semver:
+    if: ${{ !github.event.pull_request.draft }}
     name: Semver compatibility
     runs-on: ubuntu-latest
     timeout-minutes: 30 # backstop: cap a wedged job instead of GitHub's 6h default (headroom for slow registry/package installs)
@@ -354,6 +364,7 @@ jobs:
           cargo semver-checks check-release             -p wickra-backtest-core             -p wickra-backtest-data             -p wickra-backtest             -p wickra-backtest-cli
 
   python:
+    if: ${{ !github.event.pull_request.draft }}
     name: Python ${{ matrix.python-version }} on ${{ matrix.os }}
     strategy:
       fail-fast: false
@@ -437,6 +448,7 @@ jobs:
       - run: python examples/python/backtest.py
 
   go:
+    if: ${{ !github.event.pull_request.draft }}
     name: Go ${{ matrix.go }} on ${{ matrix.os }}
     strategy:
       fail-fast: false
@@ -525,6 +537,7 @@ jobs:
           go run .
 
   node:
+    if: ${{ !github.event.pull_request.draft }}
     name: Node ${{ matrix.node-version }} on ${{ matrix.os }}
     strategy:
       fail-fast: false
@@ -611,6 +624,7 @@ jobs:
             });'
 
   wasm:
+    if: ${{ !github.event.pull_request.draft }}
     name: WASM build
     runs-on: ubuntu-latest
     timeout-minutes: 30 # backstop: cap a wedged job instead of GitHub's 6h default (headroom for slow registry/package installs)
@@ -644,6 +658,7 @@ jobs:
         run: node examples/wasm/backtest.cjs
 
   c-abi:
+    if: ${{ !github.event.pull_request.draft }}
     name: C ABI on ${{ matrix.os }}
     strategy:
       fail-fast: false
@@ -696,6 +711,7 @@ jobs:
           ctest --test-dir examples/c/build -C Release --output-on-failure
 
   csharp:
+    if: ${{ !github.event.pull_request.draft }}
     name: C# on ${{ matrix.os }}
     strategy:
       fail-fast: false
@@ -733,6 +749,7 @@ jobs:
         run: dotnet pack bindings/csharp/Wickra.Backtest/Wickra.Backtest.csproj -c Release -o nupkg
 
   java:
+    if: ${{ !github.event.pull_request.draft }}
     name: Java ${{ matrix.java }} on ${{ matrix.os }}
     strategy:
       fail-fast: false
@@ -793,6 +810,7 @@ jobs:
           command: mvn -B -f examples/java compile exec:exec
 
   r:
+    if: ${{ !github.event.pull_request.draft }}
     name: R on ${{ matrix.os }}
     strategy:
       fail-fast: false
@@ -890,6 +908,7 @@ jobs:
           echo "R CMD check: clean."
 
   coverage:
+    if: ${{ !github.event.pull_request.draft }}
     name: Coverage
     runs-on: ubuntu-latest
     timeout-minutes: 30 # backstop: cap a wedged job instead of GitHub's 6h default (headroom for slow registry/package installs)
@@ -926,6 +945,7 @@ jobs:
           CODECOV_TOKEN: ${{ secrets.CODECOV_TOKEN }}
 
   fuzz-smoke:
+    if: ${{ !github.event.pull_request.draft }}
     name: Fuzz (smoke)
     runs-on: ubuntu-latest
     timeout-minutes: 30 # backstop: cap a wedged job instead of GitHub's 6h default (headroom for slow registry/package installs)
@@ -983,7 +1003,7 @@ jobs:
   # checks are left out on purpose -- an outside outage must not hold a merge.
   ci-ok:
     name: ci-ok
-    if: always()
+    if: ${{ !github.event.pull_request.draft && (always()) }}
     needs:
       - test
       - lint
