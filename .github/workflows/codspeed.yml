@@ -20,6 +20,7 @@ on:
       - "Cargo.lock"
       - ".github/workflows/codspeed.yml"
   pull_request:
+    types: [opened, synchronize, reopened, ready_for_review]
     branches: [main]
     paths: *bench-paths
 
@@ -33,6 +34,7 @@ env:
 
 jobs:
   benchmarks:
+    if: ${{ !github.event.pull_request.draft }}
     name: Instrumented benchmarks
     # CodSpeed ships valgrind for Ubuntu 22.04/24.04 only ("Unsupported system" on
     # 26.04, CodSpeedHQ/runner#544), so this job stays off ubuntu-latest until then.

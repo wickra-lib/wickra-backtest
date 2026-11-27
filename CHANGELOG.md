@@ -25,6 +25,9 @@ to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 - **CI retries Maven Central's throttling** (429 and 5xx, eight times with a
   back-off of up to five minutes), and the link check skips r-universe's pages,
   which answer every non-browser client with a Cloudflare challenge.
+- **Draft pull requests start no CI.** Every job of the workflows that run
+  on pull requests skips a draft, and marking it ready for review starts
+  the full run.
 
 ## [0.2.2] - 2026-11-26
 
