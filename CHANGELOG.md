@@ -13,6 +13,9 @@ to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
   fetched every plugin from Maven Central again; in a release train that ran
   into Central's 429 throttling. A changed pom now restores the previous
   cache and downloads only what is new.
+- **A draft pull request cannot be merged by accident.** The ci-ok gate
+  now runs on a draft and fails there; skipped, it counted as passed and let
+  auto-merge merge a draft the moment it was marked ready, before its CI ran.
 
 ## [0.2.3] - 2026-11-27
 
